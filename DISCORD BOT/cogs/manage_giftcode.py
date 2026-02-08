@@ -808,7 +808,10 @@ class ManageGiftCode(commands.Cog):
                         break
                     elif status in ["INVALID_CODE", "EXPIRED", "CDK_NOT_FOUND", "USAGE_LIMIT", "TIME_ERROR"]:
                         # Permanent failures - code itself is bad, not worth retrying
-                        self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - code is invalid/expired")
+                        if status == "TIME_ERROR":
+                            self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - Code is EXPIRED")
+                        else:
+                            self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - code is invalid/expired")
                         break
                     elif "RECHARGE_MONEY_VIP" in status or "VIP" in status:
                         # VIP/Purchase requirement - this code requires the player to have VIP or made purchases

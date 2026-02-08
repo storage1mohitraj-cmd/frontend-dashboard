@@ -132,31 +132,44 @@ async def start_health_server():
         web.get('/status', handle_status),
     ])
 
+    # Determine if we are on Render (env var RENDER is usually set, or we can check others)
+    is_render = os.environ.get('RENDER') or os.environ.get('IS_RENDER')
+    
+    # Start on specified port, or search for available port if not on Render
+    target_port = port
+    max_retries = 1 if is_render else 10  # On Render, we MUST use the assigned PORT
+    
     runner = web.AppRunner(app)
-    try:
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', port)
+    await runner.setup()
+    
+    for i in range(max_retries):
         try:
+            current_port = target_port + i
+            site = web.TCPSite(runner, '0.0.0.0', current_port)
             await site.start()
-            logger.info(f'Health server started on port {port}')
-            logger.info(f'  - Health check: http://0.0.0.0:{port}/health (fast)')
-            logger.info(f'  - Status: http://0.0.0.0:{port}/status (detailed)')
+            
+            logger.info(f'Health server started on port {current_port}')
+            logger.info(f'  - Health check: http://0.0.0.0:{current_port}/health (fast)')
+            logger.info(f'  - Status: http://0.0.0.0:{current_port}/status (detailed)')
+            return current_port
+            
         except OSError as e:
-            # Port likely in use; log and return None so caller can continue
-            logger.warning(f"Health server could not bind to 0.0.0.0:{port}: {e}")
-            # Attempt to clean up runner
-            try:
-                await runner.cleanup()
-            except Exception:
-                pass
-            return None
-    except Exception as e:
-        logger.exception(f"Failed to start health server: {e}")
-        try:
-            await runner.cleanup()
-        except Exception:
-            pass
-        return None
+            if is_render:
+                # On Render, failing to bind to PORT is fatal
+                logger.error(f"Health server failed to bind to assigned PORT {current_port}: {e}")
+                raise e
+            else:
+                # Locally, try next port
+                logger.warning(f"Port {current_port} in use, trying next...")
+                continue
+    
+    # If we get here, we failed to bind to any port
+    logger.error(f"Coult not find any available port for health server (tried {max_retries} ports)")
+    try:
+        await runner.cleanup()
+    except Exception:
+        pass
+    return None
 
     # Keep running until canceled; aiohttp site runs in background on the loop
     return port

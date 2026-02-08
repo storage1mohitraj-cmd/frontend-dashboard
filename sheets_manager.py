@@ -96,7 +96,7 @@ class SheetsManager:
         """Initialize the Google Sheets service with credentials"""
         try:
             if not os.path.exists(self.creds_file):
-                logger.error(f"Credentials file not found: {self.creds_file}")
+                logger.warning(f"Credentials file not found: {self.creds_file} (Sheets features will be disabled)")
                 return
             
             # Create credentials from the service account file

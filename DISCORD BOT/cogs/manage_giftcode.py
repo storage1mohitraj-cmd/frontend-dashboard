@@ -121,6 +121,11 @@ class ManageGiftCode(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
+        
+        # Logger (must be initialized before CAPTCHA solver and schema migration)
+        self.logger = logging.getLogger('manage_giftcode')
+        self.logger.setLevel(logging.INFO)
+        
         self.giftcode_db = get_db_connection('giftcode.sqlite', check_same_thread=False)
         self.cursor = self.giftcode_db.cursor()
         self.settings_db = sqlite3.connect('db/settings.sqlite', check_same_thread=False)
@@ -150,10 +155,6 @@ class ManageGiftCode(commands.Cog):
                 self.logger.info("Schema migration successful.")
         except Exception as e:
             self.logger.error(f"Error checking/migrating schema: {e}")
-        
-        # Logger (must be initialized before CAPTCHA solver)
-        self.logger = logging.getLogger('manage_giftcode')
-        self.logger.setLevel(logging.INFO)
         
         # WOS API URLs and Key for gift code redemption
         self.wos_player_info_url = "https://wos-giftcode-api.centurygame.com/api/player"

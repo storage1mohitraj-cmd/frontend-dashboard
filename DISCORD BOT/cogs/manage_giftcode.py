@@ -138,6 +138,18 @@ class ManageGiftCode(commands.Cog):
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
         self.ssl_context.verify_mode = ssl.CERT_NONE
+
+        # Ensure schema is up to date (Migration for auto_redeem_processed)
+        try:
+            self.cursor.execute("PRAGMA table_info(gift_codes)")
+            columns = [col[1] for col in self.cursor.fetchall()]
+            if 'auto_redeem_processed' not in columns:
+                self.logger.info("Schema migration: Adding 'auto_redeem_processed' column to gift_codes table...")
+                self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN auto_redeem_processed INTEGER DEFAULT 0")
+                self.giftcode_db.commit()
+                self.logger.info("Schema migration successful.")
+        except Exception as e:
+            self.logger.error(f"Error checking/migrating schema: {e}")
         
         # Logger (must be initialized before CAPTCHA solver)
         self.logger = logging.getLogger('manage_giftcode')

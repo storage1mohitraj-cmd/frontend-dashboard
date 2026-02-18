@@ -1563,6 +1563,71 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error adding code {giftcode} to API: {e}")
             return False
     
+    
+    async def verify_code_with_game_api(self, guild_id, giftcode):
+        """
+        Verify a gift code by attempting to redeem it for a random member in the guild.
+        Returns: (is_valid, status_message, fid_used)
+        """
+        try:
+            # Get members for this guild
+            members = self.AutoRedeemDB.get_members(self, guild_id)
+            if not members:
+                return False, "NO_MEMBERS", None
+            
+            # Try up to 3 different members to verify
+            # Sort by furnace level to try active players first (more likely to be valid FIDs)
+            # But randomize slightly to avoid hitting same person always
+            import random
+            
+            # Filter for high level players first if available
+            high_level = [m for m in members if m.get('furnace_lv', 0) > 20]
+            candidates = high_level if high_level else members
+            
+            # Pick up to 3 random candidates to avoid getting stuck on a bad account
+            samples = random.sample(candidates, min(3, len(candidates)))
+            
+            for member in samples:
+                fid = member['fid']
+                nickname = member['nickname']
+                furnace_lv = member.get('furnace_lv', 0)
+                
+                self.logger.info(f"VERIFY: Testing code {giftcode} with member {nickname} ({fid})")
+                
+                # Attempt redemption
+                # We use _redeem_for_member but logic is slightly different - we just want status
+                # _redeem_for_member returns (status, success, already_redeemed, failed)
+                status, success, already_redeemed, failed = await self._redeem_for_member(
+                    guild_id, fid, nickname, furnace_lv, giftcode
+                )
+                
+                self.logger.info(f"VERIFY: Result for {nickname}: {status}")
+                
+                # Analyze status
+                if status == "SUCCESS":
+                    return True, "VALID_SUCCESS", fid
+                elif status == "ALREADY_RECEIVED":
+                    return True, "VALID_ALREADY_RECEIVED", fid
+                elif status == "SAME TYPE EXCHANGE":
+                    return True, "VALID_SAME_TYPE", fid
+                elif status == "CDK_NOT_FOUND":
+                    # This is a hard failure - code definitely invalid
+                    return False, "INVALID_CODE", fid
+                elif status == "EXPIRED":
+                    return False, "EXPIRED_CODE", fid
+                elif status == "TIME_ERROR":
+                     return False, "EXPIRED_CODE", fid
+                elif status == "USAGE_LIMIT":
+                     return False, "USAGE_LIMIT_REACHED", fid
+                
+                # If we get here (e.g. LOGIN_FAILED, CAPTCHA errors), try next member
+            
+            return False, "VERIFICATION_FAILED", None
+            
+        except Exception as e:
+            self.logger.error(f"Error verifying code {giftcode}: {e}")
+            return False, f"ERROR: {str(e)}", None
+
     @tasks.loop(seconds=60)  # Check every minute
     async def api_check_task(self):
         """Periodically check API for new gift codes"""
@@ -1821,16 +1886,16 @@ class ManageGiftCode(commands.Cog):
     
     async def process_existing_codes_on_startup(self):
         """
-        Check for existing codes that haven't been marked as processed and mark them.
-        NOTE: We intentionally do NOT trigger auto-redeem on startup.
-        Auto-redeem should only trigger for truly NEW codes from the API, not on bot restart.
+        Check for existing codes that haven't been marked as processed.
+        - If a code is RECENT (e.g. < 24 hours), we TRIGGER auto-redeem.
+        - If a code is OLD, we just MARK it as processed to avoid spam.
         """
         try:
             # Add a small delay to ensure bot is fully ready
             await asyncio.sleep(5)
             
             self.logger.info("🚀 === STARTUP CODE PROCESSING ===")
-            self.logger.info("Marking existing unprocessed gift codes as processed (no auto-redeem on startup)...")
+            self.logger.info("Checking for unprocessed gift codes...")
             
             unprocessed_codes = []
             
@@ -1845,13 +1910,11 @@ class ManageGiftCode(commands.Cog):
                     if all_codes:
                         # Filter for unprocessed codes
                         unprocessed_codes = [
-                            (code['giftcode'], code.get('date', ''))
+                            (code['giftcode'], code.get('date', ''), code.get('created_at'))
                             for code in all_codes
                             if not code.get('auto_redeem_processed', False)
                         ]
                         self.logger.info(f"✅ MongoDB: Found {len(unprocessed_codes)} unprocessed out of {len(all_codes)} total codes")
-                        if unprocessed_codes:
-                            self.logger.info(f"📝 Unprocessed codes: {[c[0] for c in unprocessed_codes]}")
                     else:
                         self.logger.info("ℹ️ MongoDB: No codes in collection")
                 except Exception as e:
@@ -1866,15 +1929,14 @@ class ManageGiftCode(commands.Cog):
                 try:
                     self.logger.info("📂 Fetching codes from SQLite database...")
                     self.cursor.execute("""
-                        SELECT giftcode, date 
+                        SELECT giftcode, date, added_at
                         FROM gift_codes 
                         WHERE auto_redeem_processed = 0 OR auto_redeem_processed IS NULL
                         ORDER BY added_at DESC
                     """)
+                    # SQLite rows are tuples
                     unprocessed_codes = self.cursor.fetchall()
                     self.logger.info(f"✅ SQLite: Found {len(unprocessed_codes)} unprocessed codes")
-                    if unprocessed_codes:
-                        self.logger.info(f"📝 Unprocessed codes: {[c[0] for c in unprocessed_codes]}")
                 except Exception as e:
                     self.logger.error(f"❌ SQLite fetch failed: {e}")
             
@@ -1883,38 +1945,105 @@ class ManageGiftCode(commands.Cog):
                 self.logger.info("🏁 === STARTUP CODE PROCESSING COMPLETE ===")
                 return
             
-            self.logger.info(f"📋 FOUND {len(unprocessed_codes)} UNPROCESSED CODES - MARKING AS PROCESSED (no auto-redeem on startup)")
+            self.logger.info(f"📋 FOUND {len(unprocessed_codes)} UNPROCESSED CODES")
             
-            # Mark all unprocessed codes as processed WITHOUT triggering auto-redeem
-            # This prevents startup redemption while allowing new codes from API to trigger auto-redeem
-            for code, date in unprocessed_codes:
-                try:
-                    # Mark in MongoDB if available
-                    if mongo_enabled() and GiftCodesAdapter:
-                        try:
-                            GiftCodesAdapter.mark_code_processed(code)
-                            self.logger.info(f"✅ Marked {code} as processed in MongoDB")
-                        except Exception as e:
-                            self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
-                    
-                    # Also mark in SQLite for consistency
+            recent_codes = []
+            old_codes = []
+            
+            now = datetime.now()
+            
+            for row in unprocessed_codes:
+                # Handle different formats between Mongo (dict-like access above turned to tuple) and SQLite (tuple)
+                # We standardized to tuple (code, date, created_at) above
+                code = row[0]
+                date_str = row[1]
+                created_at = row[2]
+                
+                # Parse created_at if it's a string (SQLite)
+                if isinstance(created_at, str):
                     try:
-                        self.cursor.execute(
-                            "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
-                            (code,)
-                        )
-                        self.giftcode_db.commit()
-                        self.logger.info(f"✅ Marked {code} as processed in SQLite")
-                    except Exception as e:
-                        self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
-                except Exception as e:
-                    self.logger.error(f"❌ Error marking code {code} as processed: {e}")
+                        created_at_dt = datetime.fromisoformat(created_at)
+                    except ValueError:
+                        try:
+                            created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S.%f')
+                        except ValueError:
+                            try:
+                                created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                            except:
+                                created_at_dt = datetime.min
+                elif isinstance(created_at, datetime):
+                    created_at_dt = created_at
+                else:
+                    created_at_dt = datetime.min
+                
+                # Check age (24 hours = 86400 seconds)
+                age = (now - created_at_dt).total_seconds()
+                is_recent = age < 86400  # 24 hours
+                
+                if is_recent:
+                    recent_codes.append((code, date_str))
+                else:
+                    old_codes.append((code, date_str))
             
-            self.logger.info(f"✅ Marked {len(unprocessed_codes)} existing codes as processed (auto-redeem skipped on startup)")
+            # 1. Process RECENT codes (Trigger Auto-Redeem)
+            if recent_codes:
+                self.logger.info(f"🚀 Found {len(recent_codes)} RECENT codes (within 24h) - Triggering Auto-Redeem!")
+                self.logger.info(f"Codes: {[c[0] for c in recent_codes]}")
+                # We do NOT mark them as processed here; trigger_auto_redeem_for_new_codes will do that
+                # after dispatching tasks to all guilds.
+                asyncio.create_task(self.trigger_auto_redeem_for_new_codes(recent_codes))
+            
+            # 2. Process OLD codes (Mark as processed only)
+            if old_codes:
+                self.logger.info(f"🕰️ Found {len(old_codes)} OLD codes (>24h) - Marking as processed WITHOUT redeeming.")
+                self.logger.info(f"Codes: {[c[0] for c in old_codes]}")
+                
+                for code, _ in old_codes:
+                    try:
+                        # Mark in MongoDB
+                        if mongo_enabled() and GiftCodesAdapter:
+                            try:
+                                GiftCodesAdapter.mark_code_processed(code)
+                            except:
+                                pass
+                        
+                        # Mark in SQLite
+                        try:
+                            self.cursor.execute(
+                                "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
+                                (code,)
+                            )
+                            self.giftcode_db.commit()
+                        except:
+                            pass
+                    except Exception as e:
+                        self.logger.error(f"Error marking old code {code}: {e}")
+            
             self.logger.info("🏁 === STARTUP CODE PROCESSING COMPLETE ===")
             
         except Exception as e:
             self.logger.exception(f"❌ CRITICAL ERROR in startup auto-redeem check: {e}")
+
+    @commands.command(name="trigger_auto_redeem")
+    @commands.has_permissions(administrator=True)
+    async def trigger_auto_redeem(self, ctx, code: str):
+        """Manually trigger auto-redeem for a specific gift code."""
+        try:
+            await ctx.send(f"⏳ Manually triggering auto-redeem for code: **{code}**...")
+            self.logger.info(f"🔧 Manual trigger of auto-redeem for code {code} by {ctx.author}")
+            
+            # Format as list of tuples [(code, date)]
+            # We don't have the date handy, so just pass empty string or 'Manual'
+            codes_list = [(code, "Manual Trigger")]
+            
+            # Call the existing method
+            await self.trigger_auto_redeem_for_new_codes(codes_list)
+            
+            await ctx.send(f"✅ Auto-redeem process initiated for **{code}**.")
+            
+        except Exception as e:
+            self.logger.exception(f"Error in manual trigger: {e}")
+            await ctx.send(f"❌ Error triggering auto-redeem: {e}")
     
     async def notify_admins_new_codes(self, new_codes):
         """Notify global administrators about new gift codes"""
@@ -2435,20 +2564,98 @@ class ManageGiftCode(commands.Cog):
                                 )
                                 await modal_interaction.edit_original_response(embed=success_embed)
                             else:
-                                # Failed to add to API - code might be invalid
-                                error_embed = discord.Embed(
-                                    title="❌ Invalid Gift Code",
-                                    description=(
-                                        f"Gift code `{gift_code}` could not be validated.\n\n"
-                                        f"**Possible reasons:**\n"
-                                        f"• Code is invalid or expired\n"
-                                        f"• Code format is incorrect\n"
-                                        f"• API rejected the code\n\n"
-                                        f"Please verify the code and try again."
-                                    ),
-                                    color=discord.Color.red()
-                                )
-                                await modal_interaction.edit_original_response(embed=error_embed)
+                                # API rejected it. Try GAME API verification
+                                try:
+                                    await modal_interaction.edit_original_response(
+                                        embed=discord.Embed(
+                                            title="🔄 Verifying with Game API",
+                                            description=f"External API check failed. Attempting to verify `{gift_code}` directly with Game API...",
+                                            color=discord.Color.blue()
+                                        )
+                                    )
+                                    
+                                    is_valid, status, fid_used = await self.cog.verify_code_with_game_api(modal_interaction.guild.id, gift_code)
+                                    
+                                    if is_valid:
+                                        self.cog.logger.info(f"Game API verified code {gift_code} as valid ({status})")
+                                        
+                                        # Add to Database as validated
+                                        self.cog.cursor.execute("""
+                                            INSERT INTO gift_codes (giftcode, date, validation_status, added_by, added_at)
+                                            VALUES (?, ?, ?, ?, ?)
+                                        """, (gift_code, datetime.now().strftime("%Y-%m-%d"), "validated", modal_interaction.user.id, datetime.now()))
+                                        self.cog.giftcode_db.commit()
+                                        
+                                        success_embed = discord.Embed(
+                                            title="✅ Gift Code Verified & Added",
+                                            description=(
+                                                f"Successfully verified and added: `{gift_code}`\n\n"
+                                                f"**Status:** Validated via Game API ({status})\n"
+                                                f"**Verified with:** FID {fid_used}\n"
+                                                f"**Added by:** {modal_interaction.user.mention}\n"
+                                                f"**Date:** {datetime.now().strftime('%Y-%m-%d')}"
+                                            ),
+                                            color=discord.Color.green()
+                                        )
+                                        await modal_interaction.edit_original_response(embed=success_embed)
+                                        
+                                    elif status in ["INVALID_CODE", "EXPIRED", "USAGE_LIMIT_REACHED", "EXPIRED_CODE"]:
+                                        # Definitively invalid
+                                        error_embed = discord.Embed(
+                                            title="❌ Invalid Gift Code",
+                                            description=(
+                                                f"Gift code `{gift_code}` was rejected by the Game API.\n\n"
+                                                f"**Reason:** {status}\n"
+                                                f"**Verified with:** FID {fid_used if fid_used else 'N/A'}"
+                                            ),
+                                            color=discord.Color.red()
+                                        )
+                                        await modal_interaction.edit_original_response(embed=error_embed)
+                                        
+                                    else:
+                                        # Verification failed or unknown error - Fallback to Force Add
+                                        self.cog.logger.warning(f"Force adding code {gift_code} despite API rejection (Verification status: {status})")
+                                        
+                                        # Add to Database
+                                        self.cog.cursor.execute("""
+                                            INSERT INTO gift_codes (giftcode, date, validation_status, added_by, added_at)
+                                            VALUES (?, ?, ?, ?, ?)
+                                        """, (gift_code, datetime.now().strftime("%Y-%m-%d"), "forced", modal_interaction.user.id, datetime.now()))
+                                        self.cog.giftcode_db.commit()
+                                        
+                                        success_embed = discord.Embed(
+                                            title="⚠️ Gift Code Force Added",
+                                            description=(
+                                                f"Added gift code: `{gift_code}`\n\n"
+                                                f"**Status:** Forced\n"
+                                                f"**Game Verification:** Failed ({status})\n"
+                                                f"**Added by:** {modal_interaction.user.mention}\n"
+                                                f"**Date:** {datetime.now().strftime('%Y-%m-%d')}\n"
+                                                f"**Note:** API rejected it and Game Verification failed, but added anyway."
+                                            ),
+                                            color=discord.Color.orange()
+                                        )
+                                        await modal_interaction.edit_original_response(embed=success_embed)
+                                except Exception as e:
+                                    self.cog.logger.error(f"Error during verification/force add: {e}")
+                                    # Fallback to force add on error
+                                    self.cog.cursor.execute("""
+                                        INSERT INTO gift_codes (giftcode, date, validation_status, added_by, added_at)
+                                        VALUES (?, ?, ?, ?, ?)
+                                    """, (gift_code, datetime.now().strftime("%Y-%m-%d"), "forced", modal_interaction.user.id, datetime.now()))
+                                    self.cog.giftcode_db.commit()
+                                    
+                                    success_embed = discord.Embed(
+                                        title="⚠️ Gift Code Force Added (Error)",
+                                        description=(
+                                            f"Added gift code: `{gift_code}`\n\n"
+                                            f"**Status:** Forced (Error during verification)\n"
+                                            f"**Error:** {str(e)}\n"
+                                            f"**Added by:** {modal_interaction.user.mention}"
+                                        ),
+                                        color=discord.Color.orange()
+                                    )
+                                    await modal_interaction.edit_original_response(embed=success_embed)
                         
                     except Exception as e:
                         self.cog.logger.exception(f"Error adding gift code: {e}")

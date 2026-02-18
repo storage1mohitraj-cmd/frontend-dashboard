@@ -1,7 +1,8 @@
+from typing import Optional
 import os
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 import uuid
 
 from .mongo_client_wrapper import get_mongo_client_sync, get_mongo_client
@@ -1165,7 +1166,7 @@ class AllianceSettingsAdapter:
             return []
 
     @staticmethod
-    def upsert(alliance_id: int, channel_id: int, interval: int, giftcodecontrol: int | None = None, giftcode_channel: int | None = None) -> bool:
+    def upsert(alliance_id: int, channel_id: int, interval: int, giftcodecontrol: Optional[int ] = None, giftcode_channel: Optional[int ] = None) -> bool:
         try:
             db = _get_db()
             now = datetime.utcnow().isoformat()

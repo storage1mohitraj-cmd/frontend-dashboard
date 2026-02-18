@@ -3363,7 +3363,7 @@ class AllianceMonitorView(discord.ui.View):
                 # Save monitoring configuration immediately
                 try:
                     # Get member count
-                    members = self.cog._get_monitoring_members(alliance_id)
+                    members = await self.cog._get_monitoring_members(alliance_id)
                     member_count = len(members) if members else 0
                     
                     # Save to database
@@ -3653,7 +3653,7 @@ class AllianceMonitorView(discord.ui.View):
                 # Create appropriate embed based on new status
                 if new_status == 1:
                     # Get member count
-                    members = self.cog._get_monitoring_members(alliance_id)
+                    members = await self.cog._get_monitoring_members(alliance_id)
                     member_count = len(members) if members else 0
                     
                     success_embed = discord.Embed(

@@ -1567,7 +1567,7 @@ class RemoteAccess(commands.Cog):
                         # Get member count for this alliance
                         members = []
                         if hasattr(alliance_cog, '_get_monitoring_members'):
-                            members = alliance_cog._get_monitoring_members(selected_alliance_id)
+                            members = await alliance_cog._get_monitoring_members(selected_alliance_id)
                         member_count = len(members) if members else 0
                         
                         # Save to database

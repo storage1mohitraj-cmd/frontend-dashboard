@@ -532,63 +532,63 @@ class Alliance(commands.Cog):
                 label="Alliance Operations",
                 emoji="🏰",
                 style=discord.ButtonStyle.primary,
-                custom_id="alliance_operations",
+                custom_id=f"alliance_operations:{user_id}",
                 row=0
             ))
             view.add_item(discord.ui.Button(
                 label="Member Operations",
                 emoji="👥",
                 style=discord.ButtonStyle.primary,
-                custom_id="member_operations",
+                custom_id=f"member_operations:{user_id}",
                 row=0
             ))
             view.add_item(discord.ui.Button(
                 label="Records",
                 emoji="📁",
                 style=discord.ButtonStyle.primary,
-                custom_id="records_menu",
+                custom_id=f"records_menu:{user_id}",
                 row=0
             ))
             view.add_item(discord.ui.Button(
                 label="Bot Operations",
                 emoji="🤖",
                 style=discord.ButtonStyle.primary,
-                custom_id="bot_operations",
+                custom_id=f"bot_operations:{user_id}",
                 row=1
             ))
             view.add_item(discord.ui.Button(
                 label="Gift Code Operations",
                 emoji="🎁",
                 style=discord.ButtonStyle.primary,
-                custom_id="gift_operations",
+                custom_id=f"gift_operations:{user_id}",
                 row=1
             ))
             view.add_item(discord.ui.Button(
                 label="Alliance History",
                 emoji="📜",
                 style=discord.ButtonStyle.primary,
-                custom_id="alliance_history",
+                custom_id=f"alliance_history:{user_id}",
                 row=2
             ))
             view.add_item(discord.ui.Button(
                 label="Support Operations",
                 emoji="🆘",
                 style=discord.ButtonStyle.primary,
-                custom_id="support_operations",
+                custom_id=f"support_operations:{user_id}",
                 row=2
             ))
             view.add_item(discord.ui.Button(
                 label="Other Features",
                 emoji="🔧",
                 style=discord.ButtonStyle.primary,
-                custom_id="other_features",
+                custom_id=f"other_features:{user_id}",
                 row=3
             ))
             view.add_item(discord.ui.Button(
                 label="Lock Bot",
                 emoji="🔒",
                 style=discord.ButtonStyle.danger,
-                custom_id="lock_bot",
+                custom_id=f"lock_bot:{user_id}",
                 row=3
             ))
 
@@ -621,6 +621,22 @@ class Alliance(commands.Cog):
         if interaction.type == discord.InteractionType.component:
             custom_id = interaction.data.get("custom_id")
             user_id = interaction.user.id
+
+            # Parse owner_id from custom_id if present
+            owner_id = user_id
+            if custom_id and ":" in custom_id:
+                try:
+                    real_id, owner_str = custom_id.rsplit(":", 1)
+                    # Check if the suffix is a valid user ID (digits)
+                    if owner_str.isdigit():
+                        check_owner_id = int(owner_str)
+                        if user_id != check_owner_id:
+                            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                            return
+                        custom_id = real_id
+                        owner_id = check_owner_id
+                except ValueError:
+                    pass
             
             # Use helper method with automatic fallback
             admin = self._get_admin(user_id)
@@ -675,40 +691,40 @@ class Alliance(commands.Cog):
                         label="Add Alliance", 
                         emoji="➕",
                         style=discord.ButtonStyle.success, 
-                        custom_id="add_alliance", 
+                        custom_id=f"add_alliance:{owner_id}", 
                         disabled=is_initial != 1
                     ))
                     view.add_item(discord.ui.Button(
                         label="Edit Alliance", 
                         emoji="✏️",
                         style=discord.ButtonStyle.primary, 
-                        custom_id="edit_alliance", 
+                        custom_id=f"edit_alliance:{owner_id}", 
                         disabled=is_initial != 1
                     ))
                     view.add_item(discord.ui.Button(
                         label="Delete Alliance", 
                         emoji="🗑️",
                         style=discord.ButtonStyle.danger, 
-                        custom_id="delete_alliance", 
+                        custom_id=f"delete_alliance:{owner_id}", 
                         disabled=is_initial != 1
                     ))
                     view.add_item(discord.ui.Button(
                         label="View Alliances", 
                         emoji="👀",
                         style=discord.ButtonStyle.primary, 
-                        custom_id="view_alliances"
+                        custom_id=f"view_alliances:{owner_id}"
                     ))
                     view.add_item(discord.ui.Button(
                         label="Check Alliance", 
                         emoji="🔍",
                         style=discord.ButtonStyle.primary, 
-                        custom_id="check_alliance"
+                        custom_id=f"check_alliance:{owner_id}"
                     ))
                     view.add_item(discord.ui.Button(
                         label="Main Menu", 
                         emoji="🏠",
                         style=discord.ButtonStyle.secondary, 
-                        custom_id="main_menu"
+                        custom_id=f"main_menu:{owner_id}"
                     ))
 
                     await interaction.response.edit_message(embed=embed, view=view)
@@ -756,6 +772,9 @@ class Alliance(commands.Cog):
                     )
 
                     async def alliance_check_callback(select_interaction: discord.Interaction):
+                        if select_interaction.user.id != owner_id:
+                            await select_interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                            return
                         try:
                             selected_value = select_interaction.data["values"][0]
                             control_cog = self.bot.get_cog('Control')
@@ -992,7 +1011,7 @@ class Alliance(commands.Cog):
                                 ephemeral=True
                             )
 
-                elif custom_id == "gift_code_operations":
+                elif custom_id == "gift_operations":
                     try:
                         gift_ops_cog = interaction.client.get_cog("GiftOperations")
                         if gift_ops_cog:

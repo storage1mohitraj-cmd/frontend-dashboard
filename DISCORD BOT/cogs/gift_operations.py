@@ -1897,7 +1897,7 @@ class GiftOperations(commands.Cog):
                     inline=False
                 )
 
-                view = OCRSettingsView(self, ocr_settings, onnx_available)
+                view = OCRSettingsView(self, ocr_settings, onnx_available, user_id=interaction.user.id)
 
                 if interaction.response.is_done():
                     try:
@@ -2365,7 +2365,7 @@ class GiftOperations(commands.Cog):
             color=discord.Color.gold()
         )
 
-        view = GiftView(self)
+        view = GiftView(self, user_id=interaction.user.id)
         try:
             await interaction.response.edit_message(embed=gift_menu_embed, view=view)
         except discord.InteractionResponded:
@@ -3052,7 +3052,7 @@ class GiftOperations(commands.Cog):
             color=discord.Color.blue()
         )
         
-        settings_view = SettingsMenuView(self)
+        settings_view = SettingsMenuView(self, user_id=interaction.user.id)
         
         await interaction.response.edit_message(
             embed=settings_embed,
@@ -3652,7 +3652,7 @@ class GiftOperations(commands.Cog):
             color=discord.Color.blue()
         )
 
-        view = AllianceSelectView(alliances_with_counts, self)
+        view = AllianceSelectView(alliances_with_counts, self, user_id=interaction.user.id)
         
         view.current_select.options.insert(0, discord.SelectOption(
             label="ENABLE ALL ALLIANCES",
@@ -4547,11 +4547,18 @@ class TestFIDModal(discord.ui.Modal, title="Change Test FID"):
             await interaction.followup.send(f"❌ An error occurred: {str(e)}", ephemeral=True)
 
 class GiftView(discord.ui.View):
-    def __init__(self, cog):
+    def __init__(self, cog, user_id=None):
         super().__init__(timeout=7200)
         self.cog = cog
+        self.user_id = user_id
         # Forward the cog's logger to this view to avoid AttributeError
         self.logger = cog.logger
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
 
     @discord.ui.button(
         label="Add Gift Code",
@@ -4648,7 +4655,7 @@ class GiftView(discord.ui.View):
                 color=discord.Color.blue()
             )
 
-            view = AllianceSelectView(alliances_with_counts, self.cog)
+            view = AllianceSelectView(alliances_with_counts, self.cog, user_id=interaction.user.id)
             
             view.current_select.options.insert(0, discord.SelectOption(
                 label="ALL ALLIANCES",
@@ -4896,9 +4903,16 @@ class GiftView(discord.ui.View):
             pass
 
 class SettingsMenuView(discord.ui.View):
-    def __init__(self, cog):
+    def __init__(self, cog, user_id=None):
         super().__init__(timeout=7200)
         self.cog = cog
+        self.user_id = user_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
     
     @discord.ui.button(
         label="Channel Management",
@@ -4950,9 +4964,16 @@ class SettingsMenuView(discord.ui.View):
         await self.cog.show_gift_menu(interaction)
 
 class ClearCacheConfirmView(discord.ui.View):
-    def __init__(self, parent_cog):
+    def __init__(self, parent_cog, user_id=None):
         super().__init__(timeout=60)
         self.parent_cog = parent_cog
+        self.user_id = user_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
 
     @discord.ui.button(label="Confirm Clear", style=discord.ButtonStyle.danger, emoji="✅")
     async def confirm_clear(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -5006,9 +5027,10 @@ class ClearCacheConfirmView(discord.ui.View):
             pass
 
 class OCRSettingsView(discord.ui.View):
-    def __init__(self, cog, ocr_settings, onnx_available):
+    def __init__(self, cog, ocr_settings, onnx_available, user_id=None):
         super().__init__(timeout=7200)
         self.cog = cog
+        self.user_id = user_id
         self.enabled = ocr_settings[0]
         self.save_images_setting = ocr_settings[1]
         self.onnx_available = onnx_available
@@ -5288,7 +5310,7 @@ class OCRSettingsView(discord.ui.View):
             )
 
         # Create confirmation view
-        confirm_view = ClearCacheConfirmView(self.cog)
+        confirm_view = ClearCacheConfirmView(self.cog, user_id=interaction.user.id)
         await interaction.response.send_message(embed=embed, view=confirm_view, ephemeral=True)
 
     async def image_save_select_callback(self, interaction: discord.Interaction):

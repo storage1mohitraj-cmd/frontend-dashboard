@@ -93,6 +93,25 @@ class BotOperations(commands.Cog):
             return
 
         custom_id = interaction.data.get("custom_id", "")
+
+        # Security: Parse user_id from custom_id if present
+        # This handles format: "original_id:user_id"
+        if custom_id and ":" in custom_id:
+            try:
+                real_id, user_str = custom_id.rsplit(":", 1)
+                # Check if the suffix is a valid user ID (digits)
+                if user_str.isdigit():
+                    check_user_id = int(user_str)
+                    
+                    # Verify user
+                    if interaction.user.id != check_user_id:
+                        await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                        return
+                    
+                    # Update custom_id to strip the suffix so downstream logic works
+                    custom_id = real_id
+            except ValueError:
+                pass
         
         # Let ManageGiftCode cog handle all giftcode interactions
         if custom_id.startswith("giftcode"):

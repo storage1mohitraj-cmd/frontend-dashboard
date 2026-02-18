@@ -275,6 +275,9 @@ class ManageGiftCode(commands.Cog):
         """Initialize aiohttp session when cog is loaded"""
         self.session = aiohttp.ClientSession()
         self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
+        
+        # Trigger startup check for existing codes
+        asyncio.create_task(self.process_existing_codes_on_startup())
 
     async def cog_unload(self):
         """Clean up when cog is unloaded"""

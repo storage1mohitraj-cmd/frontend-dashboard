@@ -1,3 +1,4 @@
+from typing import Optional
 import aiohttp
 import asyncio
 import hashlib
@@ -229,7 +230,7 @@ class LoginHandler:
                     # ... other player data
                 } | None,
                 'api_used': 1 | 2,
-                'error_message': str | None
+                'error_message': Optional[str ]
             }
         """
         # Check rate limits and get available API

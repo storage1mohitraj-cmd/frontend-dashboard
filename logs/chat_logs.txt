@@ -98,3 +98,53 @@
 2026-02-08 17:15:27,239 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
 2026-02-08 17:15:27,239 - 📊 Connected to 16 guild(s)
 2026-02-08 17:15:28,147 - ✅ Synced 61 commands globally
+2026-02-17 02:14:32,660 - ✅ Loaded cogs.start_menu
+2026-02-17 02:14:35,132 - ✅ Loaded cogs.alliance
+2026-02-17 02:14:35,146 - ✅ Loaded cogs.alliance_member_operations
+2026-02-17 02:14:35,155 - ✅ Loaded cogs.changes
+2026-02-17 02:14:35,209 - ✅ Loaded cogs.web_search
+2026-02-17 02:14:35,213 - ✅ Loaded cogs.welcome_channel
+2026-02-17 02:14:35,217 - ✅ Loaded cogs.control
+2026-02-17 02:14:35,347 - ✅ Loaded cogs.gift_operations
+2026-02-17 02:14:35,550 - ✅ Loaded cogs.manage_giftcode
+2026-02-17 02:14:35,554 - ✅ Loaded cogs.id_channel
+2026-02-17 02:14:35,559 - ✅ Loaded cogs.bot_operations
+2026-02-17 02:14:35,562 - ✅ Loaded cogs.remote_access
+2026-02-17 02:14:35,564 - ✅ Loaded cogs.fid_commands
+2026-02-17 02:14:35,565 - ✅ Loaded cogs.record_commands
+2026-02-17 02:14:35,572 - ✅ Loaded cogs.bear_trap
+2026-02-17 02:14:35,575 - ✅ Loaded cogs.bear_trap_editor
+2026-02-17 02:14:35,656 - ✅ Loaded cogs.attendance
+2026-02-17 02:14:35,708 - ✅ Loaded cogs.minister_schedule
+2026-02-17 02:14:35,709 - ✅ Loaded cogs.other_features
+2026-02-17 02:14:35,711 - ✅ Loaded cogs.support_operations
+2026-02-17 02:14:35,714 - ✅ Loaded cogs.minister_menu
+2026-02-17 02:14:35,717 - ✅ Loaded cogs.playerinfo
+2026-02-17 02:14:35,721 - ✅ Loaded cogs.reminder_system
+2026-02-17 02:14:35,730 - ✅ Loaded cogs.birthday_system
+2026-02-17 02:14:35,733 - ✅ Loaded cogs.events
+2026-02-17 02:14:35,736 - ✅ Loaded cogs.server_age
+2026-02-17 02:14:35,739 - ✅ Loaded cogs.personalise_chat
+2026-02-17 02:14:43,547 - ✅ Loaded cogs.music
+2026-02-17 02:14:48,519 - ✅ Loaded cogs.voice_conversation
+2026-02-17 02:14:48,564 - ✅ Loaded cogs.tts
+2026-02-17 02:14:48,570 - ✅ Loaded cogs.auto_translate
+2026-02-17 02:14:48,575 - ✅ Loaded cogs.message_extractor
+2026-02-17 02:14:48,579 - ✅ Loaded cogs.tictactoe
+2026-02-17 02:14:48,586 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-02-17 02:14:48,587 - 📦 Cog loading complete: 33 loaded, 1 failed
+2026-02-17 02:14:48,646 - ✅ User profiles loaded successfully
+2026-02-17 02:14:49,457 - ✅ Playlist storage initialized
+2026-02-17 02:14:50,139 - ✅ Music state storage initialized
+2026-02-17 02:14:50,145 - ⚠️  Health server failed to start (port may be in use)
+2026-02-17 02:14:50,146 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-02-17 02:14:50,199 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-02-17 02:14:50,199 - ✅ View restoration complete: 0 restored, 0 failed
+2026-02-17 02:14:50,201 - ✅ Registered GiftCodeView
+2026-02-17 02:14:50,202 - ✅ Registered PersistentHelpView
+2026-02-17 02:14:50,204 - ✅ Registered Pollinate Views
+2026-02-17 02:14:50,205 - ✅ Registered PersistentMemberListView
+2026-02-17 02:14:50,208 - ✅ Registered BirthdayWishView
+2026-02-17 02:14:53,595 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-02-17 02:14:53,596 - 📊 Connected to 16 guild(s)
+2026-02-17 02:14:54,871 - ✅ Synced 61 commands globally

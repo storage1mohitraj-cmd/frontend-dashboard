@@ -1,3 +1,4 @@
+from typing import Optional
 import os
 import sys
 import subprocess
@@ -3424,7 +3425,7 @@ class DiceBattleView(discord.ui.View):
         self.logo_url = logo_url
         # store results as {user_id: int or None}
         self.results = {challenger.id: None, opponent.id: None}
-        self.message: discord.Message | None = None
+        self.message: discord.Optional[Message ] = None
         # Customize button labels and styles so each shows the player's name and different colors
         try:
             # short helper to trim long names for the button

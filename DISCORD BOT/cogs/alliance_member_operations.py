@@ -1,3 +1,4 @@
+from typing import Optional
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -205,7 +206,7 @@ class AllianceMemberOperations(commands.Cog):
         except Exception:
             return []
 
-    def _get_member_nickname(self, fid: str) -> str | None:
+    def _get_member_nickname(self, fid: str) -> Optional[str ]:
         try:
             if mongo_enabled() and AllianceMembersAdapter is not None:
                 doc = AllianceMembersAdapter.get_member(str(fid))
@@ -223,7 +224,7 @@ class AllianceMemberOperations(commands.Cog):
         except Exception:
             return None
 
-    def _get_member_by_fid(self, fid: str) -> tuple | None:
+    def _get_member_by_fid(self, fid: str) -> Optional[tuple ]:
         """Return (fid, nickname, furnace_lv, alliance_id) or None"""
         # Try Mongo first
         try:

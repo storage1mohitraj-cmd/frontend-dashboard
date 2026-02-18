@@ -1,3 +1,4 @@
+from typing import Optional
 """/playerinfo cog - single clean implementation with logging.
 
 This module intentionally keeps the request pattern aligned with other
@@ -409,7 +410,7 @@ class PlayerInfoCog(commands.Cog):
                     return fid, None, e
 
         # helper to build embed from API data (or from error cases)
-        def build_embed_for(fid: str, js: dict | None) -> discord.Embed:
+        def build_embed_for(fid: str, js: Optional[dict ]) -> discord.Embed:
             # default empty embed in case of network/json error
             embed = discord.Embed(colour=discord.Colour.blurple())
             if js is None:

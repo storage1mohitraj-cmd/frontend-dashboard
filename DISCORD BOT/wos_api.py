@@ -1,3 +1,4 @@
+from typing import Optional
 import aiohttp
 import hashlib
 import time
@@ -8,7 +9,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def fetch_player_info(player_id: str) -> dict | None:
+async def fetch_player_info(player_id: str) -> Optional[dict ]:
     """
     Fetch player info from the WOS giftcode API.
     Returns a dict with keys: id, nickname, level, power, avatar_image, etc.

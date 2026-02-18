@@ -1,3 +1,4 @@
+from typing import Optional
 #!/usr/bin/env python3
 """Migrate SQLite files under `db/` into MongoDB collections.
 
@@ -36,7 +37,7 @@ except Exception as e:
     raise
 
 
-def iter_sqlite_files(paths: Iterable[str] | None, db_dir: Path) -> Iterable[Path]:
+def iter_sqlite_files(paths: Optional[Iterable[str] ], db_dir: Path) -> Iterable[Path]:
     if paths:
         for p in paths:
             yield Path(p)

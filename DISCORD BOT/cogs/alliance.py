@@ -3384,7 +3384,7 @@ class AllianceMonitorView(discord.ui.View):
                     if members:
                         with get_db_connection('settings.sqlite') as conn:
                             cursor = conn.cursor()
-                            for fid, nickname, furnace_lv in members:
+                            for fid, nickname, furnace_lv, *_ in members:
                                 cursor.execute("""
                                     INSERT OR REPLACE INTO member_history 
                                     (fid, alliance_id, nickname, furnace_lv, last_checked)

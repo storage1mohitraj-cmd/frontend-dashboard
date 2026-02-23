@@ -5240,6 +5240,10 @@ class ManageGiftCode(commands.Cog):
         # Ignore bot messages
         if message.author.bot:
             return
+            
+        # Ignore DM messages
+        if not message.guild:
+            return
         
         # Check if message is in a monitored channel
         try:

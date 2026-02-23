@@ -28,7 +28,11 @@ class ScreenCapture:
     """Handles screen capture of BlueStacks window"""
     
     def __init__(self):
-        self.sct = mss.mss()
+        try:
+            self.sct = mss.mss()
+        except Exception as e:
+            print(f"Warning: Failed to initialize mss (Display might be missing): {e}")
+            self.sct = None
         self.bluestacks_hwnd = None
     
     def find_bluestacks_window(self) -> bool:

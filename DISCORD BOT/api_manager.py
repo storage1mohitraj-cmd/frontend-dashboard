@@ -38,6 +38,21 @@ load_dotenv('.env.production')
 # Configure logging
 logger = logging.getLogger(__name__)
 
+def clean_payload(obj):
+    """Recursively convert non-JSON-serializable objects to strings."""
+    if isinstance(obj, dict):
+        return {k: clean_payload(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_payload(v) for v in obj]
+    elif obj is None or isinstance(obj, (str, int, float, bool)):
+        return obj
+    elif hasattr(obj, 'isoformat'):  # datetime, date
+        return obj.isoformat()
+    else:
+        # Handle ObjectId and other custom types by converting to string
+        # This catches bson.ObjectId without needing to import bson
+        return str(obj)
+
 
 class APIKeyStatus(Enum):
     """Enum for API key status"""
@@ -207,8 +222,15 @@ class RobustOpenRouterManager:
         logger.info(f"Message count: {len(messages)}, System prompt: {system_prompt_len} chars, User message: {user_msg_len} chars")
         logger.debug(f"Using API key {key_info.index + 1}")
 
+        # Clean payload to ensure no ObjectId or other non-serializable types cause errors
+        try:
+            cleaned_payload = clean_payload(payload)
+        except Exception as e:
+            logger.error(f"Error cleaning payload: {e}")
+            cleaned_payload = payload  # Fallback (will likely fail in aiohttp if dirty)
+
         async with aiohttp.ClientSession() as session:
-            async with session.post(url, json=payload, headers=headers) as response:
+            async with session.post(url, json=cleaned_payload, headers=headers) as response:
                 logger.info(f"API response status: {response.status}")
                 
                 if response.status == 200:

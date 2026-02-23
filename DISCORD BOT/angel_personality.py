@@ -33,15 +33,27 @@ class UserProfile:
         self.last_seen = datetime.now()
     
     def to_dict(self) -> Dict[str, Any]:
+        def json_safe(obj):
+            if hasattr(obj, 'isoformat'):
+                return obj.isoformat()
+            # Check for ObjectId safely without direct import if needed, or just str() it if it looks like one
+            if type(obj).__name__ == 'ObjectId':
+                return str(obj)
+            if isinstance(obj, dict):
+                return {k: json_safe(v) for k, v in obj.items()}
+            if isinstance(obj, list):
+                return [json_safe(i) for i in obj]
+            return obj
+
         return {
-            "user_id": self.user_id,
+            "user_id": str(self.user_id),
             "user_name": self.user_name,
             "gender": self.gender,
             "pronouns": self.pronouns,
-            "preferences": self.preferences,
-            "game_progress": self.game_progress,
-            "personality_traits": self.personality_traits,
-            "recent_activity": self.recent_activity,
+            "preferences": json_safe(self.preferences),
+            "game_progress": json_safe(self.game_progress),
+            "personality_traits": json_safe(self.personality_traits),
+            "recent_activity": json_safe(self.recent_activity),
             "last_seen": self.last_seen.isoformat()
         }
     

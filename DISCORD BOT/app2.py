@@ -31,9 +31,9 @@ try:
         print("STARTUP DEBUG: mongo_enabled() =", mongo_enabled())
         if mongo_enabled():
             try:
-                from db.mongo_client_wrapper import get_mongo_client
+                from db.mongo_client_wrapper import get_mongo_client_sync
                 uri = os.getenv('MONGO_URI')
-                client = get_mongo_client(uri)
+                client = get_mongo_client_sync(uri)
                 client.admin.command('ping')
                 print('STARTUP DEBUG: Mongo ping OK — persistent storage active')
                 client.close()

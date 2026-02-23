@@ -10,7 +10,7 @@ from .mongo_client_wrapper import get_mongo_client_sync, get_mongo_client
 logger = logging.getLogger(__name__)
 
 
-def _get_db():
+def _get_db_main():
     uri = os.getenv('MONGO_URI')
     if not uri:
         raise ValueError('MONGO_URI not set')
@@ -18,13 +18,45 @@ def _get_db():
     db_name = os.getenv('MONGO_DB_NAME', 'discord_bot')
     return client[db_name]
 
+def _get_db_wos():
+    uri = os.getenv('MONGO_URI_FALLBACK') or os.getenv('MONGO_URI')
+    if not uri:
+        raise ValueError('MONGO_URI not set')
+    client = get_mongo_client_sync(uri)
+    db_name = os.getenv('MONGO_DB_WOS', 'wos_bot')
+    return client[db_name]
 
-async def _get_db_async():
+def _get_db_reminders():
+    uri = os.getenv('MONGO_URI')
+    if not uri:
+        raise ValueError('MONGO_URI not set')
+    client = get_mongo_client_sync(uri)
+    db_name = os.getenv('MONGO_DB_REMINDERS', 'whiteout_survival_bot')
+    return client[db_name]
+
+
+async def _get_db_main_async():
     uri = os.getenv('MONGO_URI')
     if not uri:
         raise ValueError('MONGO_URI not set')
     client = await get_mongo_client(uri)
     db_name = os.getenv('MONGO_DB_NAME', 'discord_bot')
+    return client[db_name]
+
+async def _get_db_wos_async():
+    uri = os.getenv('MONGO_URI_FALLBACK') or os.getenv('MONGO_URI')
+    if not uri:
+        raise ValueError('MONGO_URI not set')
+    client = await get_mongo_client(uri)
+    db_name = os.getenv('MONGO_DB_WOS', 'wos_bot')
+    return client[db_name]
+
+async def _get_db_reminders_async():
+    uri = os.getenv('MONGO_URI')
+    if not uri:
+        raise ValueError('MONGO_URI not set')
+    client = await get_mongo_client(uri)
+    db_name = os.getenv('MONGO_DB_REMINDERS', 'whiteout_survival_bot')
     return client[db_name]
 
 
@@ -33,8 +65,8 @@ def mongo_enabled() -> bool:
 
 
 def get_mongo_db():
-    """Public function to get MongoDB database instance"""
-    return _get_db()
+    """Public function to get MongoDB database instance (Main)"""
+    return _get_db_main()
 
 
 class UserTimezonesAdapter:
@@ -43,7 +75,7 @@ class UserTimezonesAdapter:
     @staticmethod
     def load_all() -> Dict[str, str]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = db[UserTimezonesAdapter.COLL].find({})
             return {str(d['_id']): d.get('timezone') for d in docs}
         except Exception as e:
@@ -53,7 +85,7 @@ class UserTimezonesAdapter:
     @staticmethod
     def get(user_id: str) -> Optional[str]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             d = db[UserTimezonesAdapter.COLL].find_one({'_id': str(user_id)})
             return d.get('timezone') if d else None
         except Exception as e:
@@ -63,7 +95,7 @@ class UserTimezonesAdapter:
     @staticmethod
     def set(user_id: str, tz_abbr: str) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[UserTimezonesAdapter.COLL].update_one(
                 {'_id': str(user_id)},
@@ -78,7 +110,7 @@ class UserTimezonesAdapter:
     @staticmethod
     async def get_async(user_id: str) -> Optional[str]:
         try:
-            db = await _get_db_async()
+            db = await _get_db_main_async()
             d = await db[UserTimezonesAdapter.COLL].find_one({'_id': str(user_id)})
             return d.get('timezone') if d else None
         except Exception as e:
@@ -88,7 +120,7 @@ class UserTimezonesAdapter:
     @staticmethod
     async def set_async(user_id: str, tz_abbr: str) -> bool:
         try:
-            db = await _get_db_async()
+            db = await _get_db_main_async()
             now = datetime.utcnow().isoformat()
             await db[UserTimezonesAdapter.COLL].update_one(
                 {'_id': str(user_id)},
@@ -107,7 +139,7 @@ class BirthdaysAdapter:
     @staticmethod
     def load_all() -> Dict[str, Any]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = db[BirthdaysAdapter.COLL].find({})
             return {str(d['_id']): {'day': int(d.get('day')), 'month': int(d.get('month'))} for d in docs}
         except Exception as e:
@@ -117,7 +149,7 @@ class BirthdaysAdapter:
     @staticmethod
     def get(user_id: str):
         try:
-            db = _get_db()
+            db = _get_db_main()
             d = db[BirthdaysAdapter.COLL].find_one({'_id': str(user_id)})
             if not d:
                 return None
@@ -129,7 +161,7 @@ class BirthdaysAdapter:
     @staticmethod
     def set(user_id: str, day: int, month: int) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             db[BirthdaysAdapter.COLL].update_one(
                 {'_id': str(user_id)},
                 {'$set': {'day': int(day), 'month': int(month), 'updated_at': datetime.utcnow().isoformat()},
@@ -144,7 +176,7 @@ class BirthdaysAdapter:
     @staticmethod
     def remove(user_id: str) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             res = db[BirthdaysAdapter.COLL].delete_one({'_id': str(user_id)})
             return res.deleted_count > 0
         except Exception as e:
@@ -158,7 +190,7 @@ class UserProfilesAdapter:
     @staticmethod
     def load_all() -> Dict[str, Any]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = db[UserProfilesAdapter.COLL].find({})
             result = {}
             for d in docs:
@@ -173,7 +205,7 @@ class UserProfilesAdapter:
     @staticmethod
     def get(user_id: str) -> Optional[Dict[str, Any]]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             d = db[UserProfilesAdapter.COLL].find_one({'_id': str(user_id)})
             if not d:
                 return None
@@ -186,7 +218,7 @@ class UserProfilesAdapter:
     @staticmethod
     def set(user_id: str, data: Dict[str, Any]) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             payload = data.copy()
             # Avoid conflicts where payload already contains 'created_at' which
@@ -206,7 +238,7 @@ class GiftcodeStateAdapter:
     @staticmethod
     def get_state() -> Dict[str, Any]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             d = db[GiftcodeStateAdapter.COLL].find_one({'_id': 'giftcode_state'})
             if not d:
                 return {}
@@ -219,7 +251,7 @@ class GiftcodeStateAdapter:
     @staticmethod
     def set_state(state: Dict[str, Any]) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             payload = state.copy()
             # Remove created_at from payload to avoid $set vs $setOnInsert conflict
@@ -241,7 +273,7 @@ class RemindersAdapter:
     def add_reminder(data: Dict[str, Any]) -> str:
         """Add a new reminder"""
         try:
-            db = _get_db()
+            db = _get_db_reminders()
             now = datetime.utcnow().isoformat()
             
             # Ensure required fields
@@ -283,7 +315,7 @@ class RemindersAdapter:
     def get_due_reminders() -> List[Dict[str, Any]]:
         """Get all active reminders that are due"""
         try:
-            db = _get_db()
+            db = _get_db_reminders()
             now = datetime.utcnow().isoformat()
             
             cursor = db[RemindersAdapter.COLL].find({
@@ -292,7 +324,12 @@ class RemindersAdapter:
                 'reminder_time': {'$lte': now}
             }).sort('reminder_time', 1)
             
-            return list(cursor)
+            docs = list(cursor)
+            for doc in docs:
+                # Ensure _id is serializable
+                if '_id' in doc and not isinstance(doc['_id'], (str, int, float)):
+                    doc['_id'] = str(doc['_id'])
+            return docs
         except Exception as e:
             logger.error(f'Failed to get due reminders from Mongo: {e}')
             return []
@@ -301,7 +338,7 @@ class RemindersAdapter:
     def mark_reminder_sent(reminder_id: Union[int, str]) -> bool:
         """Mark a reminder as sent"""
         try:
-            db = _get_db()
+            db = _get_db_reminders()
             try:
                 if isinstance(reminder_id, str) and reminder_id.isdigit():
                     reminder_id = int(reminder_id)
@@ -321,7 +358,7 @@ class RemindersAdapter:
     def update_reminder_fields(reminder_id: Union[int, str], fields: Dict[str, Any]) -> bool:
         """Update arbitrary fields"""
         try:
-            db = _get_db()
+            db = _get_db_reminders()
             try:
                 if isinstance(reminder_id, str) and reminder_id.isdigit():
                     reminder_id = int(reminder_id)
@@ -347,13 +384,17 @@ class RemindersAdapter:
     def get_user_reminders(user_id: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Get active reminders for a user"""
         try:
-            db = _get_db()
+            db = _get_db_reminders()
             cursor = db[RemindersAdapter.COLL].find({
                 'user_id': str(user_id),
                 'is_active': 1,
                 'is_sent': 0
             }).sort('reminder_time', 1).limit(limit)
-            return list(cursor)
+            docs = list(cursor)
+            for doc in docs:
+                if '_id' in doc and not isinstance(doc['_id'], (str, int, float)):
+                    doc['_id'] = str(doc['_id'])
+            return docs
         except Exception as e:
             logger.error(f'Failed to get reminders for {user_id} from Mongo: {e}')
             return []
@@ -362,7 +403,7 @@ class RemindersAdapter:
     def delete_reminder(reminder_id: Union[int, str], user_id: str) -> bool:
         """Delete (deactivate) a reminder"""
         try:
-            db = _get_db()
+            db = _get_db_reminders()
             try:
                 if isinstance(reminder_id, str) and reminder_id.isdigit():
                     reminder_id = int(reminder_id)
@@ -382,12 +423,16 @@ class RemindersAdapter:
     def get_all_active_reminders() -> List[Dict[str, Any]]:
         """Get ALL active reminders (admin)"""
         try:
-            db = _get_db()
+            db = _get_db_reminders()
             cursor = db[RemindersAdapter.COLL].find({
                 'is_active': 1,
                 'is_sent': 0
             }).sort('reminder_time', 1)
-            return list(cursor)
+            docs = list(cursor)
+            for doc in docs:
+                if '_id' in doc and not isinstance(doc['_id'], (str, int, float)):
+                    doc['_id'] = str(doc['_id'])
+            return docs
         except Exception as e:
             logger.error(f'Failed to get all active reminders from Mongo: {e}')
             return []
@@ -405,7 +450,7 @@ class AllianceMembersAdapter:
     def upsert_member(fid: str, data: Dict[str, Any]) -> bool:
         """Insert or update a single alliance member"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             now = datetime.utcnow().isoformat()
             
             # Ensure _id is string fid
@@ -427,7 +472,7 @@ class AllianceMembersAdapter:
     async def upsert_member_async(fid: str, data: Dict[str, Any]) -> bool:
         """Insert or update a single alliance member asynchronously"""
         try:
-            db = await _get_db_async()
+            db = await _get_db_wos_async()
             now = datetime.utcnow().isoformat()
             
             data_copy = data.copy()
@@ -448,7 +493,7 @@ class AllianceMembersAdapter:
     async def get_all_members_async() -> list:
         """Get all alliance members asynchronously"""
         try:
-            db = await _get_db_async()
+            db = await _get_db_wos_async()
             cursor = db[AllianceMembersAdapter.COLL].find({})
             docs = await cursor.to_list(length=None)
             for doc in docs:
@@ -462,7 +507,7 @@ class AllianceMembersAdapter:
     def get_member(fid: str) -> Optional[Dict[str, Any]]:
         """Get a single alliance member"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             doc = db[AllianceMembersAdapter.COLL].find_one({'_id': str(fid)})
             if doc:
                 doc.pop('_id', None)  # Remove MongoDB _id
@@ -475,7 +520,7 @@ class AllianceMembersAdapter:
     async def get_member_async(fid: str) -> Optional[Dict[str, Any]]:
         """Get a single alliance member asynchronously"""
         try:
-            db = await _get_db_async()
+            db = await _get_db_wos_async()
             doc = await db[AllianceMembersAdapter.COLL].find_one({'_id': str(fid)})
             if doc:
                 doc.pop('_id', None)
@@ -488,7 +533,7 @@ class AllianceMembersAdapter:
     def get_all_members() -> list:
         """Get all alliance members"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             docs = list(db[AllianceMembersAdapter.COLL].find({}))
             for doc in docs:
                 doc.pop('_id', None)  # Remove MongoDB _id
@@ -501,7 +546,7 @@ class AllianceMembersAdapter:
     def delete_member(fid: str) -> bool:
         """Delete a single alliance member"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             result = db[AllianceMembersAdapter.COLL].delete_one({'_id': str(fid)})
             return result.deleted_count > 0
         except Exception as e:
@@ -512,7 +557,7 @@ class AllianceMembersAdapter:
     def clear_all() -> bool:
         """Clear all alliance members"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             db[AllianceMembersAdapter.COLL].delete_many({})
             logger.info('[Mongo] Cleared all alliance members')
             return True
@@ -529,7 +574,7 @@ class AllianceMetadataAdapter:
     def set_metadata(key: str, value: Any) -> bool:
         """Set alliance metadata"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             
             db[AllianceMetadataAdapter.COLL].update_one(
@@ -546,7 +591,7 @@ class AllianceMetadataAdapter:
     def get_metadata(key: str) -> Optional[Any]:
         """Get alliance metadata"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[AllianceMetadataAdapter.COLL].find_one({'_id': str(key)})
             return doc.get('value') if doc else None
         except Exception as e:
@@ -557,7 +602,7 @@ class AllianceMetadataAdapter:
     async def set_metadata_async(key: str, value: Any) -> bool:
         """Set alliance metadata asynchronously"""
         try:
-            db = await _get_db_async()
+            db = await _get_db_main_async()
             now = datetime.utcnow().isoformat()
             await db[AllianceMetadataAdapter.COLL].update_one(
                 {'_id': str(key)},
@@ -578,9 +623,14 @@ class GiftCodesAdapter:
     def get_all():
         """Get all gift codes as list of tuples: (code, date, validation_status)"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             docs = db[GiftCodesAdapter.COLL].find({})
-            return [(d.get('_id'), d.get('date'), d.get('validation_status')) for d in docs]
+            # Filter out docs where _id is not a string (e.g. malformed ObjectId docs)
+            return [
+                (d.get('_id'), d.get('date'), d.get('validation_status')) 
+                for d in docs 
+                if isinstance(d.get('_id'), str)
+            ]
         except Exception as e:
             logger.error(f'Failed to get all gift codes from Mongo: {e}')
             return []
@@ -589,7 +639,7 @@ class GiftCodesAdapter:
     def insert(code: str, date: str, validation_status: str = 'pending') -> bool:
         """Insert a new gift code (ignores if already exists)"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             db[GiftCodesAdapter.COLL].update_one(
                 {'_id': code},
                 {'$set': {'date': date, 'validation_status': validation_status, 'created_at': datetime.utcnow().isoformat()}},
@@ -604,7 +654,7 @@ class GiftCodesAdapter:
     def update_status(code: str, validation_status: str) -> bool:
         """Update validation status of a gift code"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             db[GiftCodesAdapter.COLL].update_one(
                 {'_id': code},
                 {'$set': {'validation_status': validation_status, 'updated_at': datetime.utcnow().isoformat()}}
@@ -618,7 +668,7 @@ class GiftCodesAdapter:
     def delete(code: str) -> bool:
         """Delete a gift code"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             result = db[GiftCodesAdapter.COLL].delete_one({'_id': code})
             return result.deleted_count > 0
         except Exception as e:
@@ -629,7 +679,7 @@ class GiftCodesAdapter:
     def clear_all() -> bool:
         """Clear all gift codes (use with caution)"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             db[GiftCodesAdapter.COLL].delete_many({})
             return True
         except Exception as e:
@@ -640,7 +690,7 @@ class GiftCodesAdapter:
     def get_code(code: str) -> Optional[Dict[str, Any]]:
         """Get a single gift code with all its fields"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             doc = db[GiftCodesAdapter.COLL].find_one({'_id': code})
             if doc:
                 return {
@@ -660,7 +710,7 @@ class GiftCodesAdapter:
     def get_all_with_status() -> List[Dict[str, Any]]:
         """Get all gift codes with their auto_redeem_processed status"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             docs = db[GiftCodesAdapter.COLL].find({})
             return [
                 {
@@ -681,7 +731,7 @@ class GiftCodesAdapter:
     def mark_code_processed(code: str) -> bool:
         """Mark a gift code as processed for auto-redeem"""
         try:
-            db = _get_db()
+            db = _get_db_wos()
             result = db[GiftCodesAdapter.COLL].update_one(
                 {'_id': code},
                 {
@@ -700,7 +750,7 @@ class GiftCodesAdapter:
     async def mark_code_processed_async(code: str) -> bool:
         """Mark a gift code as processed for auto-redeem asynchronously"""
         try:
-            db = await _get_db_async()
+            db = await _get_db_wos_async()
             result = await db[GiftCodesAdapter.COLL].update_one(
                 {'_id': code},
                 {
@@ -724,7 +774,7 @@ class AutoRedeemSettingsAdapter:
     def get_settings(guild_id: int) -> Optional[Dict[str, Any]]:
         """Get auto redeem settings for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[AutoRedeemSettingsAdapter.COLL].find_one({'_id': str(guild_id)})
             if not doc:
                 return None
@@ -741,7 +791,7 @@ class AutoRedeemSettingsAdapter:
     def set_enabled(guild_id: int, enabled: bool, updated_by: int) -> bool:
         """Set auto redeem enabled/disabled state for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[AutoRedeemSettingsAdapter.COLL].update_one(
                 {'_id': str(guild_id)},
@@ -766,7 +816,7 @@ class AutoRedeemSettingsAdapter:
     def get_all_settings() -> List[Dict[str, Any]]:
         """Get all auto redeem settings for all guilds"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = db[AutoRedeemSettingsAdapter.COLL].find({})
             return [
                 {
@@ -791,7 +841,7 @@ class AutoRedeemMembersAdapter:
     def get_members(guild_id: int) -> List[Dict[str, Any]]:
         """Get all auto-redeem members for a guild (filters out invalid FIDs)"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             # Query with filter to exclude null/empty FIDs at database level
             docs = db[AutoRedeemMembersAdapter.COLL].find({
                 'guild_id': int(guild_id),
@@ -826,7 +876,7 @@ class AutoRedeemMembersAdapter:
             # Ensure fid is a clean string
             fid = str(fid).strip()
             
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[AutoRedeemMembersAdapter.COLL].update_one(
                 {'guild_id': int(guild_id), 'fid': str(fid)},
@@ -855,7 +905,7 @@ class AutoRedeemMembersAdapter:
     def remove_member(guild_id: int, fid: str) -> bool:
         """Remove a member from auto-redeem list"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             result = db[AutoRedeemMembersAdapter.COLL].delete_one({
                 'guild_id': int(guild_id),
                 'fid': str(fid)
@@ -869,7 +919,7 @@ class AutoRedeemMembersAdapter:
     def member_exists(guild_id: int, fid: str) -> bool:
         """Check if member exists in auto-redeem list"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[AutoRedeemMembersAdapter.COLL].find_one({
                 'guild_id': int(guild_id),
                 'fid': str(fid)
@@ -883,7 +933,7 @@ class AutoRedeemMembersAdapter:
     def batch_member_exists(guild_id: int, fids: List[str]) -> Dict[str, bool]:
         """Batch check if multiple members exist in auto-redeem list"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = db[AutoRedeemMembersAdapter.COLL].find({
                 'guild_id': int(guild_id),
                 'fid': {'$in': [str(fid) for fid in fids]}
@@ -903,7 +953,7 @@ class AutoRedeemChannelsAdapter:
     def get_channel(guild_id: int) -> Optional[Dict[str, Any]]:
         """Get auto redeem channel configuration for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[AutoRedeemChannelsAdapter.COLL].find_one({'_id': str(guild_id)})
             if not doc:
                 return None
@@ -920,7 +970,7 @@ class AutoRedeemChannelsAdapter:
     def set_channel(guild_id: int, channel_id: int, added_by: int) -> bool:
         """Set auto redeem channel for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[AutoRedeemChannelsAdapter.COLL].update_one(
                 {'_id': str(guild_id)},
@@ -951,7 +1001,7 @@ class WelcomeChannelAdapter:
     def get(guild_id: int) -> Optional[Dict[str, Any]]:
         """Get welcome channel settings for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[WelcomeChannelAdapter.COLL].find_one({'_id': str(guild_id)})
             if not doc:
                 return None
@@ -971,7 +1021,7 @@ class WelcomeChannelAdapter:
     def set(guild_id: int, channel_id: int, enabled: bool = True) -> bool:
         """Set/update welcome channel for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[WelcomeChannelAdapter.COLL].update_one(
                 {'_id': str(guild_id)},
@@ -994,7 +1044,7 @@ class WelcomeChannelAdapter:
     def set_bg_image(guild_id: int, bg_image_url: str) -> bool:
         """Set/update background image URL for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[WelcomeChannelAdapter.COLL].update_one(
                 {'_id': str(guild_id)},
@@ -1016,7 +1066,7 @@ class WelcomeChannelAdapter:
     def delete(guild_id: int) -> bool:
         """Delete welcome channel configuration for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             result = db[WelcomeChannelAdapter.COLL].delete_one({'_id': str(guild_id)})
             return result.deleted_count > 0
         except Exception as e:
@@ -1027,7 +1077,7 @@ class WelcomeChannelAdapter:
     def get_all() -> list:
         """Get all configured welcome channels"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[WelcomeChannelAdapter.COLL].find({'enabled': True}))
             return [{
                 'guild_id': int(d.get('_id')),
@@ -1044,7 +1094,7 @@ class AdminsAdapter:
     @staticmethod
     def count() -> int:
         try:
-            db = _get_db()
+            db = _get_db_main()
             return db[AdminsAdapter.COLL].count_documents({})
         except Exception:
             return 0
@@ -1052,7 +1102,7 @@ class AdminsAdapter:
     @staticmethod
     def get(user_id: int) -> Optional[Dict[str, Any]]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             d = db[AdminsAdapter.COLL].find_one({'_id': str(user_id)})
             return d
         except Exception:
@@ -1061,7 +1111,7 @@ class AdminsAdapter:
     @staticmethod
     def upsert(user_id: int, is_initial: int) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[AdminsAdapter.COLL].update_one(
                 {'_id': str(user_id)},
@@ -1075,28 +1125,30 @@ class AdminsAdapter:
     @staticmethod
     def get_initial_admins() -> List[int]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[AdminsAdapter.COLL].find({'is_initial': 1}))
             return [int(d['_id']) for d in docs]
         except Exception:
             return []
 
 class AlliancesAdapter:
-    COLL = 'alliances'
+    COLL = 'alliance__alliance_list'
 
     @staticmethod
     def get_all() -> list:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[AlliancesAdapter.COLL].find({}))
-            return [{'alliance_id': int(d.get('alliance_id')), 'name': d.get('name'), 'discord_server_id': int(d.get('discord_server_id', 0))} for d in docs]
+            # Legacy field 'id' instead of 'alliance_id'? No, user said 'alliance_id' in schema but let's be safe
+            # Debug output showed: "id": 1, "name": "S667", "discord_server_id": 1285973956424597554
+            return [{'alliance_id': int(d.get('alliance_id') or d.get('id')), 'name': d.get('name'), 'discord_server_id': int(d.get('discord_server_id', 0))} for d in docs]
         except Exception:
             return []
 
     @staticmethod
     def find_by_name(name: str) -> Optional[Dict[str, Any]]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             d = db[AlliancesAdapter.COLL].find_one({'name': name})
             return d
         except Exception:
@@ -1105,7 +1157,7 @@ class AlliancesAdapter:
     @staticmethod
     def delete(alliance_id: int) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             res = db[AlliancesAdapter.COLL].delete_one({'_id': str(alliance_id)})
             return res.deleted_count > 0
         except Exception:
@@ -1114,17 +1166,17 @@ class AlliancesAdapter:
     @staticmethod
     async def get_all_async() -> list:
         try:
-            db = await _get_db_async()
+            db = await _get_db_main_async()
             cursor = db[AlliancesAdapter.COLL].find({})
             docs = await cursor.to_list(length=None)
-            return [{'alliance_id': int(d.get('alliance_id')), 'name': d.get('name'), 'discord_server_id': int(d.get('discord_server_id', 0))} for d in docs]
+            return [{'alliance_id': int(d.get('alliance_id') or d.get('id')), 'name': d.get('name'), 'discord_server_id': int(d.get('discord_server_id', 0))} for d in docs]
         except Exception:
             return []
 
     @staticmethod
     async def upsert_async(alliance_id: int, name: str, discord_server_id: int) -> bool:
         try:
-            db = await _get_db_async()
+            db = await _get_db_main_async()
             now = datetime.utcnow().isoformat()
             await db[AlliancesAdapter.COLL].update_one(
                 {'_id': str(alliance_id)},
@@ -1138,20 +1190,21 @@ class AlliancesAdapter:
     @staticmethod
     def delete(alliance_id: int) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             res = db[AlliancesAdapter.COLL].delete_one({'_id': str(alliance_id)})
             return res.deleted_count > 0
         except Exception:
             return False
 
 class AllianceSettingsAdapter:
-    COLL = 'alliance_settings'
+    COLL = 'alliance__alliancesettings'
 
     @staticmethod
     def get(alliance_id: int) -> Optional[Dict[str, Any]]:
         try:
-            db = _get_db()
-            d = db[AllianceSettingsAdapter.COLL].find_one({'_id': str(alliance_id)})
+            db = _get_db_main()
+            # Query by 'alliance_id' as per schema: "alliance_id": 1
+            d = db[AllianceSettingsAdapter.COLL].find_one({'alliance_id': int(alliance_id)})
             return d
         except Exception:
             return None
@@ -1159,16 +1212,17 @@ class AllianceSettingsAdapter:
     @staticmethod
     def get_all() -> list:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[AllianceSettingsAdapter.COLL].find({}))
-            return [{'alliance_id': int(d.get('_id')), 'channel_id': int(d.get('channel_id')), 'interval': int(d.get('interval'))} for d in docs]
+            # Schema: "alliance_id": 1, "channel_id": ...
+            return [{'alliance_id': int(d.get('alliance_id')), 'channel_id': int(d.get('channel_id') or 0), 'interval': int(d.get('interval') or 0)} for d in docs]
         except Exception:
             return []
 
     @staticmethod
     def upsert(alliance_id: int, channel_id: int, interval: int, giftcodecontrol: Optional[int ] = None, giftcode_channel: Optional[int ] = None) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             payload = {'channel_id': int(channel_id), 'interval': int(interval)}
             if giftcodecontrol is not None:
@@ -1177,7 +1231,7 @@ class AllianceSettingsAdapter:
                 payload['giftcode_channel'] = int(giftcode_channel)
             db[AllianceSettingsAdapter.COLL].update_one(
                 {'_id': str(alliance_id)},
-                {'$set': payload | {'updated_at': now}, '$setOnInsert': {'created_at': now}},
+                {'$set': {**payload, 'updated_at': now}, '$setOnInsert': {'created_at': now}},
                 upsert=True
             )
             return True
@@ -1187,7 +1241,7 @@ class AllianceSettingsAdapter:
     @staticmethod
     def delete(alliance_id: int) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             res = db[AllianceSettingsAdapter.COLL].delete_one({'_id': str(alliance_id)})
             return res.deleted_count > 0
         except Exception:
@@ -1196,7 +1250,7 @@ class AllianceSettingsAdapter:
     @staticmethod
     def get_auto_redeem_alliances() -> List[int]:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[AllianceSettingsAdapter.COLL].find({'giftcodecontrol': 1}))
             return [int(d['_id']) for d in docs]
         except Exception:
@@ -1209,7 +1263,7 @@ class FurnaceHistoryAdapter:
     @staticmethod
     def insert(data: Dict[str, Any]) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_wos()
             if db is None:
                 return False
             
@@ -1226,7 +1280,7 @@ class FurnaceHistoryAdapter:
     async def insert_async(data: Dict[str, Any]) -> bool:
         """Insert a single furnace history record asynchronously"""
         try:
-            db = await _get_db_async()
+            db = await _get_db_wos_async()
             if db is None:
                 return False
             
@@ -1242,7 +1296,7 @@ class FurnaceHistoryAdapter:
     @staticmethod
     def get_recent_changes(days: int = 7, alliance_id: Optional[int] = None) -> list:
         try:
-            db = _get_db()
+            db = _get_db_wos()
             if db is None:
                 return []
             
@@ -1288,7 +1342,7 @@ class AllianceMonitoringAdapter:
     @staticmethod
     def get_all_monitors() -> list:
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[AllianceMonitoringAdapter.COLL].find({'enabled': 1}))
             return [{
                 'guild_id': int(d.get('guild_id')),
@@ -1304,7 +1358,7 @@ class AllianceMonitoringAdapter:
     @staticmethod
     async def get_all_monitors_async() -> list:
         try:
-            db = await _get_db_async()
+            db = await _get_db_main_async()
             cursor = db[AllianceMonitoringAdapter.COLL].find({'enabled': 1})
             docs = await cursor.to_list(length=None)
             return [{
@@ -1321,7 +1375,7 @@ class AllianceMonitoringAdapter:
     @staticmethod
     def upsert_monitor(guild_id: int, alliance_id: int, channel_id: int, enabled: int = 1, check_interval: int = 240) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[AllianceMonitoringAdapter.COLL].update_one(
                 {'guild_id': int(guild_id), 'alliance_id': int(alliance_id)},
@@ -1346,7 +1400,7 @@ class AllianceMonitoringAdapter:
     @staticmethod
     def delete_monitor(guild_id: int, alliance_id: int) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             res = db[AllianceMonitoringAdapter.COLL].delete_one({'guild_id': int(guild_id), 'alliance_id': int(alliance_id)})
             return res.deleted_count > 0
         except Exception as e:
@@ -1356,20 +1410,21 @@ class AllianceMonitoringAdapter:
 
 class ServerAllianceAdapter:
     """Adapter for managing server-alliance assignments in MongoDB"""
-    COLL = 'server_alliances'
+    COLL = 'settings__adminserver'
 
     @staticmethod
     def set_alliance(guild_id: int, alliance_id: int, assigned_by: int) -> bool:
         """Assign an alliance to a Discord server"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
+            # Legacy collection uses 'id' as guild_id and 'alliances_id' as alliance_id
             db[ServerAllianceAdapter.COLL].update_one(
-                {'_id': str(guild_id)},
+                {'_id': int(guild_id)},
                 {
                     '$set': {
-                        'guild_id': int(guild_id),
-                        'alliance_id': int(alliance_id),
+                        'id': int(guild_id),
+                        'alliances_id': int(alliance_id),
                         'assigned_by': int(assigned_by),
                         'assigned_at': now,
                         'updated_at': now
@@ -1388,10 +1443,16 @@ class ServerAllianceAdapter:
     def get_alliance(guild_id: int) -> Optional[int]:
         """Get the assigned alliance ID for a Discord server"""
         try:
-            db = _get_db()
-            doc = db[ServerAllianceAdapter.COLL].find_one({'_id': str(guild_id)})
+            db = _get_db_main()
+            # Try finding by _id first (modern) or id (legacy)
+            doc = db[ServerAllianceAdapter.COLL].find_one({'_id': int(guild_id)})
+            if not doc:
+                 # Fallback for documents that might have auto-generated _id
+                 doc = db[ServerAllianceAdapter.COLL].find_one({'id': int(guild_id)})
+            
             if doc:
-                return int(doc.get('alliance_id'))
+                # Legacy field is 'alliances_id', modern might be 'alliance_id'
+                return int(doc.get('alliances_id') or doc.get('alliance_id'))
             return None
         except Exception as e:
             logger.error(f'Failed to get alliance for server {guild_id}: {e}')
@@ -1401,7 +1462,7 @@ class ServerAllianceAdapter:
     def remove_alliance(guild_id: int) -> bool:
         """Remove alliance assignment from a Discord server"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             result = db[ServerAllianceAdapter.COLL].delete_one({'_id': str(guild_id)})
             return result.deleted_count > 0
         except Exception as e:
@@ -1412,7 +1473,7 @@ class ServerAllianceAdapter:
     def get_all() -> list:
         """Get all server-alliance mappings"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[ServerAllianceAdapter.COLL].find({}))
             return [{
                 'guild_id': int(d.get('guild_id')),
@@ -1428,7 +1489,7 @@ class ServerAllianceAdapter:
     def set_password(guild_id: int, password: str, set_by: int) -> bool:
         """Set member list password for a Discord server"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[ServerAllianceAdapter.COLL].update_one(
                 {'_id': str(guild_id)},
@@ -1461,7 +1522,7 @@ class ServerAllianceAdapter:
     def get_password(guild_id: int) -> Optional[str]:
         """Get member list password for a Discord server"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[ServerAllianceAdapter.COLL].find_one({'_id': str(guild_id)})
             if doc:
                 return doc.get('member_list_password')
@@ -1474,7 +1535,7 @@ class ServerAllianceAdapter:
     async def get_password_async(guild_id: int) -> Optional[str]:
         """Get member list password for a Discord server asynchronously"""
         try:
-            db = await _get_db_async()
+            db = await _get_db_main_async()
             doc = await db[ServerAllianceAdapter.COLL].find_one({'_id': str(guild_id)})
             if doc:
                 return doc.get('member_list_password')
@@ -1505,7 +1566,7 @@ class AuthSessionsAdapter:
     def create_session(guild_id: int, user_id: int, password_hash: str) -> bool:
         """Create or update an authentication session for a user"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow()
             expires_at = now + timedelta(days=AuthSessionsAdapter.SESSION_DURATION_DAYS)
             
@@ -1533,7 +1594,7 @@ class AuthSessionsAdapter:
     def get_session(guild_id: int, user_id: int) -> Optional[Dict[str, Any]]:
         """Get authentication session for a user"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[AuthSessionsAdapter.COLL].find_one({'_id': f"{guild_id}:{user_id}"})
             if doc:
                 doc.pop('_id', None)
@@ -1571,7 +1632,7 @@ class AuthSessionsAdapter:
     def invalidate_all_sessions(guild_id: int) -> bool:
         """Invalidate all authentication sessions for a guild (called when password changes)"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             result = db[AuthSessionsAdapter.COLL].delete_many({'guild_id': int(guild_id)})
             logger.info(f'Invalidated {result.deleted_count} auth sessions for guild {guild_id}')
             return True
@@ -1583,7 +1644,7 @@ class AuthSessionsAdapter:
     def cleanup_expired_sessions() -> int:
         """Remove all expired sessions from the database"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             result = db[AuthSessionsAdapter.COLL].delete_many({
                 'expires_at': {'$lt': now}
@@ -1603,7 +1664,7 @@ class RecordsAdapter:
     def create_record(guild_id: int, record_name: str, created_by: int) -> bool:
         """Create a new custom record"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             
             # Check if record already exists
@@ -1634,7 +1695,7 @@ class RecordsAdapter:
     def delete_record(guild_id: int, record_name: str) -> bool:
         """Delete a custom record"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             result = db[RecordsAdapter.COLL].delete_one({
                 '_id': f"{guild_id}:{record_name}"
             })
@@ -1650,7 +1711,7 @@ class RecordsAdapter:
     def get_record(guild_id: int, record_name: str) -> Optional[dict]:
         """Get a specific record"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[RecordsAdapter.COLL].find_one({
                 '_id': f"{guild_id}:{record_name}"
             })
@@ -1663,7 +1724,7 @@ class RecordsAdapter:
     def get_all_records(guild_id: int) -> list:
         """Get all records for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[RecordsAdapter.COLL].find({'guild_id': int(guild_id)}))
             return [{
                 'record_name': d.get('record_name'),
@@ -1679,7 +1740,7 @@ class RecordsAdapter:
     def add_member_to_record(guild_id: int, record_name: str, fid: str, member_data: dict) -> bool:
         """Add a member to a record"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             
             # Check if member already exists in record
@@ -1725,7 +1786,7 @@ class RecordsAdapter:
     def remove_member_from_record(guild_id: int, record_name: str, fid: str) -> bool:
         """Remove a member from a record"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             
             record = db[RecordsAdapter.COLL].find_one({
@@ -1770,7 +1831,7 @@ class RecordsAdapter:
     def rename_record(guild_id: int, old_name: str, new_name: str) -> bool:
         """Rename a record"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             
             # Check if new name already exists
             existing = db[RecordsAdapter.COLL].find_one({
@@ -1824,7 +1885,7 @@ class GiftCodeRedemptionAdapter:
             status: Redemption status ('success' or 'failed')
         """
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             
             # Create unique document ID per guild+code
@@ -1875,7 +1936,7 @@ class GiftCodeRedemptionAdapter:
             }
         """
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc_id = f"{guild_id}:{code}"
             doc = db[GiftCodeRedemptionAdapter.COLL].find_one({'_id': doc_id})
             
@@ -1914,7 +1975,7 @@ class GiftCodeRedemptionAdapter:
             }
         """
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[GiftCodeRedemptionAdapter.COLL].find({'guild_id': int(guild_id)}))
             
             results = []
@@ -1957,7 +2018,7 @@ class PersistentViewsAdapter:
     def register_view(guild_id: int, channel_id: int, message_id: int, view_type: str, metadata: Dict[str, Any] = None) -> bool:
         """Register a persistent view to be restored on startup"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             if metadata is None:
                 metadata = {}
@@ -1986,7 +2047,7 @@ class PersistentViewsAdapter:
     def get_all_views() -> list:
         """Get all registered persistent views"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[PersistentViewsAdapter.COLL].find({}))
             return docs
         except Exception as e:
@@ -1997,7 +2058,7 @@ class PersistentViewsAdapter:
     def remove_view(message_id: int) -> bool:
         """Remove a persistent view (e.g. if message is deleted)"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             result = db[PersistentViewsAdapter.COLL].delete_one({'_id': str(message_id)})
             return result.deleted_count > 0
         except Exception as e:
@@ -2008,7 +2069,7 @@ class PersistentViewsAdapter:
     def view_exists(message_id: int) -> bool:
         """Check if a persistent view exists"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             count = db[PersistentViewsAdapter.COLL].count_documents({'_id': str(message_id)})
             return count > 0
         except Exception as e:
@@ -2023,7 +2084,7 @@ class AutoRedeemedCodesAdapter:
     @staticmethod
     def mark_code_redeemed_for_member(guild_id: int, code: str, fid: str, status: str) -> bool:
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[AutoRedeemedCodesAdapter.COLL].update_one(
                 {'guild_id': int(guild_id), 'code': code, 'fid': str(fid)},
@@ -2043,17 +2104,17 @@ class AutoRedeemedCodesAdapter:
 
     @staticmethod
     def is_redeemed(guild_id: int, code: str, fid: str) -> bool:
-       try:
-            db = _get_db()
+        try:
+            db = _get_db_main()
             return db[AutoRedeemedCodesAdapter.COLL].count_documents({'guild_id': int(guild_id), 'code': code, 'fid': str(fid)}) > 0
-       except Exception:
-           return False
+        except Exception:
+            return False
 
     @staticmethod
     def batch_check_members(guild_id: int, giftcode: str, fids: List[str]) -> Dict[str, bool]:
         """Batch check if multiple members have redeemed a code"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             # Find all redemptions for this code and these FIDs
             docs = db[AutoRedeemedCodesAdapter.COLL].find({
                 'guild_id': int(guild_id),
@@ -2080,7 +2141,7 @@ class AutoTranslateAdapter:
     def create_config(guild_id: int, data: Dict[str, Any]) -> Optional[str]:
         """Create a new auto-translate configuration"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             config_id = str(uuid.uuid4())
             now = datetime.utcnow().isoformat()
             
@@ -2103,10 +2164,11 @@ class AutoTranslateAdapter:
     def get_config(config_id: str) -> Optional[Dict[str, Any]]:
         """Get a specific configuration by ID"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             doc = db[AutoTranslateAdapter.COLL].find_one({'_id': config_id})
             if doc:
                 doc['config_id'] = str(doc['_id'])
+                doc.pop('_id', None)
             return doc
         except Exception as e:
             logger.error(f"Failed to get auto-translate config {config_id}: {e}")
@@ -2116,10 +2178,11 @@ class AutoTranslateAdapter:
     def get_guild_configs(guild_id: int) -> List[Dict[str, Any]]:
         """Get all configurations for a guild"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             docs = list(db[AutoTranslateAdapter.COLL].find({'guild_id': int(guild_id)}))
             for doc in docs:
                 doc['config_id'] = str(doc['_id'])
+                doc.pop('_id', None)
             return docs
         except Exception as e:
             logger.error(f"Failed to get auto-translate configs for guild {guild_id}: {e}")
@@ -2129,7 +2192,7 @@ class AutoTranslateAdapter:
     def get_configs_for_channel(channel_id: int) -> List[Dict[str, Any]]:
         """Get all enabled configurations where channel_id is the source"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             # Find configs where source_channel_id matches and enabled is True
             docs = list(db[AutoTranslateAdapter.COLL].find({
                 'source_channel_id': int(channel_id),
@@ -2137,6 +2200,7 @@ class AutoTranslateAdapter:
             }))
             for doc in docs:
                 doc['config_id'] = str(doc['_id'])
+                doc.pop('_id', None)
             return docs
         except Exception as e:
             logger.error(f"Failed to get auto-translate configs for channel {channel_id}: {e}")
@@ -2146,7 +2210,7 @@ class AutoTranslateAdapter:
     def update_config(config_id: str, data: Dict[str, Any]) -> bool:
         """Update a configuration"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             
             update_data = data.copy()
@@ -2170,7 +2234,7 @@ class AutoTranslateAdapter:
     def delete_config(config_id: str) -> bool:
         """Delete a configuration"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             result = db[AutoTranslateAdapter.COLL].delete_one({'_id': config_id})
             return result.deleted_count > 0
         except Exception as e:
@@ -2181,7 +2245,7 @@ class AutoTranslateAdapter:
     def toggle_config(config_id: str, enabled: bool) -> bool:
         """Enable or disable a configuration"""
         try:
-            db = _get_db()
+            db = _get_db_main()
             now = datetime.utcnow().isoformat()
             result = db[AutoTranslateAdapter.COLL].update_one(
                 {'_id': config_id},

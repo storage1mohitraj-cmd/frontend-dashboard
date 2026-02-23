@@ -229,7 +229,7 @@ class LoginHandler:
                     'kid': str,
                     # ... other player data
                 } | None,
-                'api_used': 1 | 2,
+                'api_used':Union[1, 2],
                 'error_message': Optional[str ]
             }
         """

@@ -2,7 +2,9 @@ FROM python:3.13-slim
 
 # Avoid Python buffer problems
 ENV PYTHONUNBUFFERED=1
-ENV PIP_NO_CACHE_DIR=1
+# NOTE: Do NOT set PIP_NO_CACHE_DIR=1 here.
+# Docker layer caching handles this: requirements.txt is copied before
+# the rest of the app, so pip deps are only reinstalled when reqs change.
 
 # Install system dependencies needed for building wheels (lxml, numpy, pandas, matplotlib, etc.)
 # Added ffmpeg for voice conversation feature

@@ -1,0 +1,115 @@
+name: 🚀 Deploy to Oracle VM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  deploy:
+    name: Deploy Bot to Oracle VM
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout code (to check requirements diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need at least 2 commits to diff
+
+      - name: 🔍 Check if requirements.txt changed
+        id: req_check
+        run: |
+          if git diff HEAD~1 HEAD --name-only | grep -q "requirements.txt"; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "📦 requirements.txt changed — deps will be reinstalled on VM"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "✅ requirements.txt unchanged — skipping pip install on VM"
+          fi
+
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.ORACLE_HOST }}
+          username: ${{ secrets.ORACLE_USER }}
+          key: ${{ secrets.ORACLE_SSH_KEY }}
+          port: 22
+          timeout: 600s
+          script_stop: true
+          script: |
+            set -e
+            echo "================================================"
+            echo "🤖 WOS Bot Auto-Deploy — $(date)"
+            echo "================================================"
+
+            # Navigate to bot directory
+            BOT_DIR="$HOME/app/bot"
+            if [ ! -d "$BOT_DIR" ]; then
+              echo "❌ Bot directory not found: $BOT_DIR"
+              echo "Run the initial deploy_oracle.sh script first!"
+              exit 1
+            fi
+            cd "$BOT_DIR"
+
+            # Pull latest code from GitHub
+            echo ""
+            echo "📥 Pulling latest code..."
+            git fetch origin main
+            git reset --hard origin/main
+            echo "✅ Code updated to: $(git rev-parse --short HEAD) — $(git log -1 --pretty=%s)"
+
+            # Conditionally install dependencies
+            REQS_CHANGED="${{ steps.req_check.outputs.changed }}"
+            VENV_DIR="$BOT_DIR/venv"
+            CACHE_FILE="$HOME/.bot_deps_hash"
+
+            if [ "$REQS_CHANGED" = "true" ]; then
+              echo ""
+              echo "📦 requirements.txt changed — reinstalling dependencies..."
+              if [ -d "$VENV_DIR" ]; then
+                source "$VENV_DIR/bin/activate"
+                pip install --disable-pip-version-check -r requirements.txt
+                # Update hash cache so app.py skips its own check
+                md5sum requirements.txt | awk '{print $1}' > "$CACHE_FILE"
+                echo "✅ Dependencies installed & hash cached"
+              else
+                echo "⚠️  No venv found at $VENV_DIR — app.py will handle install on startup"
+                # Clear the hash so app.py triggers a fresh install
+                rm -f "$CACHE_FILE"
+              fi
+            else
+              echo ""
+              echo "⚡ Skipping pip install (requirements unchanged)"
+              # Ensure SKIP_INSTALL respected — sync hash if venv exists
+              if [ -d "$VENV_DIR" ] && [ ! -f "$CACHE_FILE" ]; then
+                md5sum requirements.txt | awk '{print $1}' > "$CACHE_FILE"
+                echo "📝 Initialized hash cache"
+              fi
+            fi
+
+            # Restart the bot via PM2
+            echo ""
+            echo "🔄 Restarting bot with PM2..."
+            if pm2 describe discordbot > /dev/null 2>&1; then
+              pm2 restart discordbot --update-env
+              echo "✅ Bot restarted successfully"
+            else
+              echo "⚠️  'discordbot' not found in PM2. Starting it now..."
+              pm2 start app.py \
+                --name discordbot \
+                --interpreter "$VENV_DIR/bin/python" \
+                --max-memory-restart 700M \
+                --time \
+                --env SKIP_INSTALL=true
+              pm2 save
+              echo "✅ Bot started successfully"
+            fi
+
+            echo ""
+            echo "📊 PM2 Status:"
+            pm2 list
+            echo ""
+            echo "================================================"
+            echo "✅ DEPLOYMENT COMPLETE!"
+            echo "================================================"

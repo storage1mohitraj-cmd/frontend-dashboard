@@ -17,53 +17,81 @@ import time
 
 def ensure_dependencies_installed():
     """
-    Install all dependencies from requirements.txt in one shot.
-    This runs FIRST before any other imports to ensure packages are available.
+    Install dependencies from requirements.txt ONLY when requirements.txt has changed.
+    Uses an MD5 hash of requirements.txt stored in ~/.bot_deps_hash as a cache key.
+    This avoids the 5-10 minute pip install on every startup.
     """
+    import hashlib
+
+    # Allow full skip via env var (used by GitHub Actions deploy on code-only pushes)
+    if os.environ.get('SKIP_INSTALL', '').lower() == 'true':
+        print("[SETUP] Skipping dependency installation (SKIP_INSTALL=true)")
+        return True
+
     # Find requirements.txt
     req_paths = [
-        "/app/requirements.txt",                    # Docker
-        os.path.join(os.path.dirname(__file__), "requirements.txt"),  # Local
+        "/app/requirements.txt",                                        # Docker
+        os.path.join(os.path.dirname(__file__), "requirements.txt"),   # Local / Oracle VM
     ]
-    
-    req_file = None
-    for path in req_paths:
-        if os.path.exists(path):
-            req_file = path
-            break
-    
+    req_file = next((p for p in req_paths if os.path.exists(p)), None)
+
     if not req_file:
         print("[ERROR] requirements.txt not found")
         return False
-    
-    if os.environ.get('SKIP_INSTALL', '').lower() == 'true':
-        print("[INFO] Skipping dependency installation check (SKIP_INSTALL=true)")
+
+    # Compute MD5 hash of requirements.txt
+    try:
+        with open(req_file, "rb") as f:
+            current_hash = hashlib.md5(f.read()).hexdigest()
+    except Exception as e:
+        print(f"[WARN] Could not hash requirements.txt: {e} — will reinstall to be safe")
+        current_hash = None
+
+    # Cache file lives in home directory so it persists across PM2 restarts
+    cache_file = os.path.join(os.path.expanduser("~"), ".bot_deps_hash")
+    saved_hash = ""
+    try:
+        if os.path.exists(cache_file):
+            with open(cache_file, "r") as f:
+                saved_hash = f.read().strip()
+    except Exception:
+        pass
+
+    if current_hash and current_hash == saved_hash:
+        print("[SETUP] ✓ Requirements unchanged — skipping pip install (using cached environment)")
+        importlib.invalidate_caches()
         return True
 
-    print(f"[SETUP] Installing dependencies from: {req_file}")
+    print(f"[SETUP] requirements.txt changed (or first run) — installing dependencies from: {req_file}")
     try:
-        # Install all dependencies quietly
         subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--upgrade", 
+            [sys.executable, "-m", "pip", "install",
              "--disable-pip-version-check", "-r", req_file],
             stdout=sys.stdout,
             stderr=sys.stderr,
-             timeout=1800  # 30 minutes max
+            timeout=1800  # 30 minutes max
         )
-        print("[SETUP] Dependencies installed successfully")
-        
-        # Refresh module cache
+        print("[SETUP] ✓ Dependencies installed successfully")
+
+        # Save new hash so next startup skips install
+        if current_hash:
+            try:
+                with open(cache_file, "w") as f:
+                    f.write(current_hash)
+            except Exception as e:
+                print(f"[WARN] Could not save deps hash: {e}")
+
         importlib.invalidate_caches()
         return True
-        
+
     except subprocess.TimeoutExpired:
-        print("[ERROR] Installation timed out (>30 mins)")
+        print("[ERROR] Dependency installation timed out (>30 mins)")
         return False
     except Exception as e:
-        print(f"[ERROR] Installation failed: {e}")
+        print(f"[ERROR] Dependency installation failed: {e}")
         return False
 
-# Install dependencies first
+# Install / check dependencies first
 if os.environ.get("SKIP_INSTALL", "").lower() == "true":
     print("[SETUP] Skipping dependency check (SKIP_INSTALL=true)")
 elif not ensure_dependencies_installed():

@@ -39,12 +39,14 @@ jobs:
       - name: 🚀 Deploy via SSH
         env:
           REQS_CHANGED: ${{ steps.req_check.outputs.changed }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
         run: |
           ssh -i ~/.ssh/oracle_vm_key \
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
               -o ConnectTimeout=30 \
-              ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} << ENDSSH
+              "$ORACLE_USER@$ORACLE_HOST" << 'ENDSSH'
           set -e
           echo "================================================"
           echo "🤖 WOS Bot Auto-Deploy — \$(date)"

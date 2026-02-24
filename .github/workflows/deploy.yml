@@ -32,6 +32,12 @@ jobs:
         env:
           ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
         run: |
+          if [ -z "$ORACLE_SSH_KEY" ]; then
+            echo "❌ ERROR: GitHub Secret ORACLE_SSH_KEY is missing!"
+            echo "Please add it in your repository Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
           echo "$ORACLE_SSH_KEY" > ~/.ssh/oracle_vm_key
           chmod 600 ~/.ssh/oracle_vm_key
@@ -42,6 +48,12 @@ jobs:
           ORACLE_USER: ${{ secrets.ORACLE_USER }}
           ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
         run: |
+          if [ -z "$ORACLE_USER" ] || [ -z "$ORACLE_HOST" ]; then
+            echo "❌ ERROR: GitHub Secrets ORACLE_USER or ORACLE_HOST are missing!"
+            echo "Please add them in your repository Settings -> Secrets and variables -> Actions"
+            exit 1
+          fi
+          
           ssh -i ~/.ssh/oracle_vm_key \
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \

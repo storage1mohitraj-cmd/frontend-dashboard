@@ -64,15 +64,6 @@ jobs:
           echo "🤖 WOS Bot Auto-Deploy — $(date)"
           echo "================================================"
 
-          echo "DEBUG: Current directory:"
-          pwd
-          echo "DEBUG: Contents of ~/app:"
-          ls -la ~/app || true
-          echo "DEBUG: Contents of ~/app/bot:"
-          ls -la ~/app/bot || true
-          echo "DEBUG: Contents of ~/app/bot/DISCORD BOT:"
-          ls -la "~/app/bot/DISCORD BOT" || true
-          
           BOT_DIR="\$HOME/app/bot"
           if [ ! -d "\$BOT_DIR" ]; then
             echo "❌ Bot directory not found: \$BOT_DIR"

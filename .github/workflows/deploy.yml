@@ -64,13 +64,13 @@ jobs:
           echo "🤖 WOS Bot Auto-Deploy — $(date)"
           echo "================================================"
 
-          BOT_DIR="\$HOME/app/bot"
-          if [ ! -d "\$BOT_DIR" ]; then
+          BOT_DIR="\$HOME/app/bot/DISCORD BOT"
+          if [ ! -d "\$HOME/app/bot/DISCORD BOT" ]; then
             echo "❌ Bot directory not found: \$BOT_DIR"
-            echo "Run the initial deploy_oracle.sh script first!"
+            echo "Run the initial deploy script first!"
             exit 1
           fi
-          cd "\$BOT_DIR"
+          cd "\$HOME/app/bot/DISCORD BOT"
 
           # Pull latest code from GitHub
           echo ""

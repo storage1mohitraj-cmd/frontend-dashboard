@@ -61,10 +61,10 @@ jobs:
               "$ORACLE_USER@$ORACLE_HOST" << 'ENDSSH'
           set -e
           echo "================================================"
-          echo "🤖 WOS Bot Auto-Deploy — \$(date)"
+          echo "🤖 WOS Bot Auto-Deploy — $(date)"
           echo "================================================"
 
-          BOT_DIR="\$HOME/app/bot"
+          BOT_DIR="\$HOME/app/bot/DISCORD BOT"
           if [ ! -d "\$BOT_DIR" ]; then
             echo "❌ Bot directory not found: \$BOT_DIR"
             echo "Run the initial deploy_oracle.sh script first!"

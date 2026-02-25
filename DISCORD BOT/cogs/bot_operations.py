@@ -4004,10 +4004,22 @@ class BotOperations(commands.Cog):
                             return
                         
                         # Get all alliances
-                        alliance_db = sqlite3.connect('db/alliance.sqlite')
-                        alliance_cursor = alliance_db.cursor()
-                        alliance_cursor.execute("SELECT alliance_id, name FROM alliance_list ORDER BY name")
-                        alliances = alliance_cursor.fetchall()
+                        try:
+                            from db.mongo_adapters import mongo_enabled, AlliancesAdapter
+                            if mongo_enabled():
+                                alliances_docs = AlliancesAdapter.get_all()
+                                alliances = [(doc.get('alliance_id', i+1), doc.get('name', 'Unknown')) for i, doc in enumerate(alliances_docs)]
+                                alliances.sort(key=lambda x: x[1])
+                            else:
+                                raise Exception("Mongo fallback")
+                        except Exception:
+                            alliance_db = sqlite3.connect('db/alliance.sqlite')
+                            alliance_cursor = alliance_db.cursor()
+                            try:
+                                alliance_cursor.execute("SELECT alliance_id, name FROM alliance_list ORDER BY name")
+                                alliances = alliance_cursor.fetchall()
+                            except sqlite3.OperationalError:
+                                alliances = []
 
                         if not alliances:
                             await select_interaction.response.send_message(
@@ -4020,9 +4032,26 @@ class BotOperations(commands.Cog):
                         current_alliance_id = ServerAllianceAdapter.get_alliance(selected_guild_id)
                         current_alliance_name = None
                         if current_alliance_id:
-                            alliance_cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (current_alliance_id,))
-                            result = alliance_cursor.fetchone()
-                            current_alliance_name = result[0] if result else f"Alliance {current_alliance_id}"
+                            try:
+                                from db.mongo_adapters import mongo_enabled, AlliancesAdapter
+                                if mongo_enabled():
+                                    target_alliance = AlliancesAdapter.get(current_alliance_id)
+                                    if target_alliance:
+                                        current_alliance_name = target_alliance.get('name')
+                                else:
+                                    raise Exception("Mongo fallback")
+                            except Exception:
+                                try:
+                                    alliance_db = sqlite3.connect('db/alliance.sqlite')
+                                    alliance_cursor = alliance_db.cursor()
+                                    alliance_cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (current_alliance_id,))
+                                    result = alliance_cursor.fetchone()
+                                    current_alliance_name = result[0] if result else None
+                                except sqlite3.OperationalError:
+                                    current_alliance_name = None
+                            
+                            if not current_alliance_name:
+                                current_alliance_name = f"Alliance {current_alliance_id}"
 
                         # Create embed
                         embed = discord.Embed(
@@ -5594,6 +5623,7 @@ class BotOperations(commands.Cog):
                 return
             
             stored_password = ServerAllianceAdapter.get_password(interaction.guild.id)
+            print(f"DEBUG /manage: guild_id={interaction.guild.id} (type: {type(interaction.guild.id)}), stored_password={stored_password}")
             if not stored_password:
                 error_embed = discord.Embed(
                     title="🔒 Access Denied",

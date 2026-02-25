@@ -50,9 +50,6 @@ bot_startup*.txt
 startup.log
 debug_id_channel.log
 captcha_images/
-animations/
-thinking_animation.py
-command_animator.py
 logs/
 log/
 db/

@@ -19,7 +19,7 @@ def _get_db_main():
     return client[db_name]
 
 def _get_db_wos():
-    uri = os.getenv('MONGO_URI')
+    uri = os.getenv('MONGO_URI_FALLBACK') or os.getenv('MONGO_URI')
     if not uri:
         raise ValueError('MONGO_URI not set')
     client = get_mongo_client_sync(uri)
@@ -44,7 +44,7 @@ async def _get_db_main_async():
     return client[db_name]
 
 async def _get_db_wos_async():
-    uri = os.getenv('MONGO_URI')
+    uri = os.getenv('MONGO_URI_FALLBACK') or os.getenv('MONGO_URI')
     if not uri:
         raise ValueError('MONGO_URI not set')
     client = await get_mongo_client(uri)
@@ -67,6 +67,9 @@ def mongo_enabled() -> bool:
 def get_mongo_db():
     """Public function to get MongoDB database instance (Main)"""
     return _get_db_main()
+
+# Alias for generic DB access
+_get_db = _get_db_main
 
 
 class UserTimezonesAdapter:
@@ -839,27 +842,61 @@ class AutoRedeemMembersAdapter:
 
     @staticmethod
     def get_members(guild_id: int) -> List[Dict[str, Any]]:
-        """Get all auto-redeem members for a guild (filters out invalid FIDs)"""
+        """Get all auto-redeem members for a guild (filters out invalid FIDs)
+        Handles both 'Flat' (one doc per member) and 'Grouped' (one doc per guild with 'members' list) structures.
+        """
         try:
             db = _get_db_main()
-            # Query with filter to exclude null/empty FIDs at database level
-            docs = db[AutoRedeemMembersAdapter.COLL].find({
-                'guild_id': int(guild_id),
-                'fid': {'$nin': [None, '', 'None']}
-            })
-            return [
-                {
-                    'fid': d.get('fid'),
-                    'nickname': d.get('nickname'),
-                    'furnace_lv': int(d.get('furnace_lv', 0)),
-                    'avatar_image': d.get('avatar_image', ''),
-                    'added_by': int(d.get('added_by', 0)),
-                    'added_at': d.get('added_at')
-                }
-                for d in docs
-                # Additional Python-level filter as safety
-                if d.get('fid') and str(d.get('fid', '')).strip() and str(d.get('fid', '')).lower() != 'none'
-            ]
+            # Query all documents for this guild_id (handling both int and string just in case)
+            query = {
+                '$or': [
+                    {'guild_id': int(guild_id)},
+                    {'guild_id': str(guild_id)}
+                ]
+            }
+            docs = list(db[AutoRedeemMembersAdapter.COLL].find(query))
+            
+            seen_fids = set()
+            unique_members = []
+            
+            def parse_date(date_val):
+                if not date_val:
+                    return datetime.utcnow().isoformat()
+                if hasattr(date_val, 'isoformat'):
+                    return date_val.isoformat()
+                return str(date_val)
+
+            for d in docs:
+                # Case 1: Grouped structure (has 'members' list)
+                if 'members' in d and isinstance(d['members'], list):
+                    for m in d['members']:
+                        fid = str(m.get('fid', '')).strip()
+                        if fid and fid.lower() != 'none' and fid not in seen_fids:
+                            unique_members.append({
+                                'fid': fid,
+                                'nickname': m.get('nickname', 'Unknown'),
+                                'furnace_lv': int(m.get('furnace_lv', 0)),
+                                'avatar_image': m.get('avatar_image', ''),
+                                'added_by': int(m.get('added_by', 0)),
+                                'added_at': parse_date(m.get('added_at'))
+                            })
+                            seen_fids.add(fid)
+                
+                # Case 2: Flat structure (has top-level 'fid')
+                elif d.get('fid'):
+                    fid = str(d.get('fid', '')).strip()
+                    if fid and fid.lower() != 'none' and fid not in seen_fids:
+                        unique_members.append({
+                            'fid': fid,
+                            'nickname': d.get('nickname', 'Unknown'),
+                            'furnace_lv': int(d.get('furnace_lv', 0)),
+                            'avatar_image': d.get('avatar_image', ''),
+                            'added_by': int(d.get('added_by', 0)),
+                            'added_at': parse_date(d.get('added_at'))
+                        })
+                        seen_fids.add(fid)
+            
+            return unique_members
         except Exception as e:
             logger.error(f'Failed to get auto-redeem members for guild {guild_id}: {e}')
             return []

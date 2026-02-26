@@ -418,53 +418,90 @@ class ManageGiftCode(commands.Cog):
         
         @staticmethod
         def get_members(cog_instance, guild_id):
-            """Get all auto-redeem members for a guild (filters out invalid FIDs)"""
+            """Get all auto-redeem members for a guild (filters out invalid FIDs)
+            Priority: MongoDB (if available and has data) > SQLite (fallback and sync source)
+            """
             try:
+                guild_id = int(guild_id)  # Ensure guild_id is int
                 members = []
+                from_source = "none"
                 
-                # Try MongoDB first
+                # Step 1: Try MongoDB first (if enabled)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
                         members = AutoRedeemMembersAdapter.get_members(guild_id)
+                        if members:
+                            from_source = "MongoDB"
+                            cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from MongoDB for guild {guild_id}")
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB get_members failed, using SQLite: {e}")
+                        cog_instance.logger.warning(f"MongoDB get_members failed for guild {guild_id}: {e}. Falling back to SQLite.")
                         members = []
                 
-                # Fallback to SQLite if no members from MongoDB
+                # Step 2: Fallback to SQLite if MongoDB is empty or failed
                 if not members:
-                    cog_instance.cursor.execute("""
-                        SELECT fid, nickname, furnace_lv, avatar_image, added_by, added_at
-                        FROM auto_redeem_members
-                        WHERE guild_id = ?
-                        ORDER BY furnace_lv DESC
-                    """, (guild_id,))
-                    rows = cog_instance.cursor.fetchall()
-                    members = [
-                        {
-                            'fid': row[0],
-                            'nickname': row[1],
-                            'furnace_lv': row[2] or 0,
-                            'avatar_image': row[3] or '',
-                            'added_by': row[4],
-                            'added_at': row[5]
-                        }
-                        for row in rows
-                    ]
+                    try:
+                        cog_instance.cursor.execute("""
+                            SELECT fid, nickname, furnace_lv, avatar_image, added_by, added_at
+                            FROM auto_redeem_members
+                            WHERE guild_id = ?
+                            ORDER BY furnace_lv DESC
+                        """, (guild_id,))
+                        rows = cog_instance.cursor.fetchall()
+                        members = [
+                            {
+                                'fid': row[0],
+                                'nickname': row[1],
+                                'furnace_lv': row[2] or 0,
+                                'avatar_image': row[3] or '',
+                                'added_by': row[4],
+                                'added_at': row[5]
+                            }
+                            for row in rows
+                        ]
+                        from_source = "SQLite"
+                        if rows:
+                            cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from SQLite for guild {guild_id}")
+                        
+                        # Step 3: Sync members from SQLite to MongoDB (if MongoDB is enabled)
+                        # This ensures Oracle VM deployments with SQLite data get synced to MongoDB
+                        if members and mongo_enabled() and AutoRedeemMembersAdapter:
+                            try:
+                                sync_count = 0
+                                for member in members:
+                                    try:
+                                        # Check if member exists in MongoDB
+                                        if not AutoRedeemMembersAdapter.member_exists(guild_id, member['fid']):
+                                            success = AutoRedeemMembersAdapter.add_member(guild_id, member['fid'], member)
+                                            if success:
+                                                sync_count += 1
+                                    except Exception as sync_err:
+                                        cog_instance.logger.warning(f"Failed to sync member {member.get('fid')} to MongoDB: {sync_err}")
+                                
+                                if sync_count > 0:
+                                    cog_instance.logger.info(f"✅ Synced {sync_count} members from SQLite to MongoDB for guild {guild_id}")
+                            except Exception as sync_error:
+                                cog_instance.logger.warning(f"MongoDB sync failed for guild {guild_id}: {sync_error}")
+                    except Exception as sqlite_error:
+                        cog_instance.logger.error(f"SQLite query failed for guild {guild_id}: {sqlite_error}")
+                        return []
                 
-                # Filter out members with null/empty/None FIDs
+                # Step 4: Filter out members with null/empty/None FIDs
                 valid_members = [
                     member for member in members
                     if member.get('fid') and str(member.get('fid', '')).strip() and str(member.get('fid', '')).lower() != 'none'
                 ]
                 
-                # Log if we filtered any invalid members
+                # Log filtering results
                 filtered_count = len(members) - len(valid_members)
                 if filtered_count > 0:
-                    cog_instance.logger.warning(f"Filtered out {filtered_count} members with invalid FIDs for guild {guild_id}")
+                    cog_instance.logger.warning(f"Filtered out {filtered_count} members with invalid FIDs from {from_source} for guild {guild_id}")
+                
+                if not valid_members:
+                    cog_instance.logger.debug(f"No valid auto-redeem members found for guild {guild_id} (source: {from_source})")
                 
                 return valid_members
             except Exception as e:
-                cog_instance.logger.error(f"Error getting auto-redeem members: {e}")
+                cog_instance.logger.error(f"Unexpected error getting auto-redeem members for guild {guild_id}: {e}", exc_info=True)
                 return []
         
         @staticmethod
@@ -524,50 +561,52 @@ class ManageGiftCode(commands.Cog):
         
         @staticmethod
         def add_member(cog_instance, guild_id, fid, member_data):
-            """Add a member to auto-redeem list"""
+            """Add a member to auto-redeem list (writes to both MongoDB and SQLite for consistency)"""
             try:
                 # Validate FID - reject null, empty, or 'None' values
                 if not fid or not str(fid).strip() or str(fid).strip().lower() == 'none':
                     cog_instance.logger.warning(f"Rejected adding member with invalid FID: {fid}")
                     return False
                 
-                # Ensure fid is a clean string
+                # Ensure fid is a clean string and guild_id is int
                 fid = str(fid).strip()
+                guild_id = int(guild_id)
                 
                 member_data['fid'] = fid
                 member_data['added_at'] = datetime.now()
                 
-                # Try MongoDB first
+                # Primary write: SQLite (always, for fallback consistency)
+                sqlite_success = False
+                try:
+                    cog_instance.cursor.execute("""
+                        INSERT OR REPLACE INTO auto_redeem_members 
+                        (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (guild_id, fid, member_data.get('nickname', 'Unknown'),
+                          int(member_data.get('furnace_lv', 0)), member_data.get('avatar_image', ''),
+                          int(member_data.get('added_by', 0)), member_data['added_at']))
+                    cog_instance.giftcode_db.commit()
+                    sqlite_success = cog_instance.cursor.rowcount > 0
+                    if sqlite_success:
+                        cog_instance.logger.debug(f"✅ Added member {fid} to SQLite for guild {guild_id}")
+                except Exception as sqlite_e:
+                    cog_instance.logger.error(f"Failed to add member {fid} to SQLite: {sqlite_e}")
+                    return False
+                
+                # Secondary write: MongoDB (if enabled)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        success = AutoRedeemMembersAdapter.add_member(guild_id, fid, member_data)
-                        if success:
-                            # Also add to SQLite for consistency
-                            cog_instance.cursor.execute("""
-                                INSERT OR IGNORE INTO auto_redeem_members 
-                                (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """, (guild_id, fid, member_data.get('nickname', 'Unknown'),
-                                  member_data.get('furnace_lv', 0), member_data.get('avatar_image', ''),
-                                  member_data.get('added_by'), member_data['added_at']))
-                            cog_instance.giftcode_db.commit()
-                            return True
-                        return False
-                    except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB add_member failed, using SQLite: {e}")
+                        mongo_success = AutoRedeemMembersAdapter.add_member(guild_id, fid, member_data)
+                        if mongo_success:
+                            cog_instance.logger.debug(f"✅ Added member {fid} to MongoDB for guild {guild_id}")
+                        else:
+                            cog_instance.logger.warning(f"MongoDB add_member returned False for {fid}, but SQLite succeeded")
+                    except Exception as mongo_e:
+                        cog_instance.logger.warning(f"Failed to add member {fid} to MongoDB (SQLite succeeded): {mongo_e}")
                 
-                # Fallback to SQLite
-                cog_instance.cursor.execute("""
-                    INSERT OR IGNORE INTO auto_redeem_members 
-                    (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (guild_id, fid, member_data.get('nickname', 'Unknown'),
-                      member_data.get('furnace_lv', 0), member_data.get('avatar_image', ''),
-                      member_data.get('added_by'), member_data['added_at']))
-                cog_instance.giftcode_db.commit()
-                return cog_instance.cursor.rowcount > 0
+                return sqlite_success
             except Exception as e:
-                cog_instance.logger.error(f"Error adding auto-redeem member: {e}")
+                cog_instance.logger.error(f"Unexpected error adding auto-redeem member {fid}: {e}", exc_info=True)
                 return False
         
         @staticmethod
@@ -621,6 +660,70 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 cog_instance.logger.error(f"Error checking auto-redeem member: {e}")
                 return False
+        
+        @staticmethod
+        def sync_members_from_sqlite(cog_instance, guild_id=None):
+            """Manually sync all auto-redeem members from SQLite to MongoDB
+            This is useful for Oracle VM deployments where MongoDB may have been down
+            """
+            try:
+                if not mongo_enabled() or not AutoRedeemMembersAdapter:
+                    cog_instance.logger.warning("MongoDB is not enabled. Cannot sync members.")
+                    return 0
+                
+                # Get all members from SQLite (with valid FIDs only)
+                if guild_id:
+                    cog_instance.cursor.execute("""
+                        SELECT guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at
+                        FROM auto_redeem_members
+                        WHERE guild_id = ? AND fid NOT NULL AND fid != '' AND fid != 'None'
+                        ORDER BY added_at DESC
+                    """, (int(guild_id),))
+                else:
+                    cog_instance.cursor.execute("""
+                        SELECT guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at
+                        FROM auto_redeem_members
+                        WHERE fid NOT NULL AND fid != '' AND fid != 'None'
+                        ORDER BY added_at DESC
+                    """)
+                
+                rows = cog_instance.cursor.fetchall()
+                if not rows:
+                    cog_instance.logger.info(f"No members to sync from SQLite (guild_id: {guild_id})")
+                    return 0
+                
+                sync_count = 0
+                for row in rows:
+                    try:
+                        guild_id_val = int(row[0])
+                        fid = str(row[1]).strip()
+                        member_data = {
+                            'nickname': row[2] or 'Unknown',
+                            'furnace_lv': int(row[3]) or 0,
+                            'avatar_image': row[4] or '',
+                            'added_by': int(row[5]) or 0,
+                            'added_at': row[6]
+                        }
+                        
+                        # Check if already in MongoDB
+                        try:
+                            if not AutoRedeemMembersAdapter.member_exists(guild_id_val, fid):
+                                success = AutoRedeemMembersAdapter.add_member(guild_id_val, fid, member_data)
+                                if success:
+                                    sync_count += 1
+                                    cog_instance.logger.debug(f"✅ Synced member {fid} (guild {guild_id_val}) to MongoDB")
+                        except Exception as check_err:
+                            cog_instance.logger.warning(f"Failed to check if member {fid} exists: {check_err}")
+                    except Exception as row_err:
+                        cog_instance.logger.warning(f"Failed to sync row {row}: {row_err}")
+                
+                if sync_count > 0:
+                    cog_instance.logger.info(f"🔄 Successfully synced {sync_count} members from SQLite to MongoDB" + (f" for guild {guild_id}" if guild_id else ""))
+                
+                return sync_count
+            except Exception as e:
+                cog_instance.logger.error(f"Error syncing members from SQLite to MongoDB: {e}", exc_info=True)
+                return 0
     
     async def fetch_player_data(self, fid):
         """Fetch player data from WOS API"""

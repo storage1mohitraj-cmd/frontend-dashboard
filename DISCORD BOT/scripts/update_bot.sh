@@ -57,19 +57,40 @@ if [ -f "$CACHE_FILE" ]; then
   SAVED_HASH=$(cat "$CACHE_FILE")
 fi
 
+# Determine if we need to reinstall or recreate the venv
+RECREATE_VENV=false
+if [ ! -d "$VENV_DIR" ]; then
+  RECREATE_VENV=true
+else
+  # Check if our venv uses 3.11, if not and 3.11 is available, recreate it
+  if command -v python3.11 &> /dev/null; then
+    VENV_PYTHON_VER=$("$VENV_DIR/bin/python" --version 2>&1 | awk '{print $2}')
+    if [[ ! "$VENV_PYTHON_VER" =~ 3.11 ]]; then
+      echo "ℹ️  Existing venv uses Python $VENV_PYTHON_VER. Upgrading to 3.11..."
+      RECREATE_VENV=true
+    fi
+  fi
+fi
+
+if [ "$RECREATE_VENV" = "true" ]; then
+  echo "📦 Creating/Recreating virtual environment..."
+  rm -rf "$VENV_DIR"
+  if command -v python3.11 &> /dev/null; then
+    python3.11 -m venv "$VENV_DIR"
+  else
+    python3 -m venv "$VENV_DIR"
+  fi
+  FORCE_INSTALL=true
+fi
+
 if [ "$FORCE_INSTALL" = "true" ] || [ "$CURRENT_HASH" != "$SAVED_HASH" ] && [ -n "$CURRENT_HASH" ]; then
   echo ""
   echo "📦 Installing/updating Python dependencies..."
-  if [ -d "$VENV_DIR" ]; then
-    source "$VENV_DIR/bin/activate"
-    pip install --disable-pip-version-check -r requirements.txt
-    echo "$CURRENT_HASH" > "$CACHE_FILE"
-    echo "✅ Dependencies installed & cache updated"
-  else
-    echo "⚠️  venv not found at $VENV_DIR"
-    echo "Run deploy_oracle.sh to set up the environment first."
-    exit 1
-  fi
+  source "$VENV_DIR/bin/activate"
+  pip install --upgrade pip
+  pip install --disable-pip-version-check -r requirements.txt
+  echo "$CURRENT_HASH" > "$CACHE_FILE"
+  echo "✅ Dependencies installed & cache updated"
 else
   echo ""
   echo "⚡ Requirements unchanged — skipping pip install"

@@ -18,7 +18,7 @@ try:
     from db.mongo_adapters import *  # type: ignore
     # Re-exported names will come from the real module
     __all__ = [
-        'mongo_enabled', 'UserTimezonesAdapter', 'BirthdaysAdapter', 'BirthdayChannelAdapter', 'UserProfilesAdapter', 'GiftcodeStateAdapter', 'GiftCodesAdapter', 'AllianceMembersAdapter', 'AutoRedeemSettingsAdapter', 'AutoRedeemChannelsAdapter', 'WelcomeChannelAdapter'
+        'mongo_enabled', 'UserTimezonesAdapter', 'BirthdaysAdapter', 'BirthdayChannelAdapter', 'UserProfilesAdapter', 'GiftcodeStateAdapter', 'GiftCodesAdapter', 'AllianceMembersAdapter', 'AutoRedeemSettingsAdapter', 'AutoRedeemChannelsAdapter', 'WelcomeChannelAdapter', 'AutoRedeemMembersAdapter'
     ]
 except Exception as e:
     logging.getLogger(__name__).warning('db.mongo_adapters import failed: %s; using local fallback shim', e)
@@ -140,8 +140,13 @@ except Exception as e:
         def delete(guild_id: int) -> bool:
             return False
 
+    class AutoRedeemMembersAdapter(_FallbackAdapter):
+        @staticmethod
+        def get_members(guild_id: int):
+            return []
+
     __all__ = [
-        'mongo_enabled', 'UserTimezonesAdapter', 'BirthdaysAdapter', 'BirthdayChannelAdapter', 'UserProfilesAdapter', 'GiftcodeStateAdapter', 'GiftCodesAdapter', 'AllianceMembersAdapter', 'AutoRedeemSettingsAdapter', 'AutoRedeemChannelsAdapter', 'WelcomeChannelAdapter'
+        'mongo_enabled', 'UserTimezonesAdapter', 'BirthdaysAdapter', 'BirthdayChannelAdapter', 'UserProfilesAdapter', 'GiftcodeStateAdapter', 'GiftCodesAdapter', 'AllianceMembersAdapter', 'AutoRedeemSettingsAdapter', 'AutoRedeemChannelsAdapter', 'WelcomeChannelAdapter', 'AutoRedeemMembersAdapter'
     ]
 
 

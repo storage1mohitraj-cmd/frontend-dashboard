@@ -71,8 +71,8 @@ class BotOperations(commands.Cog):
             pass
 
     @commands.command(name="sync")
-    async def sync_tree(self, ctx):
-        """Syncs the command tree. usage: !sync"""
+    async def sync_tree(self, ctx, scope: str = "global"):
+        """Syncs the command tree. usage: !sync [global|guild]"""
         # Check if user is global admin
         self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (ctx.author.id,))
         result = self.settings_cursor.fetchone()
@@ -82,8 +82,13 @@ class BotOperations(commands.Cog):
             return
 
         try:
-            fmt = await self.bot.tree.sync()
-            await ctx.send(f"Synced {len(fmt)} commands.")
+            if scope.lower() == "guild":
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                fmt = await self.bot.tree.sync(guild=ctx.guild)
+                await ctx.send(f"Synced {len(fmt)} commands to this guild.")
+            else:
+                fmt = await self.bot.tree.sync()
+                await ctx.send(f"Synced {len(fmt)} commands globally (may take up to 1 hour).")
         except Exception as e:
             await ctx.send(f"Failed to sync: {e}")
 

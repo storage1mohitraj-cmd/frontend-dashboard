@@ -246,7 +246,7 @@ class BearTrap(commands.Cog):
             except Exception as e:
                 print(f"Error in notification checker: {e}")
 
-            await asyncio.sleep(0.1)
+            await asyncio.sleep(5.0)
 
     async def process_notification(self, notification):
         try:

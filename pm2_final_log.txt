@@ -1,0 +1,3 @@
+[PM2] Spawning PM2 daemon with pm2_home=/home/opc/.pm2
+[PM2] PM2 Successfully daemonized
+[TAILING] Tailing last 40 lines for [discordbot] process (change the value with --lines option)

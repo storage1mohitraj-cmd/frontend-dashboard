@@ -40,7 +40,7 @@ class OtherFeatures(commands.Cog):
                 color=discord.Color.blue()
             )
             
-            view = OtherFeaturesView(self)
+            view = OtherFeaturesView(self, user_id=interaction.user.id)
             
             try:
                 await interaction.response.edit_message(embed=embed, view=view)
@@ -56,9 +56,16 @@ class OtherFeatures(commands.Cog):
                 )
 
 class OtherFeaturesView(discord.ui.View):
-    def __init__(self, cog):
+    def __init__(self, cog, user_id=None):
         super().__init__(timeout=None)
         self.cog = cog
+        self.user_id = user_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
 
     @discord.ui.button(
         label="Notification System",

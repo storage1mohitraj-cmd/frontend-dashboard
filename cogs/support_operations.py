@@ -21,7 +21,7 @@ class SupportOperations(commands.Cog):
             color=discord.Color.blue()
         )
 
-        view = SupportView(self)
+        view = SupportView(self, user_id=interaction.user.id)
         
         try:
             await interaction.response.edit_message(embed=support_menu_embed, view=view)
@@ -61,9 +61,16 @@ class SupportOperations(commands.Cog):
             print(f"Error sending support info: {e}")
 
 class SupportView(discord.ui.View):
-    def __init__(self, cog):
+    def __init__(self, cog, user_id=None):
         super().__init__()
         self.cog = cog
+        self.user_id = user_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
 
     @discord.ui.button(
         label="Request Support",

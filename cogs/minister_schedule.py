@@ -7,6 +7,7 @@ import aiohttp
 import hashlib
 from aiohttp_socks import ProxyConnector
 import time
+from typing import Optional
 from admin_utils import is_bot_owner
 
 SECRET = 'tB87#kPtkxqOS2'
@@ -548,7 +549,7 @@ class MinisterSchedule(commands.Cog):
         return new_message
 
     # handler to get guild id
-    async def get_log_guild(self, log_guild: discord.Guild) -> discord.Guild | None:
+    async def get_log_guild(self, log_guild: discord.Guild) -> Optional[discord.Guild]:
         self.svs_cursor.execute("SELECT context_id FROM reference WHERE context=?", ("minister guild id",))
         row = self.svs_cursor.fetchone()
 

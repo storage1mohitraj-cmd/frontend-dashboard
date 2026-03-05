@@ -1229,6 +1229,21 @@ class MessageExtractor(commands.Cog):
 '''
         return html
     
+    async def _get_reaction_data(self, reaction):
+        """Helper to get reaction data asynchronously."""
+        return {
+            "emoji": str(reaction.emoji),
+            "count": reaction.count,
+            "users": [
+                {
+                    "id": str(user.id),
+                    "name": user.name,
+                    "display_name": user.display_name
+                }
+                async for user in reaction.users()
+            ]
+        }
+
     async def perform_extraction(
         self,
         interaction: discord.Interaction,
@@ -1319,18 +1334,7 @@ class MessageExtractor(commands.Cog):
                         for component in message.components
                     ] if message.components else [],
                     "reactions": [
-                        {
-                            "emoji": str(reaction.emoji),
-                            "count": reaction.count,
-                            "users": [
-                                {
-                                    "id": str(user.id),
-                                    "name": user.name,
-                                    "display_name": user.display_name
-                                }
-                                async for user in reaction.users()
-                            ]
-                        }
+                        await self._get_reaction_data(reaction)
                         for reaction in message.reactions
                     ],
                     "mentions": [str(user.id) for user in message.mentions],

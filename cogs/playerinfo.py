@@ -1,3 +1,4 @@
+from typing import Optional
 """/playerinfo cog - single clean implementation with logging.
 
 This module intentionally keeps the request pattern aligned with other
@@ -13,6 +14,7 @@ import hashlib
 import aiohttp
 import ssl
 import asyncio
+from typing import Optional, Union
 import sqlite3
 from datetime import datetime
 import os
@@ -23,6 +25,7 @@ from discord.ext import commands
 import urllib.parse
 from thinking_animation import ThinkingAnimation
 from command_animator import command_animation
+from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter
 
 # Player API endpoint and secret (keep this in sync with your other code)
 API_URL = "https://wos-giftcode-api.centurygame.com/api/player"
@@ -42,7 +45,7 @@ except Exception:
 WATERMARK_URL = "https://cdn.discordapp.com/attachments/1435569370389807144/1436437186424606741/unnamed_4.png?ex=690f99e0&is=690e4860&hm=2262bc4ceea28787c91c5bfcb2d6e7fac28cda152c4963a9b4375eac4913b063"
 
 
-def map_furnace(lv: int) -> str | None:
+def map_furnace(lv: int) -> Optional[str]:
     """Map numeric furnace level to FC labels per user rules.
 
     Rules implemented:
@@ -253,27 +256,44 @@ class PlayerInfoCog(commands.Cog):
             # handler behavior and ensures the slash command shows the same info.
             try:
                 alliance_name = None
-                with sqlite3.connect('db/users.sqlite') as users_db:
-                    cur = users_db.cursor()
-                    cur.execute('SELECT alliance FROM users WHERE fid = ?', (fid,))
-                    row = cur.fetchone()
-                    if row and row[0] is not None:
-                        alliance_val = str(row[0])
-                        # If alliance_val looks like an integer id, try to resolve name
-                        if alliance_val.isdigit():
-                            try:
-                                with sqlite3.connect('db/alliance.sqlite') as a_db:
-                                    ac = a_db.cursor()
-                                    ac.execute('SELECT name FROM alliance_list WHERE alliance_id = ?', (int(alliance_val),))
-                                    arow = ac.fetchone()
-                                    if arow:
-                                        alliance_name = arow[0]
-                                    else:
-                                        alliance_name = alliance_val
-                            except Exception:
-                                alliance_name = alliance_val
-                        else:
+                alliance_val = None
+
+                # Try Mongo first
+                if mongo_enabled() and AllianceMembersAdapter:
+                    try:
+                        member = AllianceMembersAdapter.get_member(str(fid))
+                        if member:
+                            alliance_val = member.get('alliance') or member.get('alliance_id')
+                            if alliance_val:
+                                alliance_val = str(alliance_val)
+                    except Exception:
+                        pass
+                
+                # Fallback to SQLite if not found in Mongo
+                if not alliance_val:
+                    with sqlite3.connect('db/users.sqlite') as users_db:
+                        cur = users_db.cursor()
+                        cur.execute('SELECT alliance FROM users WHERE fid = ?', (fid,))
+                        row = cur.fetchone()
+                        if row and row[0] is not None:
+                            alliance_val = str(row[0])
+
+                if alliance_val:
+                    # If alliance_val looks like an integer id, try to resolve name using SQLite (names are static mostly)
+                    if alliance_val.isdigit():
+                        try:
+                            with sqlite3.connect('db/alliance.sqlite') as a_db:
+                                ac = a_db.cursor()
+                                ac.execute('SELECT name FROM alliance_list WHERE alliance_id = ?', (int(alliance_val),))
+                                arow = ac.fetchone()
+                                if arow:
+                                    alliance_name = arow[0]
+                                else:
+                                    alliance_name = alliance_val
+                        except Exception:
                             alliance_name = alliance_val
+                    else:
+                        alliance_name = alliance_val
 
                 if alliance_name:
                     embed.add_field(name="🏰 Alliance", value=f"```{alliance_name}```", inline=True)
@@ -365,7 +385,7 @@ class PlayerInfoCog(commands.Cog):
         # Concurrency limiter to avoid hammering the API
         sem = asyncio.Semaphore(10)
 
-        async def fetch_one(session: aiohttp.ClientSession, fid: str) -> tuple[str, dict | None, Exception | None]:
+        async def fetch_one(session: aiohttp.ClientSession, fid: str) -> tuple[str, Optional[dict], Optional[Exception]]:
             """Fetch player info for a single fid. Returns (fid, json, exception).
             json is None if request/json parsing failed; exception is set on network errors.
             """
@@ -390,7 +410,7 @@ class PlayerInfoCog(commands.Cog):
                     return fid, None, e
 
         # helper to build embed from API data (or from error cases)
-        def build_embed_for(fid: str, js: dict | None) -> discord.Embed:
+        def build_embed_for(fid: str, js: Optional[dict ]) -> discord.Embed:
             # default empty embed in case of network/json error
             embed = discord.Embed(colour=discord.Colour.blurple())
             if js is None:
@@ -644,26 +664,43 @@ class PlayerInfoCog(commands.Cog):
             # Alliance lookup
             try:
                 alliance_name = None
-                with sqlite3.connect('db/users.sqlite') as users_db:
-                    cur = users_db.cursor()
-                    cur.execute('SELECT alliance FROM users WHERE fid = ?', (player_id,))
-                    row = cur.fetchone()
-                    if row and row[0] is not None:
-                        alliance_val = str(row[0])
-                        if alliance_val.isdigit():
-                            try:
-                                with sqlite3.connect('db/alliance.sqlite') as a_db:
-                                    ac = a_db.cursor()
-                                    ac.execute('SELECT name FROM alliance_list WHERE alliance_id = ?', (int(alliance_val),))
-                                    arow = ac.fetchone()
-                                    if arow:
-                                        alliance_name = arow[0]
-                                    else:
-                                        alliance_name = alliance_val
-                            except Exception:
-                                alliance_name = alliance_val
-                        else:
+                alliance_val = None
+
+                # Try Mongo first
+                if mongo_enabled() and AllianceMembersAdapter:
+                    try:
+                        member = AllianceMembersAdapter.get_member(str(player_id))
+                        if member:
+                            alliance_val = member.get('alliance') or member.get('alliance_id')
+                            if alliance_val:
+                                alliance_val = str(alliance_val)
+                    except Exception:
+                        pass
+
+                # Fallback to SQLite
+                if alliance_val is None:
+                    with sqlite3.connect('db/users.sqlite') as users_db:
+                        cur = users_db.cursor()
+                        cur.execute('SELECT alliance FROM users WHERE fid = ?', (player_id,))
+                        row = cur.fetchone()
+                        if row and row[0] is not None:
+                            alliance_val = str(row[0])
+
+                if alliance_val:
+                    if alliance_val.isdigit():
+                        try:
+                            with sqlite3.connect('db/alliance.sqlite') as a_db:
+                                ac = a_db.cursor()
+                                ac.execute('SELECT name FROM alliance_list WHERE alliance_id = ?', (int(alliance_val),))
+                                arow = ac.fetchone()
+                                if arow:
+                                    alliance_name = arow[0]
+                                else:
+                                    alliance_name = alliance_val
+                        except Exception:
                             alliance_name = alliance_val
+                    else:
+                        alliance_name = alliance_val
 
                 if alliance_name:
                     embed.add_field(name="🏰 Alliance", value=f"```{alliance_name}```", inline=True)

@@ -1567,7 +1567,7 @@ class RemoteAccess(commands.Cog):
                         # Get member count for this alliance
                         members = []
                         if hasattr(alliance_cog, '_get_monitoring_members'):
-                            members = alliance_cog._get_monitoring_members(selected_alliance_id)
+                            members = await alliance_cog._get_monitoring_members(selected_alliance_id)
                         member_count = len(members) if members else 0
                         
                         # Save to database
@@ -1592,7 +1592,7 @@ class RemoteAccess(commands.Cog):
                         if members:
                             with get_db_connection('settings.sqlite') as conn:
                                 cursor = conn.cursor()
-                                for fid, nickname, furnace_lv in members:
+                                for fid, nickname, furnace_lv, *_ in members:
                                     cursor.execute("""
                                         INSERT OR REPLACE INTO member_history 
                                         (fid, alliance_id, nickname, furnace_lv, last_checked)

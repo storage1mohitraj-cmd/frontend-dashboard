@@ -121,6 +121,11 @@ class ManageGiftCode(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
+        
+        # Logger (must be initialized before CAPTCHA solver and schema migration)
+        self.logger = logging.getLogger('manage_giftcode')
+        self.logger.setLevel(logging.INFO)
+        
         self.giftcode_db = get_db_connection('giftcode.sqlite', check_same_thread=False)
         self.cursor = self.giftcode_db.cursor()
         self.settings_db = sqlite3.connect('db/settings.sqlite', check_same_thread=False)
@@ -138,10 +143,18 @@ class ManageGiftCode(commands.Cog):
         self.ssl_context = ssl.create_default_context()
         self.ssl_context.check_hostname = False
         self.ssl_context.verify_mode = ssl.CERT_NONE
-        
-        # Logger (must be initialized before CAPTCHA solver)
-        self.logger = logging.getLogger('manage_giftcode')
-        self.logger.setLevel(logging.INFO)
+
+        # Ensure schema is up to date (Migration for auto_redeem_processed)
+        try:
+            self.cursor.execute("PRAGMA table_info(gift_codes)")
+            columns = [col[1] for col in self.cursor.fetchall()]
+            if 'auto_redeem_processed' not in columns:
+                self.logger.info("Schema migration: Adding 'auto_redeem_processed' column to gift_codes table...")
+                self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN auto_redeem_processed INTEGER DEFAULT 0")
+                self.giftcode_db.commit()
+                self.logger.info("Schema migration successful.")
+        except Exception as e:
+            self.logger.error(f"Error checking/migrating schema: {e}")
         
         # WOS API URLs and Key for gift code redemption
         self.wos_player_info_url = "https://wos-giftcode-api.centurygame.com/api/player"
@@ -275,6 +288,9 @@ class ManageGiftCode(commands.Cog):
         """Initialize aiohttp session when cog is loaded"""
         self.session = aiohttp.ClientSession()
         self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
+        
+        # Trigger startup check for existing codes
+        asyncio.create_task(self.process_existing_codes_on_startup())
 
     async def cog_unload(self):
         """Clean up when cog is unloaded"""
@@ -402,53 +418,90 @@ class ManageGiftCode(commands.Cog):
         
         @staticmethod
         def get_members(cog_instance, guild_id):
-            """Get all auto-redeem members for a guild (filters out invalid FIDs)"""
+            """Get all auto-redeem members for a guild (filters out invalid FIDs)
+            Priority: MongoDB (if available and has data) > SQLite (fallback and sync source)
+            """
             try:
+                guild_id = int(guild_id)  # Ensure guild_id is int
                 members = []
+                from_source = "none"
                 
-                # Try MongoDB first
+                # Step 1: Try MongoDB first (if enabled)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
                         members = AutoRedeemMembersAdapter.get_members(guild_id)
+                        if members:
+                            from_source = "MongoDB"
+                            cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from MongoDB for guild {guild_id}")
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB get_members failed, using SQLite: {e}")
+                        cog_instance.logger.warning(f"MongoDB get_members failed for guild {guild_id}: {e}. Falling back to SQLite.")
                         members = []
                 
-                # Fallback to SQLite if no members from MongoDB
+                # Step 2: Fallback to SQLite if MongoDB is empty or failed
                 if not members:
-                    cog_instance.cursor.execute("""
-                        SELECT fid, nickname, furnace_lv, avatar_image, added_by, added_at
-                        FROM auto_redeem_members
-                        WHERE guild_id = ?
-                        ORDER BY furnace_lv DESC
-                    """, (guild_id,))
-                    rows = cog_instance.cursor.fetchall()
-                    members = [
-                        {
-                            'fid': row[0],
-                            'nickname': row[1],
-                            'furnace_lv': row[2] or 0,
-                            'avatar_image': row[3] or '',
-                            'added_by': row[4],
-                            'added_at': row[5]
-                        }
-                        for row in rows
-                    ]
+                    try:
+                        cog_instance.cursor.execute("""
+                            SELECT fid, nickname, furnace_lv, avatar_image, added_by, added_at
+                            FROM auto_redeem_members
+                            WHERE guild_id = ?
+                            ORDER BY furnace_lv DESC
+                        """, (guild_id,))
+                        rows = cog_instance.cursor.fetchall()
+                        members = [
+                            {
+                                'fid': row[0],
+                                'nickname': row[1],
+                                'furnace_lv': row[2] or 0,
+                                'avatar_image': row[3] or '',
+                                'added_by': row[4],
+                                'added_at': row[5]
+                            }
+                            for row in rows
+                        ]
+                        from_source = "SQLite"
+                        if rows:
+                            cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from SQLite for guild {guild_id}")
+                        
+                        # Step 3: Sync members from SQLite to MongoDB (if MongoDB is enabled)
+                        # This ensures Oracle VM deployments with SQLite data get synced to MongoDB
+                        if members and mongo_enabled() and AutoRedeemMembersAdapter:
+                            try:
+                                sync_count = 0
+                                for member in members:
+                                    try:
+                                        # Check if member exists in MongoDB
+                                        if not AutoRedeemMembersAdapter.member_exists(guild_id, member['fid']):
+                                            success = AutoRedeemMembersAdapter.add_member(guild_id, member['fid'], member)
+                                            if success:
+                                                sync_count += 1
+                                    except Exception as sync_err:
+                                        cog_instance.logger.warning(f"Failed to sync member {member.get('fid')} to MongoDB: {sync_err}")
+                                
+                                if sync_count > 0:
+                                    cog_instance.logger.info(f"✅ Synced {sync_count} members from SQLite to MongoDB for guild {guild_id}")
+                            except Exception as sync_error:
+                                cog_instance.logger.warning(f"MongoDB sync failed for guild {guild_id}: {sync_error}")
+                    except Exception as sqlite_error:
+                        cog_instance.logger.error(f"SQLite query failed for guild {guild_id}: {sqlite_error}")
+                        return []
                 
-                # Filter out members with null/empty/None FIDs
+                # Step 4: Filter out members with null/empty/None FIDs
                 valid_members = [
                     member for member in members
                     if member.get('fid') and str(member.get('fid', '')).strip() and str(member.get('fid', '')).lower() != 'none'
                 ]
                 
-                # Log if we filtered any invalid members
+                # Log filtering results
                 filtered_count = len(members) - len(valid_members)
                 if filtered_count > 0:
-                    cog_instance.logger.warning(f"Filtered out {filtered_count} members with invalid FIDs for guild {guild_id}")
+                    cog_instance.logger.warning(f"Filtered out {filtered_count} members with invalid FIDs from {from_source} for guild {guild_id}")
+                
+                if not valid_members:
+                    cog_instance.logger.debug(f"No valid auto-redeem members found for guild {guild_id} (source: {from_source})")
                 
                 return valid_members
             except Exception as e:
-                cog_instance.logger.error(f"Error getting auto-redeem members: {e}")
+                cog_instance.logger.error(f"Unexpected error getting auto-redeem members for guild {guild_id}: {e}", exc_info=True)
                 return []
         
         @staticmethod
@@ -508,50 +561,52 @@ class ManageGiftCode(commands.Cog):
         
         @staticmethod
         def add_member(cog_instance, guild_id, fid, member_data):
-            """Add a member to auto-redeem list"""
+            """Add a member to auto-redeem list (writes to both MongoDB and SQLite for consistency)"""
             try:
                 # Validate FID - reject null, empty, or 'None' values
                 if not fid or not str(fid).strip() or str(fid).strip().lower() == 'none':
                     cog_instance.logger.warning(f"Rejected adding member with invalid FID: {fid}")
                     return False
                 
-                # Ensure fid is a clean string
+                # Ensure fid is a clean string and guild_id is int
                 fid = str(fid).strip()
+                guild_id = int(guild_id)
                 
                 member_data['fid'] = fid
                 member_data['added_at'] = datetime.now()
                 
-                # Try MongoDB first
+                # Primary write: SQLite (always, for fallback consistency)
+                sqlite_success = False
+                try:
+                    cog_instance.cursor.execute("""
+                        INSERT OR REPLACE INTO auto_redeem_members 
+                        (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (guild_id, fid, member_data.get('nickname', 'Unknown'),
+                          int(member_data.get('furnace_lv', 0)), member_data.get('avatar_image', ''),
+                          int(member_data.get('added_by', 0)), member_data['added_at']))
+                    cog_instance.giftcode_db.commit()
+                    sqlite_success = cog_instance.cursor.rowcount > 0
+                    if sqlite_success:
+                        cog_instance.logger.debug(f"✅ Added member {fid} to SQLite for guild {guild_id}")
+                except Exception as sqlite_e:
+                    cog_instance.logger.error(f"Failed to add member {fid} to SQLite: {sqlite_e}")
+                    return False
+                
+                # Secondary write: MongoDB (if enabled)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        success = AutoRedeemMembersAdapter.add_member(guild_id, fid, member_data)
-                        if success:
-                            # Also add to SQLite for consistency
-                            cog_instance.cursor.execute("""
-                                INSERT OR IGNORE INTO auto_redeem_members 
-                                (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """, (guild_id, fid, member_data.get('nickname', 'Unknown'),
-                                  member_data.get('furnace_lv', 0), member_data.get('avatar_image', ''),
-                                  member_data.get('added_by'), member_data['added_at']))
-                            cog_instance.giftcode_db.commit()
-                            return True
-                        return False
-                    except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB add_member failed, using SQLite: {e}")
+                        mongo_success = AutoRedeemMembersAdapter.add_member(guild_id, fid, member_data)
+                        if mongo_success:
+                            cog_instance.logger.debug(f"✅ Added member {fid} to MongoDB for guild {guild_id}")
+                        else:
+                            cog_instance.logger.warning(f"MongoDB add_member returned False for {fid}, but SQLite succeeded")
+                    except Exception as mongo_e:
+                        cog_instance.logger.warning(f"Failed to add member {fid} to MongoDB (SQLite succeeded): {mongo_e}")
                 
-                # Fallback to SQLite
-                cog_instance.cursor.execute("""
-                    INSERT OR IGNORE INTO auto_redeem_members 
-                    (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (guild_id, fid, member_data.get('nickname', 'Unknown'),
-                      member_data.get('furnace_lv', 0), member_data.get('avatar_image', ''),
-                      member_data.get('added_by'), member_data['added_at']))
-                cog_instance.giftcode_db.commit()
-                return cog_instance.cursor.rowcount > 0
+                return sqlite_success
             except Exception as e:
-                cog_instance.logger.error(f"Error adding auto-redeem member: {e}")
+                cog_instance.logger.error(f"Unexpected error adding auto-redeem member {fid}: {e}", exc_info=True)
                 return False
         
         @staticmethod
@@ -605,6 +660,70 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 cog_instance.logger.error(f"Error checking auto-redeem member: {e}")
                 return False
+        
+        @staticmethod
+        def sync_members_from_sqlite(cog_instance, guild_id=None):
+            """Manually sync all auto-redeem members from SQLite to MongoDB
+            This is useful for Oracle VM deployments where MongoDB may have been down
+            """
+            try:
+                if not mongo_enabled() or not AutoRedeemMembersAdapter:
+                    cog_instance.logger.warning("MongoDB is not enabled. Cannot sync members.")
+                    return 0
+                
+                # Get all members from SQLite (with valid FIDs only)
+                if guild_id:
+                    cog_instance.cursor.execute("""
+                        SELECT guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at
+                        FROM auto_redeem_members
+                        WHERE guild_id = ? AND fid NOT NULL AND fid != '' AND fid != 'None'
+                        ORDER BY added_at DESC
+                    """, (int(guild_id),))
+                else:
+                    cog_instance.cursor.execute("""
+                        SELECT guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at
+                        FROM auto_redeem_members
+                        WHERE fid NOT NULL AND fid != '' AND fid != 'None'
+                        ORDER BY added_at DESC
+                    """)
+                
+                rows = cog_instance.cursor.fetchall()
+                if not rows:
+                    cog_instance.logger.info(f"No members to sync from SQLite (guild_id: {guild_id})")
+                    return 0
+                
+                sync_count = 0
+                for row in rows:
+                    try:
+                        guild_id_val = int(row[0])
+                        fid = str(row[1]).strip()
+                        member_data = {
+                            'nickname': row[2] or 'Unknown',
+                            'furnace_lv': int(row[3]) or 0,
+                            'avatar_image': row[4] or '',
+                            'added_by': int(row[5]) or 0,
+                            'added_at': row[6]
+                        }
+                        
+                        # Check if already in MongoDB
+                        try:
+                            if not AutoRedeemMembersAdapter.member_exists(guild_id_val, fid):
+                                success = AutoRedeemMembersAdapter.add_member(guild_id_val, fid, member_data)
+                                if success:
+                                    sync_count += 1
+                                    cog_instance.logger.debug(f"✅ Synced member {fid} (guild {guild_id_val}) to MongoDB")
+                        except Exception as check_err:
+                            cog_instance.logger.warning(f"Failed to check if member {fid} exists: {check_err}")
+                    except Exception as row_err:
+                        cog_instance.logger.warning(f"Failed to sync row {row}: {row_err}")
+                
+                if sync_count > 0:
+                    cog_instance.logger.info(f"🔄 Successfully synced {sync_count} members from SQLite to MongoDB" + (f" for guild {guild_id}" if guild_id else ""))
+                
+                return sync_count
+            except Exception as e:
+                cog_instance.logger.error(f"Error syncing members from SQLite to MongoDB: {e}", exc_info=True)
+                return 0
     
     async def fetch_player_data(self, fid):
         """Fetch player data from WOS API"""
@@ -808,7 +927,10 @@ class ManageGiftCode(commands.Cog):
                         break
                     elif status in ["INVALID_CODE", "EXPIRED", "CDK_NOT_FOUND", "USAGE_LIMIT", "TIME_ERROR"]:
                         # Permanent failures - code itself is bad, not worth retrying
-                        self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - code is invalid/expired")
+                        if status == "TIME_ERROR":
+                            self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - Code is EXPIRED")
+                        else:
+                            self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - code is invalid/expired")
                         break
                     elif "RECHARGE_MONEY_VIP" in status or "VIP" in status:
                         # VIP/Purchase requirement - this code requires the player to have VIP or made purchases
@@ -1560,6 +1682,71 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error adding code {giftcode} to API: {e}")
             return False
     
+    
+    async def verify_code_with_game_api(self, guild_id, giftcode):
+        """
+        Verify a gift code by attempting to redeem it for a random member in the guild.
+        Returns: (is_valid, status_message, fid_used)
+        """
+        try:
+            # Get members for this guild
+            members = self.AutoRedeemDB.get_members(self, guild_id)
+            if not members:
+                return False, "NO_MEMBERS", None
+            
+            # Try up to 3 different members to verify
+            # Sort by furnace level to try active players first (more likely to be valid FIDs)
+            # But randomize slightly to avoid hitting same person always
+            import random
+            
+            # Filter for high level players first if available
+            high_level = [m for m in members if m.get('furnace_lv', 0) > 20]
+            candidates = high_level if high_level else members
+            
+            # Pick up to 3 random candidates to avoid getting stuck on a bad account
+            samples = random.sample(candidates, min(3, len(candidates)))
+            
+            for member in samples:
+                fid = member['fid']
+                nickname = member['nickname']
+                furnace_lv = member.get('furnace_lv', 0)
+                
+                self.logger.info(f"VERIFY: Testing code {giftcode} with member {nickname} ({fid})")
+                
+                # Attempt redemption
+                # We use _redeem_for_member but logic is slightly different - we just want status
+                # _redeem_for_member returns (status, success, already_redeemed, failed)
+                status, success, already_redeemed, failed = await self._redeem_for_member(
+                    guild_id, fid, nickname, furnace_lv, giftcode
+                )
+                
+                self.logger.info(f"VERIFY: Result for {nickname}: {status}")
+                
+                # Analyze status
+                if status == "SUCCESS":
+                    return True, "VALID_SUCCESS", fid
+                elif status == "ALREADY_RECEIVED":
+                    return True, "VALID_ALREADY_RECEIVED", fid
+                elif status == "SAME TYPE EXCHANGE":
+                    return True, "VALID_SAME_TYPE", fid
+                elif status == "CDK_NOT_FOUND":
+                    # This is a hard failure - code definitely invalid
+                    return False, "INVALID_CODE", fid
+                elif status == "EXPIRED":
+                    return False, "EXPIRED_CODE", fid
+                elif status == "TIME_ERROR":
+                     return False, "EXPIRED_CODE", fid
+                elif status == "USAGE_LIMIT":
+                     return False, "USAGE_LIMIT_REACHED", fid
+                
+                # If we get here (e.g. LOGIN_FAILED, CAPTCHA errors), try next member
+            
+            return False, "VERIFICATION_FAILED", None
+            
+        except Exception as e:
+            self.logger.error(f"Error verifying code {giftcode}: {e}")
+            return False, f"ERROR: {str(e)}", None
+
     @tasks.loop(seconds=60)  # Check every minute
     async def api_check_task(self):
         """Periodically check API for new gift codes"""
@@ -1578,7 +1765,19 @@ class ManageGiftCode(commands.Cog):
             # Get existing codes from database
             self.cursor.execute("SELECT giftcode FROM gift_codes")
             db_codes = {row[0] for row in self.cursor.fetchall()}
-            self.logger.info(f"Found {len(db_codes)} existing codes in database")
+            
+            # Also fetch from MongoDB if enabled
+            if mongo_enabled() and GiftCodesAdapter:
+                try:
+                    # GiftCodesAdapter.get_all() returns list of tuples: (code, date, validation_status)
+                    mongo_codes = GiftCodesAdapter.get_all()
+                    for c in mongo_codes:
+                        if c and c[0]:
+                             db_codes.add(c[0])
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch codes from Mongo: {e}")
+
+            self.logger.info(f"Found {len(db_codes)} existing codes in database(s)")
             
             # Find new codes
             new_codes = []
@@ -1806,100 +2005,169 @@ class ManageGiftCode(commands.Cog):
     
     async def process_existing_codes_on_startup(self):
         """
-        Check for existing codes that haven't been marked as processed and mark them.
-        NOTE: We intentionally do NOT trigger auto-redeem on startup.
-        Auto-redeem should only trigger for truly NEW codes from the API, not on bot restart.
+        Check for existing codes that haven't been marked as processed.
+        - Fetches from BOTH MongoDB (if enabled) and SQLite to ensure no codes are missed.
+        - If a code is RECENT (e.g. < 24 hours), we TRIGGER auto-redeem.
+        - If a code is OLD, we just MARK it as processed to avoid spam.
         """
         try:
             # Add a small delay to ensure bot is fully ready
             await asyncio.sleep(5)
             
             self.logger.info("🚀 === STARTUP CODE PROCESSING ===")
-            self.logger.info("Marking existing unprocessed gift codes as processed (no auto-redeem on startup)...")
+            self.logger.info("Checking for unprocessed gift codes in ALL databases...")
             
-            unprocessed_codes = []
+            unprocessed_codes = {} # Use dict for deduplication: code -> (date, created_at)
             
-            # Try MongoDB first - use the new get_all_with_status() method
-            mongo_attempted = False
+            # 1. Fetch from MongoDB
             if mongo_enabled() and GiftCodesAdapter:
                 try:
-                    mongo_attempted = True
-                    self.logger.info("📊 Attempting to fetch codes from MongoDB...")
-                    # Get all codes from MongoDB with their auto_redeem_processed status
+                    self.logger.info("📊 Fetching from MongoDB...")
                     all_codes = GiftCodesAdapter.get_all_with_status()
+                    count_mongo = 0
                     if all_codes:
-                        # Filter for unprocessed codes
-                        unprocessed_codes = [
-                            (code['giftcode'], code.get('date', ''))
-                            for code in all_codes
-                            if not code.get('auto_redeem_processed', False)
-                        ]
-                        self.logger.info(f"✅ MongoDB: Found {len(unprocessed_codes)} unprocessed out of {len(all_codes)} total codes")
-                        if unprocessed_codes:
-                            self.logger.info(f"📝 Unprocessed codes: {[c[0] for c in unprocessed_codes]}")
-                    else:
-                        self.logger.info("ℹ️ MongoDB: No codes in collection")
+                        for code in all_codes:
+                            if not code.get('auto_redeem_processed', False):
+                                giftcode = code['giftcode']
+                                unprocessed_codes[giftcode] = (code.get('date', ''), code.get('created_at'))
+                                count_mongo += 1
+                    self.logger.info(f"✅ MongoDB: Found {count_mongo} unprocessed codes")
                 except Exception as e:
-                    self.logger.warning(f"⚠️ MongoDB failed: {e}, falling back to SQLite")
-            elif mongo_enabled():
-                self.logger.warning("⚠️ MongoDB enabled but GiftCodesAdapter unavailable")
-            else:
-                self.logger.info("ℹ️ MongoDB not enabled, using SQLite")
+                    self.logger.warning(f"⚠️ MongoDB fetch failed: {e}")
             
-            # Fallback to SQLite if MongoDB failed or not enabled
-            if not unprocessed_codes and (not mongo_enabled() or not GiftCodesAdapter or not mongo_attempted):
-                try:
-                    self.logger.info("📂 Fetching codes from SQLite database...")
-                    self.cursor.execute("""
-                        SELECT giftcode, date 
-                        FROM gift_codes 
-                        WHERE auto_redeem_processed = 0 OR auto_redeem_processed IS NULL
-                        ORDER BY added_at DESC
-                    """)
-                    unprocessed_codes = self.cursor.fetchall()
-                    self.logger.info(f"✅ SQLite: Found {len(unprocessed_codes)} unprocessed codes")
-                    if unprocessed_codes:
-                        self.logger.info(f"📝 Unprocessed codes: {[c[0] for c in unprocessed_codes]}")
-                except Exception as e:
-                    self.logger.error(f"❌ SQLite fetch failed: {e}")
+            # 2. Fetch from SQLite (ALWAYS check SQLite as backup/primary source)
+            try:
+                self.logger.info("📂 Fetching from SQLite...")
+                self.cursor.execute("""
+                    SELECT giftcode, date
+                    FROM gift_codes 
+                    WHERE auto_redeem_processed = 0 OR auto_redeem_processed IS NULL
+                    ORDER BY date DESC
+                """)
+                sqlite_rows = self.cursor.fetchall()
+                count_sqlite = 0
+                for row in sqlite_rows:
+                    giftcode = row[0]
+                    if giftcode not in unprocessed_codes:
+                        # Use date as proxy for created_at if calling code expects 3 items
+                        # But wait, we store (date_str, created_at) in unprocessed_codes dict
+                        unprocessed_codes[giftcode] = (row[1], None) # None for created_at
+                        count_sqlite += 1
+                self.logger.info(f"✅ SQLite: Found {count_sqlite} unique unprocessed codes (not in Mongo)")
+            except Exception as e:
+                self.logger.error(f"❌ SQLite fetch failed: {e}")
             
             if not unprocessed_codes:
-                self.logger.info("✅ No unprocessed codes found (all codes processed or DB empty)")
+                self.logger.info("✅ No unprocessed codes found in any database.")
                 self.logger.info("🏁 === STARTUP CODE PROCESSING COMPLETE ===")
                 return
             
-            self.logger.info(f"📋 FOUND {len(unprocessed_codes)} UNPROCESSED CODES - MARKING AS PROCESSED (no auto-redeem on startup)")
+            self.logger.info(f"📋 TOTAL UNPROCESSED CODES FOUND: {len(unprocessed_codes)}")
             
-            # Mark all unprocessed codes as processed WITHOUT triggering auto-redeem
-            # This prevents startup redemption while allowing new codes from API to trigger auto-redeem
-            for code, date in unprocessed_codes:
-                try:
-                    # Mark in MongoDB if available
-                    if mongo_enabled() and GiftCodesAdapter:
+            recent_codes = []
+            old_codes = []
+            
+            now = datetime.now()
+            
+            for code, (date_str, created_at) in unprocessed_codes.items():
+                is_recent = False
+                
+                # Check created_at (from MongoDB)
+                if created_at:
+                    created_at_dt = datetime.min
+                    if isinstance(created_at, str):
                         try:
-                            GiftCodesAdapter.mark_code_processed(code)
-                            self.logger.info(f"✅ Marked {code} as processed in MongoDB")
-                        except Exception as e:
-                            self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
+                            created_at_dt = datetime.fromisoformat(created_at)
+                        except ValueError:
+                            try:
+                                created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S.%f')
+                            except ValueError:
+                                try:
+                                    created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+                                except:
+                                    pass
+                    elif isinstance(created_at, datetime):
+                        created_at_dt = created_at
                     
-                    # Also mark in SQLite for consistency
+                    if created_at_dt != datetime.min:
+                         age = (now - created_at_dt).total_seconds()
+                         if age < 86400:
+                             is_recent = True
+                
+                # Fallback: Check date_str (from SQLite or Mongo)
+                if not is_recent and date_str:
                     try:
-                        self.cursor.execute(
-                            "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
-                            (code,)
-                        )
-                        self.giftcode_db.commit()
-                        self.logger.info(f"✅ Marked {code} as processed in SQLite")
-                    except Exception as e:
-                        self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
-                except Exception as e:
-                    self.logger.error(f"❌ Error marking code {code} as processed: {e}")
+                        code_date = datetime.strptime(date_str, '%Y-%m-%d')
+                        # If date is today or yesterday, consider it recent enough to check
+                        if (now - code_date).days < 2:
+                            is_recent = True
+                    except:
+                        pass
+
+                if is_recent:
+                    recent_codes.append((code, date_str))
+                else:
+                    old_codes.append((code, date_str))
             
-            self.logger.info(f"✅ Marked {len(unprocessed_codes)} existing codes as processed (auto-redeem skipped on startup)")
+            # 1. Process RECENT codes (Trigger Auto-Redeem)
+            if recent_codes:
+                self.logger.info(f"🚀 Found {len(recent_codes)} RECENT codes (within 24h) - Triggering Auto-Redeem!")
+                self.logger.info(f"Codes: {[c[0] for c in recent_codes]}")
+                # We do NOT mark them as processed here; trigger_auto_redeem_for_new_codes will do that
+                # after dispatching tasks to all guilds.
+                asyncio.create_task(self.trigger_auto_redeem_for_new_codes(recent_codes))
+            
+            # 2. Process OLD codes (Mark as processed only)
+            if old_codes:
+                self.logger.info(f"🕰️ Found {len(old_codes)} OLD codes (>24h) - Marking as processed WITHOUT redeeming.")
+                self.logger.info(f"Codes: {[c[0] for c in old_codes]}")
+                
+                for code, _ in old_codes:
+                    try:
+                        # Mark in MongoDB
+                        if mongo_enabled() and GiftCodesAdapter:
+                            try:
+                                GiftCodesAdapter.mark_code_processed(code)
+                            except:
+                                pass
+                        
+                        # Mark in SQLite
+                        try:
+                            self.cursor.execute(
+                                "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
+                                (code,)
+                            )
+                            self.giftcode_db.commit()
+                        except:
+                            pass
+                    except Exception as e:
+                        self.logger.error(f"Error marking old code {code}: {e}")
+            
             self.logger.info("🏁 === STARTUP CODE PROCESSING COMPLETE ===")
             
         except Exception as e:
             self.logger.exception(f"❌ CRITICAL ERROR in startup auto-redeem check: {e}")
+
+    @commands.command(name="trigger_auto_redeem")
+    @commands.has_permissions(administrator=True)
+    async def trigger_auto_redeem(self, ctx, code: str):
+        """Manually trigger auto-redeem for a specific gift code."""
+        try:
+            await ctx.send(f"⏳ Manually triggering auto-redeem for code: **{code}**...")
+            self.logger.info(f"🔧 Manual trigger of auto-redeem for code {code} by {ctx.author}")
+            
+            # Format as list of tuples [(code, date)]
+            # We don't have the date handy, so just pass empty string or 'Manual'
+            codes_list = [(code, "Manual Trigger")]
+            
+            # Call the existing method
+            await self.trigger_auto_redeem_for_new_codes(codes_list)
+            
+            await ctx.send(f"✅ Auto-redeem process initiated for **{code}**.")
+            
+        except Exception as e:
+            self.logger.exception(f"Error in manual trigger: {e}")
+            await ctx.send(f"❌ Error triggering auto-redeem: {e}")
     
     async def notify_admins_new_codes(self, new_codes):
         """Notify global administrators about new gift codes"""
@@ -2102,6 +2370,19 @@ class ManageGiftCode(commands.Cog):
             return
         
         custom_id = interaction.data.get("custom_id", "")
+        
+        # Security: Parse user_id from custom_id if present
+        if custom_id and ":" in custom_id:
+            try:
+                real_id, user_str = custom_id.rsplit(":", 1)
+                if user_str.isdigit():
+                    check_user_id = int(user_str)
+                    if interaction.user.id != check_user_id:
+                        await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                        return
+                    custom_id = real_id
+            except ValueError:
+                pass
         
         # Handle gift code menu button
         if custom_id == "giftcode_menu":
@@ -2420,20 +2701,98 @@ class ManageGiftCode(commands.Cog):
                                 )
                                 await modal_interaction.edit_original_response(embed=success_embed)
                             else:
-                                # Failed to add to API - code might be invalid
-                                error_embed = discord.Embed(
-                                    title="❌ Invalid Gift Code",
-                                    description=(
-                                        f"Gift code `{gift_code}` could not be validated.\n\n"
-                                        f"**Possible reasons:**\n"
-                                        f"• Code is invalid or expired\n"
-                                        f"• Code format is incorrect\n"
-                                        f"• API rejected the code\n\n"
-                                        f"Please verify the code and try again."
-                                    ),
-                                    color=discord.Color.red()
-                                )
-                                await modal_interaction.edit_original_response(embed=error_embed)
+                                # API rejected it. Try GAME API verification
+                                try:
+                                    await modal_interaction.edit_original_response(
+                                        embed=discord.Embed(
+                                            title="🔄 Verifying with Game API",
+                                            description=f"External API check failed. Attempting to verify `{gift_code}` directly with Game API...",
+                                            color=discord.Color.blue()
+                                        )
+                                    )
+                                    
+                                    is_valid, status, fid_used = await self.cog.verify_code_with_game_api(modal_interaction.guild.id, gift_code)
+                                    
+                                    if is_valid:
+                                        self.cog.logger.info(f"Game API verified code {gift_code} as valid ({status})")
+                                        
+                                        # Add to Database as validated
+                                        self.cog.cursor.execute("""
+                                            INSERT INTO gift_codes (giftcode, date, validation_status, added_by, added_at)
+                                            VALUES (?, ?, ?, ?, ?)
+                                        """, (gift_code, datetime.now().strftime("%Y-%m-%d"), "validated", modal_interaction.user.id, datetime.now()))
+                                        self.cog.giftcode_db.commit()
+                                        
+                                        success_embed = discord.Embed(
+                                            title="✅ Gift Code Verified & Added",
+                                            description=(
+                                                f"Successfully verified and added: `{gift_code}`\n\n"
+                                                f"**Status:** Validated via Game API ({status})\n"
+                                                f"**Verified with:** FID {fid_used}\n"
+                                                f"**Added by:** {modal_interaction.user.mention}\n"
+                                                f"**Date:** {datetime.now().strftime('%Y-%m-%d')}"
+                                            ),
+                                            color=discord.Color.green()
+                                        )
+                                        await modal_interaction.edit_original_response(embed=success_embed)
+                                        
+                                    elif status in ["INVALID_CODE", "EXPIRED", "USAGE_LIMIT_REACHED", "EXPIRED_CODE"]:
+                                        # Definitively invalid
+                                        error_embed = discord.Embed(
+                                            title="❌ Invalid Gift Code",
+                                            description=(
+                                                f"Gift code `{gift_code}` was rejected by the Game API.\n\n"
+                                                f"**Reason:** {status}\n"
+                                                f"**Verified with:** FID {fid_used if fid_used else 'N/A'}"
+                                            ),
+                                            color=discord.Color.red()
+                                        )
+                                        await modal_interaction.edit_original_response(embed=error_embed)
+                                        
+                                    else:
+                                        # Verification failed or unknown error - Fallback to Force Add
+                                        self.cog.logger.warning(f"Force adding code {gift_code} despite API rejection (Verification status: {status})")
+                                        
+                                        # Add to Database
+                                        self.cog.cursor.execute("""
+                                            INSERT INTO gift_codes (giftcode, date, validation_status, added_by, added_at)
+                                            VALUES (?, ?, ?, ?, ?)
+                                        """, (gift_code, datetime.now().strftime("%Y-%m-%d"), "forced", modal_interaction.user.id, datetime.now()))
+                                        self.cog.giftcode_db.commit()
+                                        
+                                        success_embed = discord.Embed(
+                                            title="⚠️ Gift Code Force Added",
+                                            description=(
+                                                f"Added gift code: `{gift_code}`\n\n"
+                                                f"**Status:** Forced\n"
+                                                f"**Game Verification:** Failed ({status})\n"
+                                                f"**Added by:** {modal_interaction.user.mention}\n"
+                                                f"**Date:** {datetime.now().strftime('%Y-%m-%d')}\n"
+                                                f"**Note:** API rejected it and Game Verification failed, but added anyway."
+                                            ),
+                                            color=discord.Color.orange()
+                                        )
+                                        await modal_interaction.edit_original_response(embed=success_embed)
+                                except Exception as e:
+                                    self.cog.logger.error(f"Error during verification/force add: {e}")
+                                    # Fallback to force add on error
+                                    self.cog.cursor.execute("""
+                                        INSERT INTO gift_codes (giftcode, date, validation_status, added_by, added_at)
+                                        VALUES (?, ?, ?, ?, ?)
+                                    """, (gift_code, datetime.now().strftime("%Y-%m-%d"), "forced", modal_interaction.user.id, datetime.now()))
+                                    self.cog.giftcode_db.commit()
+                                    
+                                    success_embed = discord.Embed(
+                                        title="⚠️ Gift Code Force Added (Error)",
+                                        description=(
+                                            f"Added gift code: `{gift_code}`\n\n"
+                                            f"**Status:** Forced (Error during verification)\n"
+                                            f"**Error:** {str(e)}\n"
+                                            f"**Added by:** {modal_interaction.user.mention}"
+                                        ),
+                                        color=discord.Color.orange()
+                                    )
+                                    await modal_interaction.edit_original_response(embed=success_embed)
                         
                     except Exception as e:
                         self.cog.logger.exception(f"Error adding gift code: {e}")
@@ -2579,8 +2938,8 @@ class ManageGiftCode(commands.Cog):
                 return
             
             # Get current member count
-            self.cursor.execute("SELECT COUNT(*) FROM auto_redeem_members WHERE guild_id = ?", (interaction.guild.id,))
-            member_count = self.cursor.fetchone()[0]
+            members = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+            member_count = len(members)
             
             embed = discord.Embed(
                 title="🤖 Auto Redeem Management",
@@ -2655,8 +3014,8 @@ class ManageGiftCode(commands.Cog):
                 return
             
             # Get current member count
-            self.cursor.execute("SELECT COUNT(*) FROM auto_redeem_members WHERE guild_id = ?", (interaction.guild.id,))
-            member_count = self.cursor.fetchone()[0]
+            members = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+            member_count = len(members)
             
             embed = discord.Embed(
                 title="➕ Add Member to Auto-Redeem",
@@ -2855,8 +3214,8 @@ class ManageGiftCode(commands.Cog):
                 return
             
             # Get current member count
-            self.cursor.execute("SELECT COUNT(*) FROM auto_redeem_members WHERE guild_id = ?", (interaction.guild.id,))
-            member_count = self.cursor.fetchone()[0]
+            members = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+            member_count = len(members)
             
             embed = discord.Embed(
                 title="➖ Remove Member from Auto-Redeem",
@@ -4904,14 +5263,14 @@ class ManageGiftCode(commands.Cog):
                                     if mongo_deleted or sqlite_deleted:
                                         embed = discord.Embed(
                                             title="✅ Code Deleted",
-                                            description=(
-                                                f"**Code:** `{self.code}`\n\n"
-                                                "The gift code has been permanently deleted.\n\n"
-                                                "**Deleted from:**\n"
-                                                f"{'• MongoDB ✅\n' if mongo_deleted else ''}"
-                                                f"{'• SQLite ✅\n' if sqlite_deleted else ''}\n"
-                                                "**Note:** This action cannot be undone."
-                                            ),
+                                                description=(
+                                                    f"**Code:** `{self.code}`\n\n"
+                                                    "The gift code has been permanently deleted.\n\n"
+                                                    "**Deleted from:**\n" +
+                                                    (f"• MongoDB ✅\n" if mongo_deleted else "") +
+                                                    (f"• SQLite ✅\n" if sqlite_deleted else "") +
+                                                    "**Note:** This action cannot be undone."
+                                                ),
                                             color=0x57F287
                                         )
                                         embed.set_footer(
@@ -4996,6 +5355,10 @@ class ManageGiftCode(commands.Cog):
         """Monitor configured channels for FID codes"""
         # Ignore bot messages
         if message.author.bot:
+            return
+            
+        # Ignore DM messages
+        if not message.guild:
             return
         
         # Check if message is in a monitored channel

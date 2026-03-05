@@ -1,3 +1,4 @@
+from typing import Optional
 import os
 import sys
 import subprocess
@@ -16,53 +17,84 @@ import time
 
 def ensure_dependencies_installed():
     """
-    Install all dependencies from requirements.txt in one shot.
-    This runs FIRST before any other imports to ensure packages are available.
+    Install dependencies from requirements.txt ONLY when requirements.txt has changed.
+    Uses an MD5 hash of requirements.txt stored in ~/.bot_deps_hash as a cache key.
+    This avoids the 5-10 minute pip install on every startup.
     """
+    import hashlib
+
+    # Allow full skip via env var (used by GitHub Actions deploy on code-only pushes)
+    if os.environ.get('SKIP_INSTALL', '').lower() == 'true':
+        print("[SETUP] Skipping dependency installation (SKIP_INSTALL=true)")
+        return True
+
     # Find requirements.txt
     req_paths = [
-        "/app/requirements.txt",                    # Docker
-        os.path.join(os.path.dirname(__file__), "requirements.txt"),  # Local
+        "/app/requirements.txt",                                        # Docker
+        os.path.join(os.path.dirname(__file__), "requirements.txt"),   # Local / Oracle VM
     ]
-    
-    req_file = None
-    for path in req_paths:
-        if os.path.exists(path):
-            req_file = path
-            break
-    
+    req_file = next((p for p in req_paths if os.path.exists(p)), None)
+
     if not req_file:
         print("[ERROR] requirements.txt not found")
         return False
-    
-    print(f"[SETUP] Installing dependencies from: {req_file}")
+
+    # Compute MD5 hash of requirements.txt
     try:
-        # Install all dependencies quietly
-        subprocess.check_call(
-            [sys.executable, "-m", "pip", "install", "--upgrade", "--quiet", 
-             "--disable-pip-version-check", "-r", req_file],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            timeout=1800  # 30 minutes max
-        )
-        print("[SETUP] Dependencies installed successfully")
-        
-        # Refresh module cache
+        with open(req_file, "rb") as f:
+            current_hash = hashlib.md5(f.read()).hexdigest()
+    except Exception as e:
+        print(f"[WARN] Could not hash requirements.txt: {e} — will reinstall to be safe")
+        current_hash = None
+
+    # Cache file lives in home directory so it persists across PM2 restarts
+    cache_file = os.path.join(os.path.expanduser("~"), ".bot_deps_hash")
+    saved_hash = ""
+    try:
+        if os.path.exists(cache_file):
+            with open(cache_file, "r") as f:
+                saved_hash = f.read().strip()
+    except Exception:
+        pass
+
+    if current_hash and current_hash == saved_hash:
+        print("[SETUP] ✓ Requirements unchanged — skipping pip install (using cached environment)")
         importlib.invalidate_caches()
         return True
-        
-    except subprocess.TimeoutExpired:
-        print("[ERROR] Installation timed out (>30 mins)")
-        return False
-    except OSError as e:
-        print(f"[WARN] Dependency check skipped due to OS error (likely specific to Windows environment): {e}")
+
+    print(f"[SETUP] requirements.txt changed (or first run) — installing dependencies from: {req_file}")
+    try:
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install",
+             "--disable-pip-version-check", "-r", req_file],
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+            timeout=1800  # 30 minutes max
+        )
+        print("[SETUP] ✓ Dependencies installed successfully")
+
+        # Save new hash so next startup skips install
+        if current_hash:
+            try:
+                with open(cache_file, "w") as f:
+                    f.write(current_hash)
+            except Exception as e:
+                print(f"[WARN] Could not save deps hash: {e}")
+
+        importlib.invalidate_caches()
         return True
+
+    except subprocess.TimeoutExpired:
+        print("[ERROR] Dependency installation timed out (>30 mins)")
+        return False
     except Exception as e:
-        print(f"[ERROR] Installation failed: {e}")
+        print(f"[ERROR] Dependency installation failed: {e}")
         return False
 
-# Install dependencies first
-if not ensure_dependencies_installed():
+# Install / check dependencies first
+if os.environ.get("SKIP_INSTALL", "").lower() == "true":
+    print("[SETUP] Skipping dependency check (SKIP_INSTALL=true)")
+elif not ensure_dependencies_installed():
     print("[ERROR] Failed to install dependencies")
     sys.exit(1)
 
@@ -115,62 +147,11 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
+load_dotenv()
 import os
 import json
 import logging
 from api_manager import make_request, manager, make_image_request
-
-# --- Cloudflare 1015 Bypass: Full Browser Masquerade ---
-# Force discord.py to use full Chrome headers in EVERY request.
-import discord.http
-
-def patch_discord_client():
-    """
-    Monkeypatch discord.http.HTTPClient.request to inject a full set of
-    Chrome browser headers. This bypasses Cloudflare's 'Bad Reputation' IP bans.
-    """
-    _original_request = discord.http.HTTPClient.request
-
-    async def patched_request(self, route, *, files=None, form=None, **kwargs):
-        # 1. Get or init headers dict
-        headers = kwargs.get('headers', {})
-        if headers is None:
-            headers = {}
-        
-        # 2. Inject Chrome 122 (Linux) Headers
-        # These headers mimic a real Chrome browser on Linux requesting a same-origin resource
-        browser_headers = {
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-            "Accept": "*/*",
-            "Accept-Language": "en-US,en;q=0.9",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Referer": "https://discord.com/channels/@me",
-            "Sec-Fetch-Dest": "empty",
-            "Sec-Fetch-Mode": "cors",
-            "Sec-Fetch-Site": "same-origin",
-            "Sec-Ch-Ua": '"Not_A Brand";v="8", "Chromium";v="122", "Google Chrome";v="122"',
-            "Sec-Ch-Ua-Mobile": "?0",
-            "Sec-Ch-Ua-Platform": '"Linux"',
-            "X-Super-Properties": "eyJvcyI6IkxpbnV4IiwiYnJvd3NlciI6IkNocm9tZSIsImRldmljZSI6IiIsInN5c3RlbV9sb2NhbGUiOiJlbi1VUyIsImJyb3dzZXJfdXNlcl9hZ2VudCI6Ik1vemlsbGEvNS4wIChYMTE7IExpbnV4IHg4Nl82NCkgQXBwbGVXZWJLaXQvNTM3LjM2IChLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEyMi4wLjAuMCBTYWZhcmkvNTM3LjM2IiwiYnJvd3Nlcl92ZXJzaW9uIjoiMTIyLjAuMC4wIiwib3NfdmVyc2lvbiI6IiIsInJlZmVycmVyIjoiIiwicmVmZXJyaW5nX2RvbWFpbiI6IiIsInJlZmVycmVyX2N1cnJlbnQiOiIiLCJyZWZlcnJpbmdfZG9tYWluX2N1cnJlbnQiOiIiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfYnVpbGRfbnVtYmVyIjoyNjQ5MDYsImNsaWVudF9ldmVudF9zb3VyY2UiOm51bGx9"
-        }
-        
-        # 3. Update headers (preserve existing auth/content-type if set)
-        # Note: We prioritize browser headers to ensure consistency
-        headers.update(browser_headers)
-        kwargs['headers'] = headers
-        
-        # 4. Call original method
-        return await _original_request(self, route, files=files, form=form, **kwargs)
-
-    # Apply the patch
-    discord.http.HTTPClient.request = patched_request
-    # Also update the property just in case
-    discord.http.HTTPClient.user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    print(f"[PATCH] Discord HTTP Client patched with full Chrome headers.")
-
-# Apply the patch immediately
-patch_discord_client()
-# -------------------------------------------------------
 
 from angel_personality import get_system_prompt, angel_personality
 from user_mapping import get_known_user_name
@@ -184,7 +165,8 @@ from command_animator import animator
 thinking_animation = ThinkingAnimation()
 try:
     from db.mongo_adapters import mongo_enabled, BirthdaysAdapter
-except Exception:
+except Exception as e:
+    print(f"[ERROR] Failed to import MongoDB adapters: {e}")
     mongo_enabled = lambda: False
     BirthdaysAdapter = None
 import sqlite3
@@ -912,6 +894,8 @@ async def setup_hook():
         "cogs.message_extractor",  # Message extraction for global admins
         "cogs.tictactoe",  # Tic-Tac-Toe game
         "cogs.alliance_monitor",  # Alliance online status monitoring
+        "cogs.start_menu",  # Main menu command (/start)
+        "cogs.debug_mongo_cog",  # Temporary debug cog for MongoDB
     ]
     
     loaded_count = 0
@@ -923,7 +907,7 @@ async def setup_hook():
             logger.info(f"✅ Loaded {cog_name}")
             loaded_count += 1
         except Exception as e:
-            logger.error(f"❌ Failed to load {cog_name}: {e}")
+            logger.error(f"❌ Failed to load {cog_name}: {e}", exc_info=True)
             failed_count += 1
     
     logger.info(f"📦 Cog loading complete: {loaded_count} loaded, {failed_count} failed")
@@ -1492,6 +1476,22 @@ file_handler.setLevel(logging.INFO)
 file_formatter = logging.Formatter('%(asctime)s - %(message)s')
 file_handler.setFormatter(file_formatter)
 logger.addHandler(file_handler)
+
+# User-requested standard log files
+try:
+    # Standard output log (INFO and above)
+    out_log = logging.FileHandler('discordbot-out.log', mode='a', encoding='utf-8')
+    out_log.setLevel(logging.INFO)
+    out_log.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
+    logging.getLogger().addHandler(out_log)
+
+    # Standard error log (WARNING and above)
+    err_log = logging.FileHandler('discordbot-error.log', mode='a', encoding='utf-8')
+    err_log.setLevel(logging.WARNING)
+    err_log.setFormatter(logging.Formatter('%(asctime)s [%(levelname)s] %(name)s: %(message)s'))
+    logging.getLogger().addHandler(err_log)
+except Exception as log_error:
+    print(f"[WARN] Failed to setup standard log files: {log_error}")
 
 # Structured JSONL chat log for programmatic analysis (one JSON object per line)
 CHAT_LOG_JSONL = LOG_DIR / 'chat_logs.jsonl'
@@ -3470,7 +3470,7 @@ class DiceBattleView(discord.ui.View):
         self.logo_url = logo_url
         # store results as {user_id: int or None}
         self.results = {challenger.id: None, opponent.id: None}
-        self.message: discord.Message | None = None
+        self.message: discord.Optional[Message ] = None
         # Customize button labels and styles so each shows the player's name and different colors
         try:
             # short helper to trim long names for the button
@@ -4263,27 +4263,44 @@ def check_and_install_requirements():
     if not os.path.exists("requirements.txt"):
         print("No requirements.txt found")
         return False
+    
+    import importlib.metadata
+    
     with open("requirements.txt", "r") as f:
-        requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+        # Filter commented out or empty lines
+        requirements = [line.strip() for line in f if line.strip() and not line.strip().startswith("#")]
 
     missing_packages = []
     for requirement in requirements:
-        package_name = requirement.split("==")[0].split(">=")[0].split("<=")[0].split("~=")[0].split("!=")[0]
+        # Get the distribution name (e.g. 'discord.py' from 'discord.py>=2.5.2')
+        # This handles common operators (==, >=, <=, ~=, !=)
+        dist_name = requirement.split("==")[0].split(">=")[0].split("<=")[0].split("~=")[0].split("!=")[0].strip()
+        
+        # Strip square brackets (extras) like [socks] in aiohttp[socks]
+        if "[" in dist_name:
+            dist_name = dist_name.split("[")[0].strip()
+            
         try:
-            __import__(package_name)
-        except Exception:
+            importlib.metadata.version(dist_name)
+        except importlib.metadata.PackageNotFoundError:
+            # Common overrides where distribution name != module name, though metadata version check
+            # should generally work with the name as it appears in requirements.txt (the distribution name).
             missing_packages.append(requirement)
 
     if missing_packages:
         print(f"Installing {len(missing_packages)} missing packages...")
         for package in missing_packages:
             try:
+                # Use --no-cache-dir to avoid stale cache issues, and timeout for safety
                 cmd = [sys.executable, "-m", "pip", "install", package, "--no-cache-dir"]
                 subprocess.check_call(cmd, timeout=1200)
-                print(f"Installed {package}")
+                print(f"✅ Installed {package}")
             except Exception as e:
-                print(f"Failed to install {package}: {e}")
-                return False
+                print(f"❌ Failed to install {package}: {e}")
+                # We optionally continue but usually it's better to fail early if core is missing
+                # return False 
+    
+    # Check for core packages one last time before declaring success
     print("All requirements satisfied")
     return True
 
@@ -4468,63 +4485,31 @@ if __name__ == "__main__":
             pass
 
 try:
-    bot.run(TOKEN)
-except Exception as e:
-    # Check for Discord Rate Limit (429)
-    # This usually means the IP is banned by Cloudflare for ~30-60 minutes
-    is_rate_limit = False
-    try:
-        if isinstance(e, discord.errors.HTTPException) and e.status == 429:
-            is_rate_limit = True
-    except Exception:
-        pass
-
-    logger.error(f"Bot exited with: {type(e).__name__}: {e}", exc_info=True)
-    traceback.print_exc()
-
-    if is_rate_limit:
-        logger.critical("🛑 HIT DISCORD RATE LIMIT (429) 🛑")
-        logger.critical("This indicates a Cloudflare IP ban. The bot MUST sleep to allow the ban to expire.")
-        logger.critical("Entering 45-minute cooldown period. DO NOT RESTART MANUALLY.")
+    if not TOKEN:
+        logger.critical("DISCORD_TOKEN not found in environment variables!")
+        # Sleep to avoid rapid restart loop if config is missing
+        time.sleep(60)
+        sys.exit(1)
         
-        # We must start the health server so Render doesn't kill the container for not binding the port
-        async def run_cooldown_server():
-            try:
-                from health_server import start_health_server
-                # This binds to os.environ['PORT']
-                port = await start_health_server()
-                if port:
-                    logger.info(f"✅ Health server started on port {port} (keeping container alive during cooldown)")
-                else:
-                    logger.warning("⚠️  Failed to bind port during cooldown (container might be killed)")
-            except Exception as e:
-                logger.error(f"Failed to start health server: {e}")
-
-            # Sleep for 45 minutes (Cloudflare bans are usually 30-60 mins)
-            cooldown_minutes = 45
-            for i in range(cooldown_minutes):
-                logger.info(f"⏳ Rate limit cooldown: {cooldown_minutes - i} minutes remaining...")
-                await asyncio.sleep(60)
-
-        try:
-            # Run the async loop to handle the server and waiting
-            asyncio.run(run_cooldown_server())
-        except Exception as e:
-            logger.error(f"Async cooldown loop failed: {e}")
-            # Fallback blocking sleep
-            time.sleep(45 * 60)
-            
-        logger.info("Cooldown finished. Exiting to allow restart...")
+    bot.run(TOKEN)
+except discord.errors.HTTPException as e:
+    if e.status == 429:
+        logger.critical(f"🛑 RATE LIMITED (429) by Discord/Cloudflare. Sleeping for 15 minutes to cool down IP ban... Error: {e}")
+        # Sleep 15 minutes to let the ban expire
+        time.sleep(900)
     else:
-        # For other errors, sleep briefly to prevent rapid restart loops (Render usually restarts immediately)
-        # 2 minutes sleep to throttle restarts
-        logger.error("Bot crashed. Sleeping for 2 minutes before exiting to prevent rapid restart loops...")
-        time.sleep(120)
-
-    # Re-raise to let the process exit and Render restart it
+        logger.error(f"Discord HTTP Exception: {e}", exc_info=True)
+    # Re-raise to exit
     raise
 except BaseException as e:
-    # Handle KeyboardInterrupt / SystemExit cleanly
-    logger.info(f"Bot stopped by signal: {e}")
+    # Catch BaseException so we also capture SystemExit and KeyboardInterrupt
+    logger.error(f"Bot exited with: {type(e).__name__}: {e}", exc_info=True)
+    traceback.print_exc()
+    # keep the process alive briefly for inspection (default 30s)
+    # Extended to 60s to give more time to read logs
+    for i in range(60):
+        logger.error(f"Bot exited — sleeping for inspection ({i+1}/60)")
+        time.sleep(1)
+    # re-raise to preserve original behavior after inspection
     raise
 

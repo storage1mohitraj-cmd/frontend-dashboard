@@ -148,3 +148,760 @@
 2026-02-17 02:14:53,595 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
 2026-02-17 02:14:53,596 - 📊 Connected to 16 guild(s)
 2026-02-17 02:14:54,871 - ✅ Synced 61 commands globally
+2026-03-02 23:27:39,013 - ✅ Loaded cogs.start_menu
+2026-03-02 23:27:40,866 - ✅ Loaded cogs.alliance
+2026-03-02 23:27:40,927 - ✅ Loaded cogs.alliance_member_operations
+2026-03-02 23:27:40,931 - ✅ Loaded cogs.changes
+2026-03-02 23:27:42,052 - ✅ Loaded cogs.web_search
+2026-03-02 23:27:42,055 - ✅ Loaded cogs.welcome_channel
+2026-03-02 23:27:42,058 - ✅ Loaded cogs.control
+2026-03-02 23:27:42,173 - ✅ Loaded cogs.gift_operations
+2026-03-02 23:27:42,546 - ✅ Loaded cogs.manage_giftcode
+2026-03-02 23:27:42,552 - ✅ Loaded cogs.id_channel
+2026-03-02 23:27:42,796 - ✅ Loaded cogs.bot_operations
+2026-03-02 23:27:42,799 - ✅ Loaded cogs.remote_access
+2026-03-02 23:27:42,801 - ✅ Loaded cogs.fid_commands
+2026-03-02 23:27:42,803 - ✅ Loaded cogs.record_commands
+2026-03-02 23:27:42,811 - ✅ Loaded cogs.bear_trap
+2026-03-02 23:27:42,813 - ✅ Loaded cogs.bear_trap_editor
+2026-03-02 23:27:42,978 - ✅ Loaded cogs.attendance
+2026-03-02 23:27:43,058 - ✅ Loaded cogs.minister_schedule
+2026-03-02 23:27:43,060 - ✅ Loaded cogs.other_features
+2026-03-02 23:27:43,062 - ✅ Loaded cogs.support_operations
+2026-03-02 23:27:43,065 - ✅ Loaded cogs.minister_menu
+2026-03-02 23:27:43,067 - ✅ Loaded cogs.playerinfo
+2026-03-02 23:27:43,072 - ✅ Loaded cogs.reminder_system
+2026-03-02 23:27:43,076 - ✅ Loaded cogs.birthday_system
+2026-03-02 23:27:43,078 - ✅ Loaded cogs.events
+2026-03-02 23:27:43,081 - ✅ Loaded cogs.server_age
+2026-03-02 23:27:43,083 - ✅ Loaded cogs.personalise_chat
+2026-03-02 23:27:51,113 - ✅ Loaded cogs.music
+2026-03-02 23:27:59,295 - ✅ Loaded cogs.voice_conversation
+2026-03-02 23:27:59,334 - ✅ Loaded cogs.tts
+2026-03-02 23:27:59,340 - ✅ Loaded cogs.auto_translate
+2026-03-02 23:27:59,343 - ✅ Loaded cogs.message_extractor
+2026-03-02 23:27:59,345 - ✅ Loaded cogs.tictactoe
+2026-03-02 23:27:59,348 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "C:\Users\mohit\AppData\Roaming\Python\Python313\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 905, in setup_hook
+    await bot.load_extension(cog_name)
+  File "C:\Users\mohit\AppData\Roaming\Python\Python313\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "C:\Users\mohit\AppData\Roaming\Python\Python313\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-02 23:27:59,352 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-02 23:27:59,352 - 📦 Cog loading complete: 34 loaded, 1 failed
+2026-03-02 23:27:59,411 - ✅ User profiles loaded successfully
+2026-03-02 23:28:00,326 - ✅ Playlist storage initialized
+2026-03-02 23:28:01,190 - ✅ Music state storage initialized
+2026-03-02 23:28:01,192 - ⚠️  Health server failed to start (port may be in use)
+2026-03-02 23:28:01,192 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-02 23:28:01,256 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-02 23:28:01,256 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-02 23:28:01,257 - ✅ Registered GiftCodeView
+2026-03-02 23:28:01,257 - ✅ Registered PersistentHelpView
+2026-03-02 23:28:01,258 - ✅ Registered Pollinate Views
+2026-03-02 23:28:01,258 - ✅ Registered PersistentMemberListView
+2026-03-02 23:28:01,259 - ✅ Registered BirthdayWishView
+2026-03-02 23:28:05,122 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-02 23:28:05,122 - 📊 Connected to 18 guild(s)
+2026-03-02 23:28:05,922 - ✅ Synced 62 commands globally
+2026-03-03 00:41:57,937 - ✅ Loaded cogs.start_menu
+2026-03-03 00:42:00,341 - ✅ Loaded cogs.alliance
+2026-03-03 00:42:00,379 - ✅ Loaded cogs.alliance_member_operations
+2026-03-03 00:42:00,418 - ✅ Loaded cogs.changes
+2026-03-03 00:42:00,707 - ✅ Loaded cogs.web_search
+2026-03-03 00:42:00,715 - ✅ Loaded cogs.welcome_channel
+2026-03-03 00:42:00,742 - ✅ Loaded cogs.control
+2026-03-03 00:42:03,429 - ✅ Loaded cogs.gift_operations
+2026-03-03 00:42:05,529 - ✅ Loaded cogs.manage_giftcode
+2026-03-03 00:42:05,587 - ✅ Loaded cogs.id_channel
+2026-03-03 00:42:05,667 - ✅ Loaded cogs.bot_operations
+2026-03-03 00:42:05,722 - ✅ Loaded cogs.remote_access
+2026-03-03 00:42:05,765 - ✅ Loaded cogs.fid_commands
+2026-03-03 00:42:05,803 - ✅ Loaded cogs.record_commands
+2026-03-03 00:42:05,889 - ✅ Loaded cogs.bear_trap
+2026-03-03 00:42:05,934 - ✅ Loaded cogs.bear_trap_editor
+2026-03-03 00:42:07,010 - ✅ Loaded cogs.attendance
+2026-03-03 00:42:07,328 - ✅ Loaded cogs.minister_schedule
+2026-03-03 00:42:07,334 - ✅ Loaded cogs.other_features
+2026-03-03 00:42:07,341 - ✅ Loaded cogs.support_operations
+2026-03-03 00:42:07,355 - ✅ Loaded cogs.minister_menu
+2026-03-03 00:42:07,369 - ✅ Loaded cogs.playerinfo
+2026-03-03 00:42:07,390 - ✅ Loaded cogs.reminder_system
+2026-03-03 00:42:07,437 - ✅ Loaded cogs.birthday_system
+2026-03-03 00:42:07,446 - ✅ Loaded cogs.events
+2026-03-03 00:42:07,459 - ✅ Loaded cogs.server_age
+2026-03-03 00:42:07,468 - ✅ Loaded cogs.personalise_chat
+2026-03-03 00:42:07,479 - ❌ Failed to load cogs.music: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\music.py", line 9, in <module>
+    import wavelink
+ModuleNotFoundError: No module named 'wavelink'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+2026-03-03 00:42:07,619 - ✅ Loaded cogs.voice_conversation
+2026-03-03 00:42:07,688 - ✅ Loaded cogs.tts
+2026-03-03 00:42:07,705 - ✅ Loaded cogs.auto_translate
+2026-03-03 00:42:07,716 - ✅ Loaded cogs.message_extractor
+2026-03-03 00:42:07,723 - ✅ Loaded cogs.tictactoe
+2026-03-03 00:42:07,732 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-03 00:42:07,742 - ❌ Failed to load cogs.start_menu: Extension 'cogs.start_menu' is already loaded.
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1034, in load_extension
+    raise errors.ExtensionAlreadyLoaded(name)
+discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' is already loaded.
+2026-03-03 00:42:07,758 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-03 00:42:07,760 - 📦 Cog loading complete: 33 loaded, 3 failed
+2026-03-03 00:42:07,822 - ✅ User profiles loaded successfully
+2026-03-03 00:42:08,944 - ✅ Playlist storage initialized
+2026-03-03 00:42:09,787 - ✅ Music state storage initialized
+2026-03-03 00:42:09,795 - ⚠️  Health server failed to start (port may be in use)
+2026-03-03 00:42:09,798 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-03 00:42:09,857 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-03 00:42:09,858 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-03 00:42:09,861 - ✅ Registered GiftCodeView
+2026-03-03 00:42:09,862 - ✅ Registered PersistentHelpView
+2026-03-03 00:42:09,866 - ✅ Registered Pollinate Views
+2026-03-03 00:42:09,868 - ✅ Registered PersistentMemberListView
+2026-03-03 00:42:09,872 - ✅ Registered BirthdayWishView
+2026-03-03 00:42:15,146 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-03 00:42:15,148 - 📊 Connected to 18 guild(s)
+2026-03-03 00:42:16,171 - ✅ Synced 47 commands globally
+2026-03-03 00:46:12,912 - ✅ Loaded cogs.start_menu
+2026-03-03 00:46:14,339 - ✅ Loaded cogs.alliance
+2026-03-03 00:46:14,357 - ✅ Loaded cogs.alliance_member_operations
+2026-03-03 00:46:14,374 - ✅ Loaded cogs.changes
+2026-03-03 00:46:14,458 - ✅ Loaded cogs.web_search
+2026-03-03 00:46:14,474 - ✅ Loaded cogs.welcome_channel
+2026-03-03 00:46:14,498 - ✅ Loaded cogs.control
+2026-03-03 00:46:14,678 - ✅ Loaded cogs.gift_operations
+2026-03-03 00:46:14,934 - ✅ Loaded cogs.manage_giftcode
+2026-03-03 00:46:14,942 - ✅ Loaded cogs.id_channel
+2026-03-03 00:46:14,960 - ✅ Loaded cogs.bot_operations
+2026-03-03 00:46:14,971 - ✅ Loaded cogs.remote_access
+2026-03-03 00:46:14,975 - ✅ Loaded cogs.fid_commands
+2026-03-03 00:46:14,977 - ✅ Loaded cogs.record_commands
+2026-03-03 00:46:14,984 - ✅ Loaded cogs.bear_trap
+2026-03-03 00:46:14,988 - ✅ Loaded cogs.bear_trap_editor
+2026-03-03 00:46:15,159 - ✅ Loaded cogs.attendance
+2026-03-03 00:46:15,297 - ✅ Loaded cogs.minister_schedule
+2026-03-03 00:46:15,302 - ✅ Loaded cogs.other_features
+2026-03-03 00:46:15,307 - ✅ Loaded cogs.support_operations
+2026-03-03 00:46:15,315 - ✅ Loaded cogs.minister_menu
+2026-03-03 00:46:15,324 - ✅ Loaded cogs.playerinfo
+2026-03-03 00:46:15,337 - ✅ Loaded cogs.reminder_system
+2026-03-03 00:46:15,345 - ✅ Loaded cogs.birthday_system
+2026-03-03 00:46:15,351 - ✅ Loaded cogs.events
+2026-03-03 00:46:15,355 - ✅ Loaded cogs.server_age
+2026-03-03 00:46:15,358 - ✅ Loaded cogs.personalise_chat
+2026-03-03 00:46:15,364 - ❌ Failed to load cogs.music: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\music.py", line 9, in <module>
+    import wavelink
+ModuleNotFoundError: No module named 'wavelink'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+2026-03-03 00:46:15,392 - ✅ Loaded cogs.voice_conversation
+2026-03-03 00:46:15,420 - ✅ Loaded cogs.tts
+2026-03-03 00:46:15,426 - ✅ Loaded cogs.auto_translate
+2026-03-03 00:46:15,430 - ✅ Loaded cogs.message_extractor
+2026-03-03 00:46:15,433 - ✅ Loaded cogs.tictactoe
+2026-03-03 00:46:15,437 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-03 00:46:15,441 - ❌ Failed to load cogs.start_menu: Extension 'cogs.start_menu' is already loaded.
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1034, in load_extension
+    raise errors.ExtensionAlreadyLoaded(name)
+discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' is already loaded.
+2026-03-03 00:46:15,446 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-03 00:46:15,447 - 📦 Cog loading complete: 33 loaded, 3 failed
+2026-03-03 00:46:15,510 - ✅ User profiles loaded successfully
+2026-03-03 00:46:16,279 - ✅ Playlist storage initialized
+2026-03-03 00:46:17,236 - ✅ Music state storage initialized
+2026-03-03 00:46:17,240 - ⚠️  Health server failed to start (port may be in use)
+2026-03-03 00:46:17,240 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-03 00:46:17,296 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-03 00:46:17,297 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-03 00:46:17,299 - ✅ Registered GiftCodeView
+2026-03-03 00:46:17,300 - ✅ Registered PersistentHelpView
+2026-03-03 00:46:17,302 - ✅ Registered Pollinate Views
+2026-03-03 00:46:17,305 - ✅ Registered PersistentMemberListView
+2026-03-03 00:46:17,307 - ✅ Registered BirthdayWishView
+2026-03-03 00:46:20,840 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-03 00:46:20,843 - 📊 Connected to 18 guild(s)
+2026-03-03 00:46:21,467 - ✅ Synced 47 commands globally
+2026-03-03 00:49:48,058 - ✅ Loaded cogs.start_menu
+2026-03-03 00:49:49,532 - ✅ Loaded cogs.alliance
+2026-03-03 00:49:49,554 - ✅ Loaded cogs.alliance_member_operations
+2026-03-03 00:49:49,579 - ✅ Loaded cogs.changes
+2026-03-03 00:49:49,606 - ✅ Loaded cogs.web_search
+2026-03-03 00:49:49,611 - ✅ Loaded cogs.welcome_channel
+2026-03-03 00:49:49,621 - ✅ Loaded cogs.control
+2026-03-03 00:49:49,687 - ✅ Loaded cogs.gift_operations
+2026-03-03 00:49:49,892 - ✅ Loaded cogs.manage_giftcode
+2026-03-03 00:49:49,907 - ✅ Loaded cogs.id_channel
+2026-03-03 00:49:49,933 - ✅ Loaded cogs.bot_operations
+2026-03-03 00:49:49,940 - ✅ Loaded cogs.remote_access
+2026-03-03 00:49:49,946 - ✅ Loaded cogs.fid_commands
+2026-03-03 00:49:49,951 - ✅ Loaded cogs.record_commands
+2026-03-03 00:49:49,963 - ✅ Loaded cogs.bear_trap
+2026-03-03 00:49:49,971 - ✅ Loaded cogs.bear_trap_editor
+2026-03-03 00:49:50,103 - ✅ Loaded cogs.attendance
+2026-03-03 00:49:50,203 - ✅ Loaded cogs.minister_schedule
+2026-03-03 00:49:50,208 - ✅ Loaded cogs.other_features
+2026-03-03 00:49:50,210 - ✅ Loaded cogs.support_operations
+2026-03-03 00:49:50,217 - ✅ Loaded cogs.minister_menu
+2026-03-03 00:49:50,222 - ✅ Loaded cogs.playerinfo
+2026-03-03 00:49:50,230 - ✅ Loaded cogs.reminder_system
+2026-03-03 00:49:50,237 - ✅ Loaded cogs.birthday_system
+2026-03-03 00:49:50,242 - ✅ Loaded cogs.events
+2026-03-03 00:49:50,245 - ✅ Loaded cogs.server_age
+2026-03-03 00:49:50,249 - ✅ Loaded cogs.personalise_chat
+2026-03-03 00:49:50,253 - ❌ Failed to load cogs.music: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\music.py", line 9, in <module>
+    import wavelink
+ModuleNotFoundError: No module named 'wavelink'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+2026-03-03 00:49:50,278 - ✅ Loaded cogs.voice_conversation
+2026-03-03 00:49:50,299 - ✅ Loaded cogs.tts
+2026-03-03 00:49:50,306 - ✅ Loaded cogs.auto_translate
+2026-03-03 00:49:50,310 - ✅ Loaded cogs.message_extractor
+2026-03-03 00:49:50,314 - ✅ Loaded cogs.tictactoe
+2026-03-03 00:49:50,317 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-03 00:49:50,320 - ❌ Failed to load cogs.start_menu: Extension 'cogs.start_menu' is already loaded.
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1034, in load_extension
+    raise errors.ExtensionAlreadyLoaded(name)
+discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' is already loaded.
+2026-03-03 00:49:50,325 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-03 00:49:50,326 - 📦 Cog loading complete: 33 loaded, 3 failed
+2026-03-03 00:49:50,386 - ✅ User profiles loaded successfully
+2026-03-03 00:49:51,120 - ✅ Playlist storage initialized
+2026-03-03 00:49:51,835 - ✅ Music state storage initialized
+2026-03-03 00:49:51,840 - ⚠️  Health server failed to start (port may be in use)
+2026-03-03 00:49:51,840 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-03 00:49:51,891 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-03 00:49:51,891 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-03 00:49:51,892 - ✅ Registered GiftCodeView
+2026-03-03 00:49:51,893 - ✅ Registered PersistentHelpView
+2026-03-03 00:49:51,894 - ✅ Registered Pollinate Views
+2026-03-03 00:49:51,894 - ✅ Registered PersistentMemberListView
+2026-03-03 00:49:51,895 - ✅ Registered BirthdayWishView
+2026-03-03 00:49:55,603 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-03 00:49:55,607 - 📊 Connected to 18 guild(s)
+2026-03-03 00:49:56,287 - ✅ Synced 47 commands globally
+2026-03-03 00:55:02,604 - ✅ Loaded cogs.start_menu
+2026-03-03 00:55:03,907 - ✅ Loaded cogs.alliance
+2026-03-03 00:55:03,930 - ✅ Loaded cogs.alliance_member_operations
+2026-03-03 00:55:03,948 - ✅ Loaded cogs.changes
+2026-03-03 00:55:04,030 - ✅ Loaded cogs.web_search
+2026-03-03 00:55:04,038 - ✅ Loaded cogs.welcome_channel
+2026-03-03 00:55:04,059 - ✅ Loaded cogs.control
+2026-03-03 00:55:04,201 - ✅ Loaded cogs.gift_operations
+2026-03-03 00:55:04,726 - ✅ Loaded cogs.manage_giftcode
+2026-03-03 00:55:04,769 - ✅ Loaded cogs.id_channel
+2026-03-03 00:55:04,827 - ✅ Loaded cogs.bot_operations
+2026-03-03 00:55:04,852 - ✅ Loaded cogs.remote_access
+2026-03-03 00:55:04,876 - ✅ Loaded cogs.fid_commands
+2026-03-03 00:55:04,916 - ✅ Loaded cogs.record_commands
+2026-03-03 00:55:04,966 - ✅ Loaded cogs.bear_trap
+2026-03-03 00:55:05,019 - ✅ Loaded cogs.bear_trap_editor
+2026-03-03 00:55:05,818 - ✅ Loaded cogs.attendance
+2026-03-03 00:55:06,403 - ✅ Loaded cogs.minister_schedule
+2026-03-03 00:55:06,408 - ✅ Loaded cogs.other_features
+2026-03-03 00:55:06,414 - ✅ Loaded cogs.support_operations
+2026-03-03 00:55:06,424 - ✅ Loaded cogs.minister_menu
+2026-03-03 00:55:06,437 - ✅ Loaded cogs.playerinfo
+2026-03-03 00:55:06,454 - ✅ Loaded cogs.reminder_system
+2026-03-03 00:55:06,476 - ✅ Loaded cogs.birthday_system
+2026-03-03 00:55:06,490 - ✅ Loaded cogs.events
+2026-03-03 00:55:06,502 - ✅ Loaded cogs.server_age
+2026-03-03 00:55:06,519 - ✅ Loaded cogs.personalise_chat
+2026-03-03 00:55:06,558 - ❌ Failed to load cogs.music: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\music.py", line 9, in <module>
+    import wavelink
+ModuleNotFoundError: No module named 'wavelink'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+2026-03-03 00:55:06,664 - ✅ Loaded cogs.voice_conversation
+2026-03-03 00:55:06,727 - ✅ Loaded cogs.tts
+2026-03-03 00:55:06,740 - ✅ Loaded cogs.auto_translate
+2026-03-03 00:55:06,757 - ✅ Loaded cogs.message_extractor
+2026-03-03 00:55:06,773 - ✅ Loaded cogs.tictactoe
+2026-03-03 00:55:06,786 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-03 00:55:06,801 - ❌ Failed to load cogs.start_menu: Extension 'cogs.start_menu' is already loaded.
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1034, in load_extension
+    raise errors.ExtensionAlreadyLoaded(name)
+discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' is already loaded.
+2026-03-03 00:55:06,831 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-03 00:55:06,835 - 📦 Cog loading complete: 33 loaded, 3 failed
+2026-03-03 00:55:06,901 - ✅ User profiles loaded successfully
+2026-03-03 00:55:07,744 - ✅ Playlist storage initialized
+2026-03-03 00:55:08,493 - ✅ Music state storage initialized
+2026-03-03 00:55:08,497 - ⚠️  Health server failed to start (port may be in use)
+2026-03-03 00:55:08,504 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-03 00:55:08,563 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-03 00:55:08,564 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-03 00:55:08,566 - ✅ Registered GiftCodeView
+2026-03-03 00:55:08,567 - ✅ Registered PersistentHelpView
+2026-03-03 00:55:08,569 - ✅ Registered Pollinate Views
+2026-03-03 00:55:08,575 - ✅ Registered PersistentMemberListView
+2026-03-03 00:55:08,579 - ✅ Registered BirthdayWishView
+2026-03-03 00:55:12,108 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-03 00:55:12,116 - 📊 Connected to 18 guild(s)
+2026-03-03 00:55:12,683 - ✅ Synced 47 commands globally
+2026-03-03 00:57:03,775 - ✅ Loaded cogs.start_menu
+2026-03-03 00:57:05,227 - ✅ Loaded cogs.alliance
+2026-03-03 00:57:05,253 - ✅ Loaded cogs.alliance_member_operations
+2026-03-03 00:57:05,271 - ✅ Loaded cogs.changes
+2026-03-03 00:57:05,357 - ✅ Loaded cogs.web_search
+2026-03-03 00:57:05,365 - ✅ Loaded cogs.welcome_channel
+2026-03-03 00:57:05,388 - ✅ Loaded cogs.control
+2026-03-03 00:57:05,544 - ✅ Loaded cogs.gift_operations
+2026-03-03 00:57:06,013 - ✅ Loaded cogs.manage_giftcode
+2026-03-03 00:57:06,079 - ✅ Loaded cogs.id_channel
+2026-03-03 00:57:06,157 - ✅ Loaded cogs.bot_operations
+2026-03-03 00:57:06,180 - ✅ Loaded cogs.remote_access
+2026-03-03 00:57:06,219 - ✅ Loaded cogs.fid_commands
+2026-03-03 00:57:06,264 - ✅ Loaded cogs.record_commands
+2026-03-03 00:57:06,320 - ✅ Loaded cogs.bear_trap
+2026-03-03 00:57:06,417 - ✅ Loaded cogs.bear_trap_editor
+2026-03-03 00:57:07,156 - ✅ Loaded cogs.attendance
+2026-03-03 00:57:07,674 - ✅ Loaded cogs.minister_schedule
+2026-03-03 00:57:07,679 - ✅ Loaded cogs.other_features
+2026-03-03 00:57:07,683 - ✅ Loaded cogs.support_operations
+2026-03-03 00:57:07,694 - ✅ Loaded cogs.minister_menu
+2026-03-03 00:57:07,702 - ✅ Loaded cogs.playerinfo
+2026-03-03 00:57:07,716 - ✅ Loaded cogs.reminder_system
+2026-03-03 00:57:07,731 - ✅ Loaded cogs.birthday_system
+2026-03-03 00:57:07,739 - ✅ Loaded cogs.events
+2026-03-03 00:57:07,749 - ✅ Loaded cogs.server_age
+2026-03-03 00:57:07,759 - ✅ Loaded cogs.personalise_chat
+2026-03-03 00:57:07,771 - ❌ Failed to load cogs.music: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\music.py", line 9, in <module>
+    import wavelink
+ModuleNotFoundError: No module named 'wavelink'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+2026-03-03 00:57:07,856 - ✅ Loaded cogs.voice_conversation
+2026-03-03 00:57:07,912 - ✅ Loaded cogs.tts
+2026-03-03 00:57:07,925 - ✅ Loaded cogs.auto_translate
+2026-03-03 00:57:07,935 - ✅ Loaded cogs.message_extractor
+2026-03-03 00:57:07,946 - ✅ Loaded cogs.tictactoe
+2026-03-03 00:57:07,953 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-03 00:57:07,960 - ❌ Failed to load cogs.start_menu: Extension 'cogs.start_menu' is already loaded.
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1034, in load_extension
+    raise errors.ExtensionAlreadyLoaded(name)
+discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' is already loaded.
+2026-03-03 00:57:07,973 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-03 00:57:07,974 - 📦 Cog loading complete: 33 loaded, 3 failed
+2026-03-03 00:57:08,024 - ✅ User profiles loaded successfully
+2026-03-03 00:57:08,884 - ✅ Playlist storage initialized
+2026-03-03 00:57:09,858 - ✅ Music state storage initialized
+2026-03-03 00:57:09,863 - ⚠️  Health server failed to start (port may be in use)
+2026-03-03 00:57:09,864 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-03 00:57:09,919 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-03 00:57:09,920 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-03 00:57:09,922 - ✅ Registered GiftCodeView
+2026-03-03 00:57:09,925 - ✅ Registered PersistentHelpView
+2026-03-03 00:57:09,928 - ✅ Registered Pollinate Views
+2026-03-03 00:57:09,930 - ✅ Registered PersistentMemberListView
+2026-03-03 00:57:09,936 - ✅ Registered BirthdayWishView
+2026-03-03 00:57:13,260 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-03 00:57:13,260 - 📊 Connected to 18 guild(s)
+2026-03-03 00:57:13,839 - ✅ Synced 47 commands globally
+2026-03-03 00:58:51,809 - ✅ Loaded cogs.start_menu
+2026-03-03 00:58:53,082 - ✅ Loaded cogs.alliance
+2026-03-03 00:58:53,099 - ✅ Loaded cogs.alliance_member_operations
+2026-03-03 00:58:53,111 - ✅ Loaded cogs.changes
+2026-03-03 00:58:53,175 - ✅ Loaded cogs.web_search
+2026-03-03 00:58:53,185 - ✅ Loaded cogs.welcome_channel
+2026-03-03 00:58:53,204 - ✅ Loaded cogs.control
+2026-03-03 00:58:53,463 - ✅ Loaded cogs.gift_operations
+2026-03-03 00:58:53,608 - ✅ Loaded cogs.manage_giftcode
+2026-03-03 00:58:53,611 - ✅ Loaded cogs.id_channel
+2026-03-03 00:58:53,719 - ✅ Loaded cogs.bot_operations
+2026-03-03 00:58:53,723 - ✅ Loaded cogs.remote_access
+2026-03-03 00:58:53,725 - ✅ Loaded cogs.fid_commands
+2026-03-03 00:58:53,728 - ✅ Loaded cogs.record_commands
+2026-03-03 00:58:53,735 - ✅ Loaded cogs.bear_trap
+2026-03-03 00:58:53,738 - ✅ Loaded cogs.bear_trap_editor
+2026-03-03 00:58:53,808 - ✅ Loaded cogs.attendance
+2026-03-03 00:58:53,879 - ✅ Loaded cogs.minister_schedule
+2026-03-03 00:58:53,883 - ✅ Loaded cogs.other_features
+2026-03-03 00:58:53,886 - ✅ Loaded cogs.support_operations
+2026-03-03 00:58:53,891 - ✅ Loaded cogs.minister_menu
+2026-03-03 00:58:53,897 - ✅ Loaded cogs.playerinfo
+2026-03-03 00:58:53,905 - ✅ Loaded cogs.reminder_system
+2026-03-03 00:58:53,915 - ✅ Loaded cogs.birthday_system
+2026-03-03 00:58:53,920 - ✅ Loaded cogs.events
+2026-03-03 00:58:53,928 - ✅ Loaded cogs.server_age
+2026-03-03 00:58:53,935 - ✅ Loaded cogs.personalise_chat
+2026-03-03 00:58:53,941 - ❌ Failed to load cogs.music: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\music.py", line 9, in <module>
+    import wavelink
+ModuleNotFoundError: No module named 'wavelink'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+2026-03-03 00:58:53,969 - ✅ Loaded cogs.voice_conversation
+2026-03-03 00:58:53,987 - ✅ Loaded cogs.tts
+2026-03-03 00:58:54,018 - ✅ Loaded cogs.auto_translate
+2026-03-03 00:58:54,024 - ✅ Loaded cogs.message_extractor
+2026-03-03 00:58:54,028 - ✅ Loaded cogs.tictactoe
+2026-03-03 00:58:54,031 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-03 00:58:54,038 - ❌ Failed to load cogs.start_menu: Extension 'cogs.start_menu' is already loaded.
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1034, in load_extension
+    raise errors.ExtensionAlreadyLoaded(name)
+discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' is already loaded.
+2026-03-03 00:58:54,045 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-03 00:58:54,046 - 📦 Cog loading complete: 33 loaded, 3 failed
+2026-03-03 00:58:54,096 - ✅ User profiles loaded successfully
+2026-03-03 00:58:54,836 - ✅ Playlist storage initialized
+2026-03-03 00:58:55,982 - ✅ Music state storage initialized
+2026-03-03 00:58:55,986 - ⚠️  Health server failed to start (port may be in use)
+2026-03-03 00:58:55,987 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-03 00:58:56,039 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-03 00:58:56,041 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-03 00:58:56,044 - ✅ Registered GiftCodeView
+2026-03-03 00:58:56,045 - ✅ Registered PersistentHelpView
+2026-03-03 00:58:56,047 - ✅ Registered Pollinate Views
+2026-03-03 00:58:56,053 - ✅ Registered PersistentMemberListView
+2026-03-03 00:58:56,059 - ✅ Registered BirthdayWishView
+2026-03-03 00:58:59,835 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-03 00:58:59,837 - 📊 Connected to 18 guild(s)
+2026-03-03 00:59:00,939 - ✅ Synced 47 commands globally
+2026-03-03 01:05:05,569 - ✅ Loaded cogs.start_menu
+2026-03-03 01:05:06,950 - ✅ Loaded cogs.alliance
+2026-03-03 01:05:06,965 - ✅ Loaded cogs.alliance_member_operations
+2026-03-03 01:05:06,978 - ✅ Loaded cogs.changes
+2026-03-03 01:05:07,024 - ✅ Loaded cogs.web_search
+2026-03-03 01:05:07,030 - ✅ Loaded cogs.welcome_channel
+2026-03-03 01:05:07,042 - ✅ Loaded cogs.control
+2026-03-03 01:05:07,215 - ✅ Loaded cogs.gift_operations
+2026-03-03 01:05:07,348 - ✅ Loaded cogs.manage_giftcode
+2026-03-03 01:05:07,352 - ✅ Loaded cogs.id_channel
+2026-03-03 01:05:07,469 - ✅ Loaded cogs.bot_operations
+2026-03-03 01:05:07,472 - ✅ Loaded cogs.remote_access
+2026-03-03 01:05:07,474 - ✅ Loaded cogs.fid_commands
+2026-03-03 01:05:07,476 - ✅ Loaded cogs.record_commands
+2026-03-03 01:05:07,482 - ✅ Loaded cogs.bear_trap
+2026-03-03 01:05:07,485 - ✅ Loaded cogs.bear_trap_editor
+2026-03-03 01:05:07,564 - ✅ Loaded cogs.attendance
+2026-03-03 01:05:07,635 - ✅ Loaded cogs.minister_schedule
+2026-03-03 01:05:07,637 - ✅ Loaded cogs.other_features
+2026-03-03 01:05:07,640 - ✅ Loaded cogs.support_operations
+2026-03-03 01:05:07,643 - ✅ Loaded cogs.minister_menu
+2026-03-03 01:05:07,648 - ✅ Loaded cogs.playerinfo
+2026-03-03 01:05:07,655 - ✅ Loaded cogs.reminder_system
+2026-03-03 01:05:07,663 - ✅ Loaded cogs.birthday_system
+2026-03-03 01:05:07,668 - ✅ Loaded cogs.events
+2026-03-03 01:05:07,671 - ✅ Loaded cogs.server_age
+2026-03-03 01:05:07,674 - ✅ Loaded cogs.personalise_chat
+2026-03-03 01:05:07,678 - ❌ Failed to load cogs.music: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\music.py", line 9, in <module>
+    import wavelink
+ModuleNotFoundError: No module named 'wavelink'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.music' raised an error: ModuleNotFoundError: No module named 'wavelink'
+2026-03-03 01:05:07,700 - ✅ Loaded cogs.voice_conversation
+2026-03-03 01:05:07,713 - ✅ Loaded cogs.tts
+2026-03-03 01:05:07,731 - ✅ Loaded cogs.auto_translate
+2026-03-03 01:05:07,734 - ✅ Loaded cogs.message_extractor
+2026-03-03 01:05:07,736 - ✅ Loaded cogs.tictactoe
+2026-03-03 01:05:07,740 - ❌ Failed to load cogs.alliance_monitor: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 962, in _load_from_module_spec
+    spec.loader.exec_module(lib)  # type: ignore
+    ~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "F:\Whiteout Survival Bot\cogs\alliance_monitor.py", line 15, in <module>
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+ModuleNotFoundError: No module named 'alliance_monitor'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1040, in load_extension
+    await self._load_from_module_spec(spec, name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 965, in _load_from_module_spec
+    raise errors.ExtensionFailed(key, e) from e
+discord.ext.commands.errors.ExtensionFailed: Extension 'cogs.alliance_monitor' raised an error: ModuleNotFoundError: No module named 'alliance_monitor'
+2026-03-03 01:05:07,742 - ❌ Failed to load cogs.start_menu: Extension 'cogs.start_menu' is already loaded.
+Traceback (most recent call last):
+  File "F:\Whiteout Survival Bot\app.py", line 906, in setup_hook
+    await bot.load_extension(cog_name)
+  File "F:\Whiteout Survival Bot\bot_venv\Lib\site-packages\discord\ext\commands\bot.py", line 1034, in load_extension
+    raise errors.ExtensionAlreadyLoaded(name)
+discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' is already loaded.
+2026-03-03 01:05:07,746 - ✅ Loaded cogs.debug_mongo_cog
+2026-03-03 01:05:07,746 - 📦 Cog loading complete: 33 loaded, 3 failed
+2026-03-03 01:05:07,822 - ✅ User profiles loaded successfully
+2026-03-03 01:05:08,930 - ✅ Playlist storage initialized
+2026-03-03 01:05:09,851 - ✅ Music state storage initialized
+2026-03-03 01:05:09,855 - ⚠️  Health server failed to start (port may be in use)
+2026-03-03 01:05:09,855 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-03-03 01:05:09,931 - 🔄 Restoring 0 persistent views from MongoDB...
+2026-03-03 01:05:09,932 - ✅ View restoration complete: 0 restored, 0 failed
+2026-03-03 01:05:09,933 - ✅ Registered GiftCodeView
+2026-03-03 01:05:09,934 - ✅ Registered PersistentHelpView
+2026-03-03 01:05:09,935 - ✅ Registered Pollinate Views
+2026-03-03 01:05:09,936 - ✅ Registered PersistentMemberListView
+2026-03-03 01:05:09,937 - ✅ Registered BirthdayWishView
+2026-03-03 01:05:13,308 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-03-03 01:05:13,309 - 📊 Connected to 18 guild(s)
+2026-03-03 01:05:13,996 - ✅ Synced 47 commands globally

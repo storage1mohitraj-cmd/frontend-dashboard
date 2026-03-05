@@ -1,3 +1,4 @@
+from typing import Optional
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -205,7 +206,7 @@ class AllianceMemberOperations(commands.Cog):
         except Exception:
             return []
 
-    def _get_member_nickname(self, fid: str) -> str | None:
+    def _get_member_nickname(self, fid: str) -> Optional[str ]:
         try:
             if mongo_enabled() and AllianceMembersAdapter is not None:
                 doc = AllianceMembersAdapter.get_member(str(fid))
@@ -223,7 +224,7 @@ class AllianceMemberOperations(commands.Cog):
         except Exception:
             return None
 
-    def _get_member_by_fid(self, fid: str) -> tuple | None:
+    def _get_member_by_fid(self, fid: str) -> Optional[tuple ]:
         """Return (fid, nickname, furnace_lv, alliance_id) or None"""
         # Try Mongo first
         try:
@@ -342,6 +343,12 @@ class AllianceMemberOperations(commands.Cog):
                 self.cog = cog
                 self.bot = cog.bot
 
+            async def interaction_check(self, check_interaction: discord.Interaction) -> bool:
+                if check_interaction.user.id != interaction.user.id:
+                    await check_interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                    return False
+                return True
+
             @discord.ui.button(
                 label="Add Member",
                 emoji="➕",
@@ -410,7 +417,7 @@ class AllianceMemberOperations(commands.Cog):
                             member_count = 0
                         alliances_with_counts.append((alliance_id, name, member_count))
 
-                    view = AllianceSelectView(alliances_with_counts, self.cog)
+                    view = AllianceSelectView(alliances_with_counts, self.cog, user_id=button_interaction.user.id)
                     
                     async def select_callback(interaction: discord.Interaction):
                         alliance_id = int(view.current_select.values[0])
@@ -498,7 +505,7 @@ class AllianceMemberOperations(commands.Cog):
                             member_count = 0
                         alliances_with_counts.append((alliance_id, name, member_count))
 
-                    view = AllianceSelectView(alliances_with_counts, self.cog)
+                    view = AllianceSelectView(alliances_with_counts, self.cog, user_id=button_interaction.user.id)
                     
                     async def select_callback(interaction: discord.Interaction):
                         alliance_id = int(view.current_select.values[0])
@@ -539,7 +546,7 @@ class AllianceMemberOperations(commands.Cog):
                             color=discord.Color.red()
                         )
 
-                        member_view = MemberSelectView(members, alliance_name, self.cog, is_remove_operation=True)
+                        member_view = MemberSelectView(members, alliance_name, self.cog, is_remove_operation=True, user_id=interaction.user.id)
                         
                         async def member_callback(member_interaction: discord.Interaction):
                             selected_value = member_view.current_select.values[0]
@@ -792,7 +799,7 @@ class AllianceMemberOperations(commands.Cog):
                             member_count = 0
                         alliances_with_counts.append((alliance_id, name, member_count))
 
-                    view = AllianceSelectView(alliances_with_counts, self.cog)
+                    view = AllianceSelectView(alliances_with_counts, self.cog, user_id=button_interaction.user.id)
                     
                     async def select_callback(interaction: discord.Interaction):
                         alliance_id = int(view.current_select.values[0])
@@ -954,7 +961,7 @@ class AllianceMemberOperations(commands.Cog):
                             member_count = 0
                         alliances_with_counts.append((alliance_id, name, member_count))
 
-                    view = AllianceSelectView(alliances_with_counts, self.cog)
+                    view = AllianceSelectView(alliances_with_counts, self.cog, user_id=button_interaction.user.id)
                     
                     async def source_callback(interaction: discord.Interaction):
                         try:
@@ -1001,7 +1008,7 @@ class AllianceMemberOperations(commands.Cog):
                                 color=discord.Color.blue()
                             )
 
-                            member_view = MemberSelectView(members, source_alliance_name, self.cog, is_remove_operation=False)
+                            member_view = MemberSelectView(members, source_alliance_name, self.cog, is_remove_operation=False, user_id=interaction.user.id)
                             
                             async def member_callback(member_interaction: discord.Interaction):
                                 selected_fid = str(member_view.current_select.values[0])
@@ -1716,10 +1723,17 @@ class AddMemberModal(discord.ui.Modal):
             )
 
 class AllianceSelectView(discord.ui.View):
-    def __init__(self, alliances_with_counts, cog=None, page=0, context="transfer"):
+    def __init__(self, alliances_with_counts, cog=None, page=0, context="transfer", user_id=None):
         super().__init__(timeout=7200)
         self.alliances = alliances_with_counts
+        self.user_id = user_id
         self.cog = cog
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
         self.page = page
         self.max_page = (len(alliances_with_counts) - 1) // 25 if alliances_with_counts else 0
         self.current_select = None
@@ -1984,11 +1998,18 @@ class FIDSearchModal(discord.ui.Modal):
                 )
 
 class MemberSelectView(discord.ui.View):
-    def __init__(self, members, source_alliance_name, cog, page=0, is_remove_operation=False):
+    def __init__(self, members, source_alliance_name, cog, page=0, is_remove_operation=False, user_id=None):
         super().__init__(timeout=7200)
         self.members = members
         self.source_alliance_name = source_alliance_name
         self.cog = cog
+        self.user_id = user_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
         self.page = page
         self.max_page = (len(members) - 1) // 25
         self.current_select = None

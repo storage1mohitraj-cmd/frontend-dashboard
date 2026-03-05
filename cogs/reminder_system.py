@@ -12,11 +12,12 @@ import pytz
 import threading
 import os
 try:
-    from db.mongo_adapters import mongo_enabled, UserTimezonesAdapter
+    from db.mongo_adapters import mongo_enabled, UserTimezonesAdapter, RemindersAdapter
 except Exception:
     # If adapters are not available at import time, functions will fall back to file-based storage
     mongo_enabled = lambda: False
     UserTimezonesAdapter = None
+    RemindersAdapter = None
 
 USER_TZ_FILE = Path(__file__).with_name('user_timezones.json')
 
@@ -279,8 +280,44 @@ class ReminderStorage:
                     original_pattern: str = None, mention: str = 'everyone', image_url: str = None,
                     thumbnail_url: str = None, footer_text: str = None, footer_icon_url: str = None, author_url: str = None) -> int:
         """Add a new reminder to the database with optional recurring support"""
+        
+        # Check Mongo first
+        if mongo_enabled() and RemindersAdapter:
+            try:
+                data = {
+                    'user_id': str(user_id),
+                    'channel_id': str(channel_id),
+                    'guild_id': str(guild_id) if guild_id else None,
+                    'message': message,
+                    'body': body,
+                    'reminder_time': reminder_time.isoformat(),
+                    'is_recurring': 1 if is_recurring else 0,
+                    'recurrence_type': recurrence_type,
+                    'recurrence_interval': recurrence_interval,
+                    'original_time_pattern': original_pattern,
+                    'mention': mention,
+                    'image_url': image_url,
+                    'thumbnail_url': thumbnail_url,
+                    'footer_text': footer_text,
+                    'footer_icon_url': footer_icon_url,
+                    'author_url': author_url
+                }
+                res = RemindersAdapter.add_reminder(data)
+                if res != -1:
+                    # Return int if possible, otherwise hash or just return int(res) if it is one
+                    try:
+                        return int(res)
+                    except:
+                        # If ObjectId string returned, hash it to int for compatibility or return a dummy positive int
+                        # The calling code uses this ID to say "Reminder ID: <id> set". 
+                        # It might display it.
+                        return abs(hash(str(res))) % 10000000
+            except Exception as e:
+                logger.error(f"Failed to add reminder to Mongo: {e}")
+                # Fallback to SQLite? Maybe better not to mix if we are moving to Mongo.
+                pass
 
-
+        # SQLite fallback
         # Deduplicate: if an active, unsent reminder with same user/channel/time/message exists,
         # update it with any provided metadata instead of inserting a new row. This prevents
         # duplicate reminders when two code paths race to create the same reminder.
@@ -351,6 +388,24 @@ class ReminderStorage:
     
     def get_due_reminders(self) -> List[Dict]:
         """Get all active reminders that are due"""
+        
+        if mongo_enabled() and RemindersAdapter:
+            try:
+                raw_list = RemindersAdapter.get_due_reminders()
+                results = []
+                for r in raw_list:
+                    # Convert to format expected by caller
+                    item = r.copy()
+                    item['id'] = item.pop('_id')
+                    if 'reminder_time' in item and isinstance(item['reminder_time'], str):
+                        item['reminder_time'] = datetime.fromisoformat(item['reminder_time'])
+                    if 'created_at' in item and isinstance(item['created_at'], str):
+                        item['created_at'] = datetime.fromisoformat(item['created_at'])
+                    results.append(item)
+                return results
+            except Exception as e:
+                logger.error(f"Failed to get due reminders from Mongo: {e}")
+                
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -377,6 +432,12 @@ class ReminderStorage:
     def mark_reminder_sent(self, reminder_id: int):
         """Mark a reminder as sent"""
 
+        if mongo_enabled() and RemindersAdapter:
+            try:
+                return RemindersAdapter.mark_reminder_sent(reminder_id)
+            except Exception as e:
+                logger.error(f"Failed to mark reminder sent in Mongo: {e}")
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -400,9 +461,16 @@ class ReminderStorage:
 
         Only whitelisted columns will be updated to avoid SQL injection.
         """
+        
+        if mongo_enabled() and RemindersAdapter:
+            try:
+                return RemindersAdapter.update_reminder_fields(reminder_id, fields)
+            except Exception as e:
+                logger.error(f"Failed to update reminder fields in Mongo: {e}")
+
         if not fields:
             return False
-        allowed = {'image_url', 'thumbnail_url', 'body', 'footer_text', 'footer_icon_url', 'mention', 'reminder_time'}
+        allowed = {'image_url', 'thumbnail_url', 'body', 'footer_text', 'footer_icon_url', 'mention', 'reminder_time', 'author_url'}
         to_update = {k: v for k, v in fields.items() if k in allowed}
         if not to_update:
             return False
@@ -429,6 +497,23 @@ class ReminderStorage:
     
     def get_user_reminders(self, user_id: str, limit: int = 10) -> List[Dict]:
         """Get active reminders for a specific user"""
+        
+        if mongo_enabled() and RemindersAdapter:
+            try:
+                raw_list = RemindersAdapter.get_user_reminders(user_id, limit)
+                results = []
+                for r in raw_list:
+                    item = r.copy()
+                    item['id'] = item.pop('_id')
+                    if 'reminder_time' in item and isinstance(item['reminder_time'], str):
+                        item['reminder_time'] = datetime.fromisoformat(item['reminder_time'])
+                    if 'created_at' in item and isinstance(item['created_at'], str):
+                        item['created_at'] = datetime.fromisoformat(item['created_at'])
+                    results.append(item)
+                return results
+            except Exception as e:
+                logger.error(f"Failed to get user reminders from Mongo: {e}")
+        
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -455,6 +540,12 @@ class ReminderStorage:
     def delete_reminder(self, reminder_id: int, user_id: str) -> bool:
         """Delete a reminder (only if it belongs to the user)"""
 
+        if mongo_enabled() and RemindersAdapter:
+            try:
+                return RemindersAdapter.delete_reminder(reminder_id, user_id)
+            except Exception as e:
+                logger.error(f"Failed to delete reminder in Mongo: {e}")
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -476,6 +567,23 @@ class ReminderStorage:
     
     def get_all_active_reminders(self) -> List[Dict]:
         """Get ALL active reminders in the system (for admin/mod purposes)"""
+        
+        if mongo_enabled() and RemindersAdapter:
+            try:
+                raw_list = RemindersAdapter.get_all_active_reminders()
+                results = []
+                for r in raw_list:
+                    item = r.copy()
+                    item['id'] = item.pop('_id')
+                    if 'reminder_time' in item and isinstance(item['reminder_time'], str):
+                        item['reminder_time'] = datetime.fromisoformat(item['reminder_time'])
+                    if 'created_at' in item and isinstance(item['created_at'], str):
+                        item['created_at'] = datetime.fromisoformat(item['created_at'])
+                    results.append(item)
+                return results
+            except Exception as e:
+                logger.error(f"Failed to get all active reminders from Mongo: {e}")
+
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
@@ -658,7 +766,7 @@ class TimeParser:
         # 1. RECURRING PATTERNS - Check first
         
         # Daily patterns: "daily at 9am", "daily at 21:30"
-        daily_match = re.match(r'daily\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(am|pm)?', time_str)
+        daily_match = re.match(r'daily\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
         if daily_match:
             hour = int(daily_match.group(1))
             minute = int(daily_match.group(2)) if daily_match.group(2) else 0
@@ -684,7 +792,7 @@ class TimeParser:
             return converted_time, recurring_info
 
         # Every N days: "every 2 days at 8pm", "alternate days at 10am" 
-        every_days_match = re.match(r'(?:every\s+(\d+)\s+days?|alternate\s+days?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(am|pm)?', time_str)
+        every_days_match = re.match(r'(?:every\s+(\d+)\s+days?|alternate\s+days?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
         if every_days_match:
             interval = int(every_days_match.group(1)) if every_days_match.group(1) else 2  # "alternate days" = every 2 days
             hour = int(every_days_match.group(2))
@@ -710,7 +818,7 @@ class TimeParser:
             return converted_time, recurring_info
 
         # Weekly patterns: "weekly at 15:30", "every week at 9am"
-        weekly_match = re.match(r'(?:weekly|every\s+week)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(am|pm)?', time_str)
+        weekly_match = re.match(r'(?:weekly|every\s+week)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
         if weekly_match:
             hour = int(weekly_match.group(1))
             minute = int(weekly_match.group(2)) if weekly_match.group(2) else 0
@@ -739,7 +847,7 @@ class TimeParser:
             return converted_time, recurring_info
 
         # 2. TODAY AT patterns: "today at 8:50 pm", "today at 20:50", "today at 8pm"
-        today_match = re.match(r'today\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(am|pm)?', time_str)
+        today_match = re.match(r'today\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
         if today_match:
             hour = int(today_match.group(1))
             minute = int(today_match.group(2)) if today_match.group(2) else 0
@@ -801,7 +909,7 @@ class TimeParser:
         # 4. TOMORROW patterns: "tomorrow 3pm", "tomorrow at 15:30"
         if 'tomorrow' in time_str:
             tomorrow = now + timedelta(days=1)
-            time_match = re.search(r'(?:at\s+)?([0-9]{1,2}):?([0-9]{2})?\s*(am|pm)?', time_str)
+            time_match = re.search(r'(?:at\s+)?([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
             if time_match:
                 hour = int(time_match.group(1))
                 minute = int(time_match.group(2)) if time_match.group(2) else 0
@@ -823,7 +931,7 @@ class TimeParser:
 
         # 5. SPECIFIC DATE patterns: "on 25th November 2025 at 3pm", "on Nov 25 at 15:30"
         # Match patterns like: "on [date] at [time]"
-        on_date_match = re.match(r'on\s+(.+?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(am|pm)?', time_str)
+        on_date_match = re.match(r'on\s+(.+?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
         if on_date_match:
             date_part = on_date_match.group(1).strip()
             hour = int(on_date_match.group(2))

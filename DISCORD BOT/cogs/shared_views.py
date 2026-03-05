@@ -14,6 +14,16 @@ from db.mongo_adapters import AlliancesAdapter
 # but since this is a shared views file, we might need to be careful.
 # However, reminder_system.py probably doesn't import shared_views.py, so it should be fine.
 from cogs.reminder_system import TimeParser, set_user_timezone, get_user_timezone
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dump(obj, f, **kwargs):
+    return json.dump(obj, f, cls=MongoJSONEncoder, **kwargs)
 
 logger = logging.getLogger('shared_views')
 
@@ -33,7 +43,7 @@ def load_feedback_state():
 def save_feedback_state(state: dict):
     try:
         with open(FEEDBACK_STATE_PATH, 'w') as f:
-            json.dump(state, f)
+            mongo_dump(state, f)
     except Exception as e:
         logger.error(f"Failed to save feedback state: {e}")
 

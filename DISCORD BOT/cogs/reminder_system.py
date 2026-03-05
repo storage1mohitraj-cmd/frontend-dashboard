@@ -1,4 +1,18 @@
 import json
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
+
+def mongo_dump(obj, f, **kwargs):
+    return json.dump(obj, f, cls=MongoJSONEncoder, **kwargs)
+
 import sqlite3
 import asyncio
 from datetime import datetime, timedelta
@@ -52,7 +66,7 @@ def _save_user_timezones(data: dict):
                 # fallback to file if adapter fails
                 pass
         with USER_TZ_FILE.open('w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            mongo_dump(data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         logger.error(f"Failed to save user timezones: {e}")
 

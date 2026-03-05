@@ -1,6 +1,20 @@
 import discord
 from discord.ext import commands, tasks
 import json
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
+
+def mongo_dump(obj, f, **kwargs):
+    return json.dump(obj, f, cls=MongoJSONEncoder, **kwargs)
+
 import logging
 from datetime import datetime, timedelta, time
 from pathlib import Path
@@ -516,7 +530,7 @@ class BirthdaySystem(commands.Cog):
         """Save birthday channels to JSON file"""
         try:
             with BIRTHDAY_CHANNELS_FILE.open('w', encoding='utf-8') as f:
-                json.dump(self.birthday_channels_cache, f, indent=2)
+                mongo_dump(self.birthday_channels_cache, f, indent=2)
             logger.debug("💾 Saved birthday channels configuration")
         except Exception as e:
             logger.error(f"❌ Failed to save birthday channels: {e}")
@@ -595,7 +609,7 @@ class BirthdaySystem(commands.Cog):
         try:
             if not mongo_enabled():
                 with BIRTHDAYS_FILE.open('w', encoding='utf-8') as f:
-                    json.dump(self.birthdays_cache, f, indent=2)
+                    mongo_dump(self.birthdays_cache, f, indent=2)
                 logger.info("💾 Saved birthdays to JSON file")
         except Exception as e:
             logger.error(f"❌ Failed to save birthdays: {e}")
@@ -618,7 +632,7 @@ class BirthdaySystem(commands.Cog):
         """Save sent wishes tracking to JSON file"""
         try:
             with SENT_WISHES_FILE.open('w', encoding='utf-8') as f:
-                json.dump(self.sent_wishes_cache, f, indent=2)
+                mongo_dump(self.sent_wishes_cache, f, indent=2)
             logger.debug("💾 Saved sent wishes tracking")
         except Exception as e:
             logger.error(f"❌ Failed to save sent wishes: {e}")

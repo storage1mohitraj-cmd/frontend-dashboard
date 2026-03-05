@@ -9,6 +9,17 @@ import json
 import traceback
 import time
 from typing import Union
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
+
 
 class BearTrap(commands.Cog):
     def __init__(self, bot):
@@ -2359,7 +2370,7 @@ class BearTrapView(discord.ui.View):
                                         'mention_message': embed_data['mention_message']
                                     }
 
-                                    embed_json = json.dumps(copyable_data, indent=2)
+                                    embed_json = mongo_dumps(copyable_data, indent=2)
 
                                     # Create view with a "Show Code" button
                                     view = discord.ui.View()

@@ -2073,3 +2073,225 @@ class AutoTranslateAdapter:
         except Exception as e:
             logger.error(f"Failed to toggle auto-translate config {config_id}: {e}")
             return False
+
+class AutoRedeemSettingsAdapter:
+    COLL = 'auto_redeem_settings'
+
+    @staticmethod
+    def get_settings(guild_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            db = _get_db()
+            d = db[AutoRedeemSettingsAdapter.COLL].find_one({'_id': str(guild_id)})
+            return d
+        except Exception as e:
+            logger.error(f'Failed to get auto redeem settings for {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    def get_all_settings() -> list:
+        try:
+            db = _get_db()
+            docs = list(db[AutoRedeemSettingsAdapter.COLL].find({}))
+            settings_list = []
+            for doc in docs:
+                settings = {
+                    'guild_id': int(doc.get('guild_id', doc.get('_id', 0))),
+                    'enabled': bool(doc.get('enabled', False)),
+                    'updated_by': int(doc.get('updated_by', 0)) if doc.get('updated_by') else 0,
+                    'updated_at': doc.get('updated_at')
+                }
+                settings_list.append(settings)
+            logger.info(f'Retrieved {len(settings_list)} auto redeem settings from MongoDB')
+            return settings_list
+        except Exception as e:
+            logger.error(f'Failed to get all auto redeem settings: {e}')
+            return []
+
+    @staticmethod
+    def set_enabled(guild_id: int, enabled: bool, updated_by: int) -> bool:
+        try:
+            db = _get_db()
+            now = datetime.utcnow().isoformat()
+            db[AutoRedeemSettingsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {'$set': {
+                    'guild_id': int(guild_id),
+                    'enabled': bool(enabled), 
+                    'updated_by': int(updated_by),
+                    'updated_at': now
+                }, '$setOnInsert': {'created_at': now}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set auto redeem setting for {guild_id}: {e}')
+            return False
+
+class AutoRedeemChannelsAdapter:
+    COLL = 'auto_redeem_channels'
+
+    @staticmethod
+    def get_channel(guild_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            db = _get_db()
+            d = db[AutoRedeemChannelsAdapter.COLL].find_one({'_id': str(guild_id)})
+            return d
+        except Exception as e:
+            logger.error(f'Failed to get auto redeem channel for {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    def set_channel(guild_id: int, channel_id: int, added_by: int) -> bool:
+        try:
+            db = _get_db()
+            now = datetime.utcnow().isoformat()
+            db[AutoRedeemChannelsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {'$set': {
+                    'guild_id': int(guild_id),
+                    'channel_id': int(channel_id),
+                    'added_by': int(added_by),
+                    'updated_at': now
+                }, '$setOnInsert': {'created_at': now}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set auto redeem channel for {guild_id}: {e}')
+            return False
+
+class AutoRedeemMembersAdapter:
+    COLL = 'auto_redeem_members'
+
+    @staticmethod
+    def get_members(guild_id: int) -> list:
+        try:
+            db = _get_db()
+            cursor = db[AutoRedeemMembersAdapter.COLL].find({'guild_id': int(guild_id)}).sort('furnace_lv', -1)
+            docs = list(cursor)
+            return [
+                {
+                    'fid': str(d.get('fid', '')),
+                    'nickname': str(d.get('nickname', 'Unknown')),
+                    'furnace_lv': int(d.get('furnace_lv', 0)),
+                    'avatar_image': str(d.get('avatar_image', '')),
+                    'added_by': int(d.get('added_by', 0)) if d.get('added_by') else None,
+                    'added_at': d.get('added_at')
+                } for d in docs
+            ]
+        except Exception as e:
+            logger.error(f'Failed to get auto redeem members for {guild_id}: {e}')
+            return []
+
+    @staticmethod
+    def add_member(guild_id: int, fid: str, member_data: Dict[str, Any]) -> bool:
+        try:
+            db = _get_db()
+            now = datetime.utcnow().isoformat()
+            doc_id = f"{guild_id}_{fid}"
+            
+            update_data = member_data.copy()
+            update_data['guild_id'] = int(guild_id)
+            update_data['fid'] = str(fid)
+            update_data['updated_at'] = now
+            
+            db[AutoRedeemMembersAdapter.COLL].update_one(
+                {'_id': doc_id},
+                {'$set': update_data, '$setOnInsert': {'created_at': now}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to add auto redeem member {fid} for {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    def remove_member(guild_id: int, fid: str) -> bool:
+        try:
+            db = _get_db()
+            doc_id = f"{guild_id}_{fid}"
+            res = db[AutoRedeemMembersAdapter.COLL].delete_one({'_id': doc_id})
+            return res.deleted_count > 0
+        except Exception as e:
+            logger.error(f'Failed to remove auto redeem member {fid} for {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    def member_exists(guild_id: int, fid: str) -> bool:
+        try:
+            db = _get_db()
+            doc_id = f"{guild_id}_{fid}"
+            return db[AutoRedeemMembersAdapter.COLL].find_one({'_id': doc_id}) is not None
+        except Exception:
+            return False
+
+    @staticmethod
+    def batch_member_exists(guild_id: int, fids: list) -> Dict[str, bool]:
+        try:
+            db = _get_db()
+            doc_ids = [f"{guild_id}_{str(fid)}" for fid in fids]
+            docs = db[AutoRedeemMembersAdapter.COLL].find({'_id': {'$in': doc_ids}}, {'fid': 1})
+            existing_fids = {str(d.get('fid')) for d in docs}
+            return {str(fid): str(fid) in existing_fids for fid in fids}
+        except Exception as e:
+            logger.error(f'Failed to batch check auto redeem members for {guild_id}: {e}')
+            return {str(fid): False for fid in fids}
+
+class AutoRedeemedCodesAdapter:
+    COLL = 'auto_redeemed_codes'
+
+    @staticmethod
+    def already_redeemed(guild_id: int, fid: str, code: str) -> bool:
+        try:
+            db = _get_db()
+            doc_id = f"{guild_id}_{fid}_{code}"
+            return db[AutoRedeemedCodesAdapter.COLL].find_one({'_id': doc_id}) is not None
+        except Exception:
+            return False
+
+    @staticmethod
+    def mark_redeemed(guild_id: int, fid: str, code: str, run_id: str) -> bool:
+        try:
+            db = _get_db()
+            now = datetime.utcnow().isoformat()
+            doc_id = f"{guild_id}_{fid}_{code}"
+            db[AutoRedeemedCodesAdapter.COLL].update_one(
+                {'_id': doc_id},
+                {'$set': {
+                    'guild_id': int(guild_id),
+                    'fid': str(fid),
+                    'code': str(code),
+                    'run_id': str(run_id),
+                    'created_at': now
+                }},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to mark code {code} redeemed for {fid}: {e}')
+            return False
+
+class GiftCodeRedemptionAdapter:
+    COLL = 'giftcode_redemptions'
+
+    @staticmethod
+    def track_redemption(guild_id: int, code: str, fid: str, status: str) -> bool:
+        try:
+            db = _get_db()
+            now = datetime.utcnow().isoformat()
+            doc_id = f"{guild_id}_{fid}_{code}"
+            db[GiftCodeRedemptionAdapter.COLL].update_one(
+                {'_id': doc_id},
+                {'$set': {
+                    'guild_id': int(guild_id),
+                    'fid': str(fid),
+                    'code': str(code),
+                    'status': str(status),
+                    'updated_at': now
+                }, '$setOnInsert': {'created_at': now}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to track redemption {code} for {fid}: {e}')
+            return False

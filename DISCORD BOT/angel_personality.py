@@ -17,6 +17,16 @@ try:
 except Exception:
     mongo_enabled = lambda: False
     UserProfilesAdapter = None
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dump(obj, f, **kwargs):
+    return json.dump(obj, f, cls=MongoJSONEncoder, **kwargs)
 
 class UserProfile:
     """User profile for personalization"""
@@ -291,7 +301,7 @@ Invalid? → "REMINDER_DECLINE: [reason]"
                 except Exception:
                     pass
             with open(filename, 'w') as f:
-                json.dump(data, f, indent=2)
+                mongo_dump(data, f, indent=2)
             logger.info(f"Saved {len(self.user_profiles)} profiles to {filename}")
         except Exception as e:
             logger.error(f"Failed to save profiles: {e}")

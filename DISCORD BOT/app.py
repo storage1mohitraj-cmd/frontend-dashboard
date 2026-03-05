@@ -150,6 +150,20 @@ from dotenv import load_dotenv
 load_dotenv()
 import os
 import json
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
+
+def mongo_dump(obj, fp, **kwargs):
+    return json.dump(obj, fp, cls=MongoJSONEncoder, **kwargs)
+
 import logging
 from api_manager import make_request, manager, make_image_request
 
@@ -482,7 +496,7 @@ def load_feedback_state():
 def save_feedback_state(state: dict):
     try:
         with FEEDBACK_STATE_PATH.open('w', encoding='utf-8') as f:
-            json.dump(state, f, indent=2)
+            mongo_dump(state, f, indent=2)
         return True
     except Exception as e:
         try:
@@ -512,7 +526,7 @@ def append_feedback_log(user, user_id, feedback_text, posted_channel=False, post
             'feedback': feedback_text[:4000]
         }
         with FEEDBACK_LOG_PATH.open('a', encoding='utf-8') as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            f.write(mongo_dumps(entry, ensure_ascii=False) + "\n")
     except Exception as e:
         try:
             logger.error(f"Failed to append feedback log: {e}")
@@ -1486,7 +1500,7 @@ def append_chat_log(entry: dict):
     """
     try:
         with CHAT_LOG_JSONL.open('a', encoding='utf-8') as jf:
-            jf.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            jf.write(mongo_dumps(entry, ensure_ascii=False) + "\n")
     except Exception:
         # If the structured log fails, write a minimal fallback to the human log
         try:
@@ -1869,7 +1883,7 @@ def save_birthdays(data: dict) -> bool:
             except Exception:
                 pass
         with BIRTHDAY_FILE.open('w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
+            mongo_dump(data, f, indent=2)
         return True
     except Exception as e:
         logger.error(f"Failed to save birthdays file: {e}")

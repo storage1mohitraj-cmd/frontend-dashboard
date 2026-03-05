@@ -4,6 +4,16 @@ import aiohttp
 import hashlib
 import json
 from datetime import datetime
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
 try:
     from db.mongo_adapters import mongo_enabled, GiftCodesAdapter, AdminsAdapter, GiftCodeRedemptionAdapter
 except Exception:
@@ -1030,7 +1040,7 @@ class GiftOperations(commands.Cog):
         sorted_keys = sorted(data.keys())
         encoded_data = "&".join(
             [
-                f"{key}={json.dumps(data[key]) if isinstance(data[key], dict) else data[key]}"
+                f"{key}={mongo_dumps(data[key]) if isinstance(data[key], dict) else data[key]}"
                 for key in sorted_keys
             ]
         )
@@ -1228,7 +1238,7 @@ class GiftOperations(commands.Cog):
             session, response_stove_info, player_info_json = await self.get_stove_info_wos(player_id=player_id)
             log_entry_player = f"\n{datetime.now()} API REQUEST - Player Info (Async)\nPlayer ID: {player_id}\n"
             
-            log_entry_player += f"Response Code: {response_stove_info.status}\nResponse JSON:\n{json.dumps(player_info_json, indent=2)}\n"
+            log_entry_player += f"Response Code: {response_stove_info.status}\nResponse JSON:\n{mongo_dumps(player_info_json, indent=2)}\n"
             log_entry_player += "-" * 50 + "\n"
             self.giftlog.info(log_entry_player.strip())
 

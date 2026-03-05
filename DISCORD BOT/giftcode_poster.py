@@ -16,6 +16,17 @@ except Exception:
     GiftCodesAdapter = None
     SentGiftCodesAdapter = None
 
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dump(obj, f, **kwargs):
+    return json.dump(obj, f, cls=MongoJSONEncoder, **kwargs)
+
 logger = logging.getLogger(__name__)
 
 # State file to persist configured channels and sent codes
@@ -145,7 +156,7 @@ class GiftCodePoster:
                     pass
             os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
             with open(STATE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(self.state, f, ensure_ascii=False, indent=2)
+                mongo_dump(self.state, f, ensure_ascii=False, indent=2)
         except Exception as e:
             logger.error(f"Failed to write giftcode state: {e}")
 
@@ -223,8 +234,7 @@ class GiftCodePoster:
                 import os
                 os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
                 with open(STATE_FILE, 'w', encoding='utf-8') as f:
-                    import json
-                    json.dump(self.state, f, ensure_ascii=False, indent=2)
+                    mongo_dump(self.state, f, ensure_ascii=False, indent=2)
                 file_success = True
                 logger.info(f"✅ Local File: Saved state for guild {guild_id}")
             except Exception as e:

@@ -4,10 +4,21 @@ Handles saving and loading music playlists with MongoDB/SQLite dual support
 """
 
 import os
+import json
 import sqlite3
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from pathlib import Path
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
 
 # Try to import MongoDB support (Motor for async)
 try:
@@ -172,7 +183,6 @@ class PlaylistStorage:
                 return False
         else:
             try:
-                import json
                 conn = sqlite3.connect(self.sqlite_path)
                 c = conn.cursor()
                 
@@ -183,7 +193,7 @@ class PlaylistStorage:
                 )
                 existing = c.fetchone()
                 
-                tracks_json = json.dumps(tracks)
+                tracks_json = mongo_dumps(tracks)
                 
                 if existing:
                     # Update existing

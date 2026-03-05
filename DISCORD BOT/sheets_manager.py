@@ -15,6 +15,16 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import logging
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
 
 logger = logging.getLogger(__name__)
 
@@ -461,7 +471,7 @@ class SheetsManager:
         
         # If we have multiple messages, return them in the special format
         if len(messages) > 1:
-            return "ALLIANCE_MESSAGES:" + json.dumps(messages)
+            return "ALLIANCE_MESSAGES:" + mongo_dumps(messages)
         elif messages:
             return messages[0]
         else:

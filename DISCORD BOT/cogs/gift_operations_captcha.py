@@ -4,6 +4,16 @@ import os
 import time
 import random
 import aiohttp
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
 
 async def fetch_captcha(gift_ops, player_id, session=None):
     """Fetch a captcha image for a player ID using gift_ops context."""
@@ -117,7 +127,7 @@ async def attempt_gift_code_with_api(gift_ops, player_id, giftcode, session):
                 log_entry_redeem = f"\n{time.time()} API REQ - Gift Code Redeem\nFID:{player_id}, Code:{giftcode}, Captcha:{captcha_code}\n"
                 try:
                     response_json_redeem = await response_giftcode.json()
-                    log_entry_redeem += f"Resp Code: {response_giftcode.status}\nResponse JSON:\n{json.dumps(response_json_redeem, indent=2)}\n"
+                    log_entry_redeem += f"Resp Code: {response_giftcode.status}\nResponse JSON:\n{mongo_dumps(response_json_redeem, indent=2)}\n"
                 except Exception:
                     response_json_redeem = {}
                     resp_text = await response_giftcode.text()

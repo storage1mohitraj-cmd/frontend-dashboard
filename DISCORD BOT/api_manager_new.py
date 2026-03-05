@@ -21,6 +21,16 @@ from googleapiclient.errors import HttpError
 
 from alliance_filter import filter_sheet_data, format_alliance_data
 from sheets_manager_new import SheetsManager, is_event_related_query
+from bson import ObjectId
+
+class MongoJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        return super().default(o)
+
+def mongo_dumps(obj, **kwargs):
+    return json.dumps(obj, cls=MongoJSONEncoder, **kwargs)
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +82,7 @@ async def make_request(messages: List[Dict[str, str]], max_tokens: int = 1000, i
                 else:
                     # Multiple messages - return special format for multi-message handling
                     logger.info(f"Alliance data split into {len(formatted_messages)} messages")
-                    return "ALLIANCE_MESSAGES:" + json.dumps(formatted_messages)
+                    return "ALLIANCE_MESSAGES:" + mongo_dumps(formatted_messages)
             else:
                 # Format event data
                 event_text = manager.sheets_manager.format_sheet_data_for_prompt(sheet_data, sheet_name)

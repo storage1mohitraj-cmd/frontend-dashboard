@@ -1204,6 +1204,7 @@ class ManageGiftCode(commands.Cog):
             failed_count = 0
             already_redeemed_count = 0
             completed_count = 0
+            last_update_time = 0
             progress_lock = asyncio.Lock()
             
             # Semaphore to limit concurrent redemptions
@@ -1211,7 +1212,7 @@ class ManageGiftCode(commands.Cog):
             
             async def process_member_with_semaphore(idx, fid, nickname, furnace_lv):
                 """Process a single member with semaphore control"""
-                nonlocal success_count, failed_count, already_redeemed_count, completed_count
+                nonlocal success_count, failed_count, already_redeemed_count, completed_count, last_update_time
                 
                 # Check for stop signal
                 if self.stop_signals.get(guild_id):
@@ -1233,34 +1234,42 @@ class ManageGiftCode(commands.Cog):
                         failed_count += failed
                         completed_count += 1
                         
-                        # Update progress message after each completion
-                        try:
-                            # Calculate progress percentage and create visual bar
-                            progress_percent = (completed_count / len(members)) * 100
-                            bar_length = 20
-                            filled_length = int(bar_length * completed_count / len(members))
-                            progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
-                            
-                            progress_embed = discord.Embed(
-                                title="🎁 Auto-Redeem In Progress",
-                                description=(
-                                    f"```ansi\n"
-                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                    f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
-                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                    f"```\n"
-                                    f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
-                                    f"📊 **Processed:** {completed_count}/{len(members)}\n\n"
-                                    f"✅ **Success:** {success_count}\n"
-                                    f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
-                                    f"❌ **Failed:** {failed_count}\n"
-                                    f"🏰 **Server:** {channel.guild.name}\n"
-                                ),
-                                color=0x5865F2
-                            )
-                            await animation_message.edit(embed=progress_embed)
-                        except Exception as e:
-                            self.logger.warning(f"Failed to update progress message: {e}")
+                        # Update progress message after each completion, but debounce to avoid rate limits
+                        import time
+                        current_time = time.time()
+                        
+                        # Only update Discord message once every 3 seconds OR on the final completion
+                        should_update = (current_time - last_update_time >= 3.0) or (completed_count == len(members))
+                        
+                        if should_update:
+                            last_update_time = current_time
+                            try:
+                                # Calculate progress percentage and create visual bar
+                                progress_percent = (completed_count / len(members)) * 100
+                                bar_length = 20
+                                filled_length = int(bar_length * completed_count / len(members))
+                                progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                                
+                                progress_embed = discord.Embed(
+                                    title="🎁 Auto-Redeem In Progress",
+                                    description=(
+                                        f"```ansi\n"
+                                        f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                        f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
+                                        f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                        f"```\n"
+                                        f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
+                                        f"📊 **Processed:** {completed_count}/{len(members)}\n\n"
+                                        f"✅ **Success:** {success_count}\n"
+                                        f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
+                                        f"❌ **Failed:** {failed_count}\n"
+                                        f"🏰 **Server:** {channel.guild.name}\n"
+                                    ),
+                                    color=0x5865F2
+                                )
+                                await animation_message.edit(embed=progress_embed)
+                            except Exception as e:
+                                self.logger.warning(f"Failed to update progress message: {e}")
             
             # Create tasks for all members
             tasks = [
@@ -2312,8 +2321,12 @@ class ManageGiftCode(commands.Cog):
                 
                 self.logger.info(f"🎯 Processing code {code} for {len(enabled_guilds)} guilds... (Recheck: {is_recheck})")
                 
-                for (guild_id,) in enabled_guilds:
+                for idx, (guild_id,) in enumerate(enabled_guilds):
                     try:
+                        # Stagger startup to prevent memory/CPU spikes when many guilds trigger at once
+                        if idx > 0:
+                            await asyncio.sleep(2.0)  # Sleep 2 seconds between starting each guild task
+                            
                         # Run auto-redeem in background to avoid blocking
                         asyncio.create_task(self.process_auto_redeem(guild_id, code, silent_on_skip=is_recheck))
                         self.logger.info(f"✅ Started auto-redeem task: guild={guild_id}, code={code}")

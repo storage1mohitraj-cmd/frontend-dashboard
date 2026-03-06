@@ -2447,6 +2447,58 @@ class ManageGiftCode(commands.Cog):
             except ValueError:
                 pass
         
+        # --- NEW: Manual Trigger Catch-alls ---
+        if custom_id and custom_id.startswith("auto_redeem_manual_status_"):
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+                return
+            code = custom_id.replace("auto_redeem_manual_status_", "")
+            queue_size = self.auto_redeem_queue.qsize()
+            embed = discord.Embed(
+                title="🚀 Manual Auto-Redeem Trigger (Refreshed)",
+                description=(
+                    f"**Code:** `{code}`\n\n"
+                    f"**Global Queue Size:** `{queue_size}` servers pending\n\n"
+                    "Click the button below to force all enabled servers to process this code right now.\n"
+                    "Members who already redeemed it successfully will be safely skipped."
+                ),
+                color=0xFF5733
+            )
+            embed.set_footer(text=f"Refreshed by {interaction.user.name}", icon_url=interaction.user.display_avatar.url)
+            
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label="Trigger For All Enabled Servers", emoji="▶️", style=discord.ButtonStyle.danger, custom_id=f"auto_redeem_manual_trigger_{code}"))
+            view.add_item(discord.ui.Button(label="Refresh Status", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id=f"auto_redeem_manual_status_{code}"))
+            
+            await interaction.response.edit_message(embed=embed, view=view)
+            return
+
+        if custom_id and custom_id.startswith("auto_redeem_manual_trigger_"):
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+                return
+            
+            await interaction.response.defer(ephemeral=True)
+            code = custom_id.replace("auto_redeem_manual_trigger_", "")
+            
+            embed = discord.Embed(
+                title="🚀 Trigger Initiated",
+                description=(
+                    f"Triggering code `{code}` across all enabled servers.\n"
+                    "This operates securely using a background queue.\n"
+                ),
+                color=0x57F287
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # trigger the background logic!
+            try:
+                await self.trigger_auto_redeem_for_new_codes([code], is_recheck=True)
+            except Exception as e:
+                self.logger.exception(f"Error during manual trigger of code {code}: {e}")
+            return
+        # --------------------------------------
+
         # Handle gift code menu button
         if custom_id == "giftcode_menu":
             # Check admin permissions
@@ -3057,16 +3109,165 @@ class ManageGiftCode(commands.Cog):
                 row=1
             ))
             view.add_item(discord.ui.Button(
+                label="Manual Trigger & Status",
+                emoji="🚀",
+                style=discord.ButtonStyle.primary,
+                custom_id="auto_redeem_trigger_menu",
+                row=1
+            ))
+            view.add_item(discord.ui.Button(
                 label="◀ Back",
                 emoji="🏠",
                 style=discord.ButtonStyle.secondary,
                 custom_id="giftcode_menu",
-                row=1
+                row=2
             ))
             
             await interaction.response.edit_message(embed=embed, view=view)
             return
-        
+
+        # Handle manual trigger menu
+        if custom_id == "auto_redeem_trigger_menu":
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message(
+                    "❌ Only administrators can trigger auto-redeem.",
+                    ephemeral=True
+                )
+                return
+            
+            await interaction.response.defer(ephemeral=True)
+            
+            try:
+                # Fetch all gift codes from database
+                all_codes = []
+                
+                # Try MongoDB first
+                _mongo_enabled = globals().get('mongo_enabled', lambda: False)
+                if _mongo_enabled() and GiftCodesAdapter:
+                    try:
+                        mongo_codes = GiftCodesAdapter.get_all()
+                        if mongo_codes:
+                            all_codes = []
+                            for code_data in mongo_codes:
+                                try:
+                                    if isinstance(code_data, tuple):
+                                        code_str = str(code_data[0]) if code_data else ''
+                                        date_str = str(code_data[1]) if len(code_data) > 1 else ''
+                                        processed = code_data[2] if len(code_data) > 2 else False
+                                    elif isinstance(code_data, dict):
+                                        code_str = str(code_data.get('giftcode', ''))
+                                        date_str = str(code_data.get('date', ''))
+                                        processed = code_data.get('auto_redeem_processed', False)
+                                    else:
+                                        code_str = str(code_data)
+                                        date_str = ''
+                                        processed = False
+                                    
+                                    if code_str:
+                                        all_codes.append((code_str, date_str, processed))
+                                except Exception:
+                                    continue
+                    except Exception as e:
+                        self.logger.warning(f"Failed to fetch codes from MongoDB for trigger menu: {e}")
+                
+                # Fallback to SQLite
+                if not all_codes:
+                    try:
+                        self.cursor.execute("SELECT giftcode, date, auto_redeem_processed FROM gift_codes ORDER BY added_at DESC")
+                        all_codes = self.cursor.fetchall()
+                    except Exception as e:
+                        self.logger.error(f"SQLite fetch failed for trigger menu: {e}")
+                
+                if not all_codes:
+                    await interaction.followup.send("📋 No gift codes found in the database.", ephemeral=True)
+                    return
+                
+                recent_codes = all_codes[:25]
+                
+                class CodeTriggerSelectView(discord.ui.View):
+                    def __init__(self, codes_list, cog_instance):
+                        super().__init__(timeout=300)
+                        self.codes = codes_list
+                        self.cog = cog_instance
+                        
+                        options = []
+                        for code, date, processed in self.codes:
+                            status_emoji = "✅" if processed else "⏳"
+                            options.append(
+                                discord.SelectOption(
+                                    label=f"{code[:50]}",
+                                    description=f"{'Processed' if processed else 'Unprocessed'} • {date if date else 'No date'}",
+                                    value=f"trigger_select_{code}",
+                                    emoji=status_emoji
+                                )
+                            )
+                        
+                        select = discord.ui.Select(
+                            placeholder="Select a code to view or trigger...",
+                            options=options,
+                            custom_id="code_to_trigger_select"
+                        )
+                        select.callback = self.select_code
+                        self.add_item(select)
+                    
+                    async def select_code(self, select_interaction: discord.Interaction):
+                        await select_interaction.response.defer(ephemeral=True)
+                        selected_code = select_interaction.data["values"][0].replace("trigger_select_", "")
+                        
+                        # Calculate queue size accurately
+                        queue_size = self.cog.auto_redeem_queue.qsize()
+                        
+                        embed = discord.Embed(
+                            title="🚀 Manual Auto-Redeem Trigger",
+                            description=(
+                                f"**Code:** `{selected_code}`\n\n"
+                                f"**Global Queue Size:** `{queue_size}` servers pending\n\n"
+                                "Click the button below to force all enabled servers to process this code right now.\n"
+                                "Members who already redeemed it successfully will be safely skipped."
+                            ),
+                            color=0xFF5733
+                        )
+                        embed.set_footer(text=f"Triggered by {select_interaction.user.name}", icon_url=select_interaction.user.display_avatar.url)
+                        
+                        view = discord.ui.View()
+                        
+                        trigger_btn = discord.ui.Button(
+                            label="Trigger For All Enabled Servers",
+                            emoji="▶️",
+                            style=discord.ButtonStyle.danger,
+                            custom_id=f"auto_redeem_manual_trigger_{selected_code}"
+                        )
+                        view.add_item(trigger_btn)
+                        
+                        refresh_btn = discord.ui.Button(
+                            label="Refresh Status",
+                            emoji="🔄",
+                            style=discord.ButtonStyle.secondary,
+                            custom_id=f"auto_redeem_manual_status_{selected_code}"
+                        )
+                        view.add_item(refresh_btn)
+                        
+                        await select_interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                
+                view = CodeTriggerSelectView(recent_codes, self)
+                
+                embed = discord.Embed(
+                    title="🚀 Manual Code Trigger",
+                    description=(
+                        f"**Showing {len(recent_codes)} most recent codes.**\n\n"
+                        "Select a code below to view its status and forcefully trigger auto-redeem across all servers.\n\n"
+                        "*Note: Manually triggering is safe. It will skip users who have already redeemed the code successfully.*"
+                    ),
+                    color=0xFF5733
+                )
+                
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                
+            except Exception as e:
+                self.logger.exception(f"Error in manual trigger menu: {e}")
+                await interaction.followup.send(f"❌ An error occurred: {str(e)}", ephemeral=True)
+            return
+
         # Handle add member button - show submenu
         if custom_id == "auto_redeem_add_member":
             if not await self.check_admin_permission(interaction.user.id):

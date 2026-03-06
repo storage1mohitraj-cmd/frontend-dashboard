@@ -1,3 +1,4 @@
+# Force sync timestamp: 2026-03-06 18:15:00
 import discord
 from discord.ext import commands, tasks
 from discord import app_commands
@@ -126,10 +127,13 @@ class ManageGiftCode(commands.Cog):
         self.logger = logging.getLogger('manage_giftcode')
         self.logger.setLevel(logging.INFO)
         
-        self.giftcode_db = get_db_connection('giftcode.sqlite', check_same_thread=False)
+        self.giftcode_db = sqlite3.connect('db/giftcode.sqlite', check_same_thread=False)
         self.cursor = self.giftcode_db.cursor()
         self.settings_db = sqlite3.connect('db/settings.sqlite', check_same_thread=False)
         self.settings_cursor = self.settings_db.cursor()
+        
+        # Initialize database tables and columns
+        self.setup_database()
         
         # API Configuration
         self.api_url = "http://gift-code-api.whiteout-bot.com/giftcode_api.php"
@@ -197,7 +201,198 @@ class ManageGiftCode(commands.Cog):
         # Stop signals for auto-redeem
         self.stop_signals = {}  # {guild_id: boolean}
         
+        # Global queue for staggering auto-redeem across servers limit memory spikes
+        self.auto_redeem_queue = asyncio.Queue()
+        self.current_job = None  # Track what's currently processing: (guild_id, code)
+        self.processed_jobs_count = 0
+        
         self.session = None
+
+    async def cog_load(self):
+        """Called when the cog is loaded. Initializes background tasks and sessions."""
+        self.session = aiohttp.ClientSession()
+        self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
+        
+        # Start background workers
+        self._auto_redeem_worker.start()
+        self.api_check_task.start()
+        
+        # Trigger startup check for existing codes
+        asyncio.create_task(self.process_existing_codes_on_startup())
+        
+        # Sync MongoDB members/settings to SQLite so they survive restarts
+        asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
+
+    async def cog_unload(self):
+        """Called when the cog is unloaded. Performs cleanup."""
+        # Stop background workers
+        self._auto_redeem_worker.cancel()
+        self.api_check_task.cancel()
+        
+        # Close sessions
+        if self.session:
+            await self.session.close()
+            self.logger.info("ManageGiftCode: Shared aiohttp session closed.")
+        
+        # Close database connections
+        try:
+            if hasattr(self, 'giftcode_db') and self.giftcode_db:
+                self.giftcode_db.close()
+            if hasattr(self, 'settings_db') and self.settings_db:
+                self.settings_db.close()
+            self.logger.info("ManageGiftCode: Database connections closed.")
+        except Exception as e:
+            self.logger.error(f"Error closing databases in cog_unload: {e}")
+        
+    @tasks.loop(seconds=1)
+    async def _auto_redeem_worker(self):
+        """Background worker that processes auto-redeems sequentially to prevent global memory spikes."""
+        try:
+            # Wait for a job
+            job = await self.auto_redeem_queue.get()
+            guild_id, code, is_recheck = job
+            self.current_job = (guild_id, code)
+            
+            self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code}")
+            
+            try:
+                # Await the actual process (runs sequentially for this worker)
+                await self.process_auto_redeem(guild_id, code, silent_on_skip=is_recheck)
+            except Exception as e:
+                self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code}: {e}")
+            finally:
+                self.current_job = None
+                self.processed_jobs_count += 1
+                # Mark this task as done
+                self.auto_redeem_queue.task_done()
+                
+                # Small delay between guilds to let memory/network settle
+                await asyncio.sleep(2.0)
+                
+        except Exception as e:
+            self.current_job = None
+            self.logger.error(f"❌ [WORKER] Critical error in queue loop: {e}")
+            await asyncio.sleep(5.0)
+
+    @_auto_redeem_worker.before_loop
+    async def before_auto_redeem_worker(self):
+        await self.bot.wait_until_ready()
+        self.logger.info("👷 Auto-redeem queue worker started")
+
+    async def _safe_edit_message(self, interaction: discord.Interaction, **kwargs):
+        """Safely edit an interaction message, falling back to followup if already acknowledged."""
+        try:
+            await interaction.response.edit_message(**kwargs)
+        except discord.errors.HTTPException as e:
+            if e.code == 40060:  # Interaction already acknowledged
+                try:
+                    await interaction.followup.send(ephemeral=True, **kwargs)
+                except Exception as fe:
+                    self.logger.warning(f"Followup also failed after 40060: {fe}")
+            else:
+                raise
+
+    async def _sync_mongo_to_sqlite_on_startup(self):
+        """At startup, pull ALL member/settings data from MongoDB into SQLite for robustness."""
+        await self.bot.wait_until_ready()
+        if not mongo_enabled():
+            return
+        
+        try:
+            self.logger.info("🔄 [STARTUP] Syncing MongoDB auto-redeem data to SQLite...")
+            db = _get_db()
+            
+            # --- Members (handle both V1 array-style and V2 flat docs) ---
+            synced_members = 0
+            skipped = 0
+            try:
+                all_member_docs = list(db['auto_redeem_members'].find({}))
+                self.logger.info(f"📊 [STARTUP] Found {len(all_member_docs)} member docs in MongoDB")
+                
+                for doc in all_member_docs:
+                    try:
+                        guild_id = int(doc.get('guild_id', 0))
+                        if not guild_id:
+                            skipped += 1
+                            continue
+                        
+                        fid = doc.get('fid')
+                        
+                        if fid and str(fid).strip() and str(fid).strip().lower() != 'none':
+                            # V2 flat doc - direct member
+                            fid_str = str(fid).strip()
+                            nickname = doc.get('nickname', 'Unknown') or 'Unknown'
+                            furnace_lv = int(doc.get('furnace_lv', 0) or 0)
+                            avatar_image = doc.get('avatar_image', '') or ''
+                            added_by = doc.get('added_by')
+                            added_at = str(doc.get('added_at', '') or '')
+                            self.cursor.execute("""
+                                INSERT OR REPLACE INTO auto_redeem_members
+                                (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """, (guild_id, fid_str, nickname, furnace_lv, avatar_image, added_by, added_at))
+                            synced_members += 1
+                        
+                        elif 'members' in doc and isinstance(doc['members'], list):
+                            # V1 array-style doc - embedded members list
+                            for member in doc['members']:
+                                try:
+                                    m_fid = member.get('fid')
+                                    if not m_fid or str(m_fid).strip().lower() == 'none':
+                                        continue
+                                    m_fid_str = str(m_fid).strip()
+                                    m_nick = member.get('nickname', 'Unknown') or 'Unknown'
+                                    m_fl = int(member.get('furnace_lv', 0) or 0)
+                                    m_avatar = member.get('avatar_image', '') or ''
+                                    m_added_by = member.get('added_by')
+                                    m_added_at = str(member.get('added_at', '') or '')
+                                    self.cursor.execute("""
+                                        INSERT OR REPLACE INTO auto_redeem_members
+                                        (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    """, (guild_id, m_fid_str, m_nick, m_fl, m_avatar, m_added_by, m_added_at))
+                                    synced_members += 1
+                                except Exception as inner_e:
+                                    self.logger.warning(f"Failed to sync V1 member: {inner_e}")
+                        else:
+                            skipped += 1
+                    except Exception as me:
+                        self.logger.warning(f"Failed to sync member doc to SQLite: {me}")
+                
+                self.giftcode_db.commit()
+                self.logger.info(f"✅ [STARTUP] Synced {synced_members} member records from MongoDB to SQLite (skipped {skipped})")
+            except Exception as e:
+                self.logger.error(f"❌ [STARTUP] Member sync failed: {e}")
+
+            # --- Settings ---
+            synced_settings = 0
+            try:
+                if AutoRedeemSettingsAdapter:
+                    all_settings = AutoRedeemSettingsAdapter.get_all_settings()
+                    for s in (all_settings or []):
+                        try:
+                            guild_id = int(s.get('guild_id', 0))
+                            enabled = 1 if s.get('enabled', False) else 0
+                            updated_by = s.get('updated_by')
+                            updated_at = str(s.get('updated_at', '') or '')
+                            if not guild_id:
+                                continue
+                            self.cursor.execute("""
+                                INSERT OR REPLACE INTO auto_redeem_settings
+                                (guild_id, enabled, updated_by, updated_at)
+                                VALUES (?, ?, ?, ?)
+                            """, (guild_id, enabled, updated_by, updated_at))
+                            synced_settings += 1
+                        except Exception as se:
+                            self.logger.warning(f"Failed to sync settings for guild {s.get('guild_id')}: {se}")
+                    self.giftcode_db.commit()
+                    self.logger.info(f"✅ [STARTUP] Synced {synced_settings} guild settings from MongoDB to SQLite")
+            except Exception as e:
+                self.logger.error(f"❌ [STARTUP] Settings sync failed: {e}")
+
+        except Exception as e:
+            self.logger.error(f"❌ [STARTUP] MongoDB→SQLite sync failed: {e}")
+
 
     @commands.command(name="test_auto_redeem")
     async def test_auto_redeem(self, ctx, code: str, fid: str = None):
@@ -284,25 +479,6 @@ class ManageGiftCode(commands.Cog):
             await ctx.send(f"❌ Error during test: {e}")
             self.logger.exception(f"Error in test_auto_redeem: {e}")
 
-    async def cog_load(self):
-        """Initialize aiohttp session when cog is loaded"""
-        self.session = aiohttp.ClientSession()
-        self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
-        
-        # Trigger startup check for existing codes
-        asyncio.create_task(self.process_existing_codes_on_startup())
-
-    async def cog_unload(self):
-        """Clean up when cog is unloaded"""
-        self.api_check_task.cancel()
-        if self.session:
-            await self.session.close()
-            self.logger.info("ManageGiftCode: Shared aiohttp session closed.")
-        try:
-            self.giftcode_db.close()
-            self.settings_db.close()
-        except:
-            pass
     
     def setup_database(self):
         """Initialize gift code database tables"""
@@ -329,7 +505,7 @@ class ManageGiftCode(commands.Cog):
                 pass  # Column already exists
             
             try:
-                self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN added_at TIMESTAMP")
                 self.logger.info("Added added_at column to gift_codes")
             except sqlite3.OperationalError:
                 pass  # Column already exists
@@ -434,7 +610,7 @@ class ManageGiftCode(commands.Cog):
                             from_source = "MongoDB"
                             cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from MongoDB for guild {guild_id}")
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB get_members failed for guild {guild_id}: {e}. Falling back to SQLite.")
+                        cog_instance.logger.warning(f"⚠️ MongoDB get_members failed for guild {guild_id}: {e}. Falling back to SQLite.")
                         members = []
                 
                 # Step 2: Fallback to SQLite if MongoDB is empty or failed
@@ -460,7 +636,9 @@ class ManageGiftCode(commands.Cog):
                         ]
                         from_source = "SQLite"
                         if rows:
-                            cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from SQLite for guild {guild_id}")
+                            cog_instance.logger.info(f"✅ Fetched {len(members)} auto-redeem members from SQLite for guild {guild_id}")
+                        else:
+                            cog_instance.logger.warning(f"⚠️ SQLite returned 0 members for guild {guild_id} — check auto_redeem_members table")
                         
                         # Step 3: Sync members from SQLite to MongoDB (if MongoDB is enabled)
                         # This ensures Oracle VM deployments with SQLite data get synced to MongoDB
@@ -747,14 +925,6 @@ class ManageGiftCode(commands.Cog):
             self.logger.error(f"Error fetching player data for FID {fid}: {e}")
             return None
     
-    def cog_unload(self):
-        """Clean up when cog is unloaded"""
-        self.api_check_task.cancel()
-        try:
-            self.giftcode_db.close()
-            self.settings_db.close()
-        except:
-            pass
     
     async def check_admin_permission(self, user_id: int) -> bool:
         """Check if user has admin permissions"""
@@ -835,6 +1005,14 @@ class ManageGiftCode(commands.Cog):
                             login_successful = True
                             self.logger.info(f"✅ Login successful for {nickname} (FID: {fid}, attempt {login_attempt})")
                             break
+                        elif msg == "NO_MSG" or not msg:
+                            # Empty response = Cloudflare is rate-limiting us
+                            # Use a long backoff to allow IP to cool down
+                            rate_limit_delay = min(30.0 * login_attempt, 120.0)
+                            self.logger.warning(f"🚫 Login rate-limited (NO_MSG) for {nickname} (FID: {fid}), attempt {login_attempt}/{MAX_LOGIN_RETRIES}. Backing off {rate_limit_delay:.0f}s...")
+                            if session_id is not None:
+                                await self.session_pool.mark_rate_limited(session_id)
+                            await asyncio.sleep(rate_limit_delay)
                         else:
                             retry_delay = min(RETRY_DELAY_BASE * login_attempt, MAX_RETRY_DELAY)
                             self.logger.warning(f"Login attempt {login_attempt}/{MAX_LOGIN_RETRIES} failed for {nickname} (FID: {fid}), API returned: {msg}, retrying in {retry_delay:.1f}s")
@@ -843,12 +1021,12 @@ class ManageGiftCode(commands.Cog):
                         # Check if HTML error page (rate limited)
                         resp_text = await response.text()
                         if resp_text.strip().startswith('<!DOCTYPE') or resp_text.strip().startswith('<html'):
-                            self.logger.warning(f"Login rate limited for {nickname} (FID: {fid}), session {session_id}, attempt {login_attempt}")
+                            self.logger.warning(f"Login HTML-rate-limited for {nickname} (FID: {fid}), session {session_id}, attempt {login_attempt}")
                             if session_id is not None:
                                 await self.session_pool.mark_rate_limited(session_id)
                             # Wait longer when rate limited
-                            retry_delay = min(RETRY_DELAY_BASE * 2 * login_attempt, MAX_RETRY_DELAY)
-                            await asyncio.sleep(retry_delay)
+                            rate_limit_delay = min(30.0 * login_attempt, 120.0)
+                            await asyncio.sleep(rate_limit_delay)
                         else:
                             raise json_err
                 except Exception as e:
@@ -1088,12 +1266,6 @@ class ManageGiftCode(commands.Cog):
             
             if not channel_id:
                 self.logger.warning(f"No import channel configured for guild {guild_id}")
-                try:
-                    # Try to notify the command context if possible, but here we only have guild_id
-                    # This usually happens if setup wasn't completed
-                    pass
-                except Exception:
-                    pass
                 return
             
             channel = self.bot.get_channel(channel_id)
@@ -1106,13 +1278,6 @@ class ManageGiftCode(commands.Cog):
             
             if not members_data:
                 self.logger.info(f"No auto-redeem members for guild {guild_id}")
-                try:
-                    await channel.send(
-                        f"❌ **Auto-Redeem Stopped**: No members found in the auto-redeem list for this server.\n"
-                        f"💡 Use `!add <FID>` or `!import` to add members first."
-                    )
-                except Exception:
-                    pass
                 return
             
             
@@ -1217,7 +1382,6 @@ class ManageGiftCode(commands.Cog):
             failed_count = 0
             already_redeemed_count = 0
             completed_count = 0
-            last_update_time = 0
             progress_lock = asyncio.Lock()
             
             # Semaphore to limit concurrent redemptions
@@ -1225,7 +1389,7 @@ class ManageGiftCode(commands.Cog):
             
             async def process_member_with_semaphore(idx, fid, nickname, furnace_lv):
                 """Process a single member with semaphore control"""
-                nonlocal success_count, failed_count, already_redeemed_count, completed_count, last_update_time
+                nonlocal success_count, failed_count, already_redeemed_count, completed_count
                 
                 # Check for stop signal
                 if self.stop_signals.get(guild_id):
@@ -1247,42 +1411,34 @@ class ManageGiftCode(commands.Cog):
                         failed_count += failed
                         completed_count += 1
                         
-                        # Update progress message after each completion, but debounce to avoid rate limits
-                        import time
-                        current_time = time.time()
-                        
-                        # Only update Discord message once every 3 seconds OR on the final completion
-                        should_update = (current_time - last_update_time >= 3.0) or (completed_count == len(members))
-                        
-                        if should_update:
-                            last_update_time = current_time
-                            try:
-                                # Calculate progress percentage and create visual bar
-                                progress_percent = (completed_count / len(members)) * 100
-                                bar_length = 20
-                                filled_length = int(bar_length * completed_count / len(members))
-                                progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
-                                
-                                progress_embed = discord.Embed(
-                                    title="🎁 Auto-Redeem In Progress",
-                                    description=(
-                                        f"```ansi\n"
-                                        f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                        f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
-                                        f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                        f"```\n"
-                                        f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
-                                        f"📊 **Processed:** {completed_count}/{len(members)}\n\n"
-                                        f"✅ **Success:** {success_count}\n"
-                                        f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
-                                        f"❌ **Failed:** {failed_count}\n"
-                                        f"🏰 **Server:** {channel.guild.name}\n"
-                                    ),
-                                    color=0x5865F2
-                                )
-                                await animation_message.edit(embed=progress_embed)
-                            except Exception as e:
-                                self.logger.warning(f"Failed to update progress message: {e}")
+                        # Update progress message after each completion
+                        try:
+                            # Calculate progress percentage and create visual bar
+                            progress_percent = (completed_count / len(members)) * 100
+                            bar_length = 20
+                            filled_length = int(bar_length * completed_count / len(members))
+                            progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                            
+                            progress_embed = discord.Embed(
+                                title="🎁 Auto-Redeem In Progress",
+                                description=(
+                                    f"```ansi\n"
+                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                    f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
+                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                    f"```\n"
+                                    f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
+                                    f"📊 **Processed:** {completed_count}/{len(members)}\n\n"
+                                    f"✅ **Success:** {success_count}\n"
+                                    f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
+                                    f"❌ **Failed:** {failed_count}\n"
+                                    f"🏰 **Server:** {channel.guild.name}\n"
+                                ),
+                                color=0x5865F2
+                            )
+                            await animation_message.edit(embed=progress_embed)
+                        except Exception as e:
+                            self.logger.warning(f"Failed to update progress message: {e}")
             
             # Create tasks for all members
             tasks = [
@@ -1356,12 +1512,17 @@ class ManageGiftCode(commands.Cog):
             try:
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                    'Origin': 'https://wos-giftcode.centurygame.com',
+                    'Referer': 'https://wos-giftcode.centurygame.com/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                 }
                 timeout = aiohttp.ClientTimeout(total=10)
                 
                 async with session.post(self.wos_captcha_url, headers=headers, data=data, timeout=timeout) as response:
-                    # Check for rate limiting (HTTP 429)
+                    # Check for rate limiting (HTTP 429) or 403 Forbidden
+                    if response.status == 403:
+                        self.logger.error(f"❌ 403 Forbidden in fetch_captcha for FID {player_id}. Check Origin header.")
+                        return None, "FORBIDDEN"
                     if response.status == 429:
                         self.logger.warning(f"Rate limited (429) in fetch_captcha for FID {player_id}")
                         return None, "RATE_LIMITED"
@@ -1472,15 +1633,20 @@ class ManageGiftCode(commands.Cog):
             data = self.encode_data(data_to_encode)
             
             # Run async request
-            # Run async request
             try:
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                    'Origin': 'https://wos-giftcode.centurygame.com',
+                    'Referer': 'https://wos-giftcode.centurygame.com/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
                 }
-                timeout = aiohttp.ClientTimeout(total=15) # Longer timeout for redemption
+                timeout = aiohttp.ClientTimeout(total=20)  # Longer timeout for redemption
                 
                 async with session.post(self.wos_giftcode_url, headers=headers, data=data, timeout=timeout) as response:
+                    if response.status == 403:
+                        self.logger.error(f"❌ 403 Forbidden in gift code redemption for FID {player_id}. Check Origin header.")
+                        return "FORBIDDEN", None, giftcode, method
+                        
                     # Check for rate limiting
                     if response.status == 429:
                         self.logger.warning(f"Rate limited (429) in gift code redemption for FID {player_id}")
@@ -1544,6 +1710,7 @@ class ManageGiftCode(commands.Cog):
     
     async def get_stove_info_wos(self, player_id, session=None):
         """Asynchronously get player info and establish session for WOS API calls"""
+        import random
         if session is None:
             session = self.session if self.session else aiohttp.ClientSession()
         
@@ -1554,19 +1721,30 @@ class ManageGiftCode(commands.Cog):
         }
         data = self.encode_data(data_to_encode)
         
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        # Use realistic browser-like headers to avoid Cloudflare fingerprinting
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': 'https://wos-giftcode.centurygame.com',
+            'Referer': 'https://wos-giftcode.centurygame.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        }
         
         try:
             async with session.post(
                 self.wos_player_info_url, 
                 headers=headers, 
                 data=data, 
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=15)
             ) as response:
+                if response.status == 403:
+                    self.logger.error(f"❌ 403 Forbidden in get_stove_info_wos for {player_id}. Check Origin header.")
+                    return session, response, {"err_code": 403, "msg": "FORBIDDEN"}
                 # Read response info
                 try:
-                    resp_json = await response.json()
-                except Exception:
+                    resp_json = await response.json(content_type=None)
+                except Exception as json_e:
+                    raw_text = await response.text()
+                    self.logger.error(f"Failed to parse JSON for {player_id}. Status: {response.status}, Raw text: {raw_text[:200]}")
                     resp_json = {}
                 return session, response, resp_json
         except Exception as e:
@@ -2003,7 +2181,7 @@ class ManageGiftCode(commands.Cog):
                     # Update status of existing code if needed (e.g., if it was processed in Mongo but not SQLite)
                     self.cursor.execute(
                         "UPDATE gift_codes SET auto_redeem_processed = ? WHERE giftcode = ? AND auto_redeem_processed != ?",
-                        (processed_int, code, processed_int)
+                        (processed_int, str(code), processed_int)
                     )
                     if self.cursor.rowcount > 0:
                         synced_count += 1
@@ -2013,7 +2191,7 @@ class ManageGiftCode(commands.Cog):
                         added_at = code_data.get('created_at') or datetime.now()
                         self.cursor.execute(
                             "INSERT INTO gift_codes (giftcode, date, validation_status, added_at, auto_redeem_processed) VALUES (?, ?, ?, ?, ?)",
-                            (code, date, validation_status, added_at, processed_int)
+                            (str(code), str(date), str(validation_status), str(added_at), processed_int)
                         )
                         new_count += 1
                     except Exception as e:
@@ -2239,7 +2417,7 @@ class ManageGiftCode(commands.Cog):
         except Exception as e:
             self.logger.exception(f"Error notifying admins: {e}")
     
-    async def trigger_auto_redeem_for_new_codes(self, new_codes):
+    async def trigger_auto_redeem_for_new_codes(self, new_codes, is_recheck=False):
         """Trigger auto-redeem for all guilds with auto-redeem enabled"""
         try:
             self.logger.info("🔔 === TRIGGER AUTO-REDEEM ===")
@@ -2304,6 +2482,15 @@ class ManageGiftCode(commands.Cog):
                 self.logger.error("   1. Go to Auto-Redeem Configuration menu")
                 self.logger.error("   2. Click 'Enable Auto-Redeem' button")
                 self.logger.error("   3. Ensure you have members added to auto-redeem list")
+                
+                # Check for existing settings even if disabled for diagnosis
+                try:
+                    self.cursor.execute("SELECT COUNT(*) FROM auto_redeem_settings")
+                    count = self.cursor.fetchone()[0]
+                    self.logger.info(f"📊 SQLite check: Found {count} total rows in auto_redeem_settings")
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to check total SQLite rows: {e}")
+                    
                 self.logger.error("🏁 === TRIGGER AUTO-REDEEM COMPLETE (NO GUILDS) ===")
                 return
             
@@ -2340,60 +2527,63 @@ class ManageGiftCode(commands.Cog):
                 
                 self.logger.info(f"🎯 Processing code {code} for {len(enabled_guilds)} guilds... (Recheck: {is_recheck})")
                 
-                for idx, (guild_id,) in enumerate(enabled_guilds):
+                for (guild_id,) in enabled_guilds:
                     try:
-                        # Stagger startup to prevent memory/CPU spikes when many guilds trigger at once
-                        if idx > 0:
-                            await asyncio.sleep(2.0)  # Sleep 2 seconds between starting each guild task
-                            
-                        # Run auto-redeem in background to avoid blocking
-                        asyncio.create_task(self.process_auto_redeem(guild_id, code, silent_on_skip=is_recheck))
-                        self.logger.info(f"✅ Started auto-redeem task: guild={guild_id}, code={code}")
+                        # Queue the auto-redeem to prevent memory/ratelimit spikes
+                        self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
+                        self.logger.info(f"📥 Queued auto-redeem: guild={guild_id}, code={code}")
                     except Exception as e:
-                        self.logger.error(f"❌ Failed to start auto-redeem for guild {guild_id}: {e}")
+                        self.logger.error(f"❌ Failed to queue auto-redeem for guild {guild_id}: {e}")
                 
-                self.logger.info(f"📊 Triggered auto-redeem for code {code} across {len(enabled_guilds)} guilds")
+                self.logger.info(f"📊 Queued auto-redeem for code {code} across {len(enabled_guilds)} guilds")
                 
-                # Mark code as processed after triggering for all guilds
-                # This prevents re-processing on restart while allowing all guilds to process the code
-                try:
-                    self.logger.info(f"🏁 Marking code {code} as processed after dispatching to all guilds...")
-                    
-                    # Mark in MongoDB if available
-                    mongo_marked = False
-                    if mongo_enabled() and GiftCodesAdapter:
-                        try:
-                            GiftCodesAdapter.mark_code_processed(code)
-                            mongo_marked = True
-                            self.logger.info(f"✅ Marked {code} as processed in MongoDB")
-                        except Exception as e:
-                            self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
-                    
-                    # Also mark in SQLite for consistency
-                    sqlite_marked = False
-                    try:
-                        self.cursor.execute(
-                            "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
-                            (code,)
-                        )
-                        self.giftcode_db.commit()
-                        sqlite_marked = True
-                        self.logger.info(f"✅ Marked {code} as processed in SQLite")
-                    except Exception as e:
-                        self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
-                    
-                    if not mongo_marked and not sqlite_marked:
-                        self.logger.error(f"❌ CRITICAL: Failed to mark {code} as processed in ANY database!")
-                    else:
-                        self.logger.info(f"🎉 Successfully marked {code} as processed (MongoDB: {mongo_marked}, SQLite: {sqlite_marked})")
-                except Exception as e:
-                    self.logger.error(f"❌ Error marking code {code} as processed: {e}")
-            
+                # We launch a monitor task to mark it as processed ONLY when the queue finishes
+                asyncio.create_task(self._mark_code_when_queue_empty(code))
+                
             self.logger.info(f"✅ Processed {len(new_codes)} codes for auto-redeem")
             self.logger.info("🏁 === TRIGGER AUTO-REDEEM COMPLETE ===")
         
         except Exception as e:
             self.logger.exception(f"Error triggering auto-redeem: {e}")
+
+    async def _mark_code_when_queue_empty(self, code):
+        """Waits for the queue to empty before marking a code as fully globally processed."""
+        try:
+            self.logger.info(f"⏳ Waiting for auto-redeem queue to finish before marking {code} as processed...")
+            await self.auto_redeem_queue.join()
+            
+            self.logger.info(f"🏁 Queue empty! Marking code {code} as 100% processed globally.")
+            
+            # Mark in MongoDB if available
+            mongo_marked = False
+            if mongo_enabled() and GiftCodesAdapter:
+                try:
+                    GiftCodesAdapter.mark_code_processed(code)
+                    mongo_marked = True
+                    self.logger.info(f"✅ Marked {code} as processed in MongoDB")
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
+            
+            # Mark in SQLite for consistency
+            sqlite_marked = False
+            try:
+                self.cursor.execute(
+                    "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
+                    (code,)
+                )
+                self.giftcode_db.commit()
+                sqlite_marked = True
+                self.logger.info(f"✅ Marked {code} as processed in SQLite")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
+                
+            if not mongo_marked and not sqlite_marked:
+                self.logger.error(f"❌ CRITICAL: Failed to mark {code} as processed in ANY database!")
+            else:
+                self.logger.info(f"🎉 Successfully marked {code} as processed (MongoDB: {mongo_marked}, SQLite: {sqlite_marked})")
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error waiting for queue to mark {code}: {e}")
     
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
@@ -2401,8 +2591,110 @@ class ManageGiftCode(commands.Cog):
         if not interaction.type == discord.InteractionType.component:
             return
         
+        # Early exit if interaction already handled by another cog listener
+        if interaction.response.is_done():
+            return
+        
         custom_id = interaction.data.get("custom_id", "")
         
+        # Only handle custom_ids that belong to this cog.
+        # All managed IDs are namespaced under 'giftcode_' or 'auto_redeem_'.
+        # Do NOT add other prefixes here unless this cog's on_interaction handles them.
+        check_id = custom_id.rsplit(":", 1)[0] if ":" in custom_id else custom_id
+        if not (check_id.startswith("giftcode_") or check_id.startswith("auto_redeem_")):
+            return
+        
+        # Security: Parse user_id from custom_id if present
+        if custom_id and ":" in custom_id:
+            try:
+                real_id, user_str = custom_id.rsplit(":", 1)
+                if user_str.isdigit():
+                    check_user_id = int(user_str)
+                    if interaction.user.id != check_user_id:
+                        try:
+                            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                        except discord.errors.InteractionResponded:
+                            pass
+                        return
+                    custom_id = real_id
+            except ValueError:
+                pass
+        
+        # --- NEW: Manual Trigger Catch-alls ---
+        if custom_id and custom_id.startswith("auto_redeem_manual_status_"):
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+                return
+            code = custom_id.replace("auto_redeem_manual_status_", "")
+            queue_size = self.auto_redeem_queue.qsize()
+            
+            # Get current job info
+            current_status = "💤 Idle"
+            if self.current_job:
+                g_id, c_code = self.current_job
+                guild = self.bot.get_guild(g_id)
+                guild_name = guild.name if guild else f"ID: {g_id}"
+                current_status = f"⚙️ Processing: **{guild_name}** for code `{c_code}`"
+            
+            embed = discord.Embed(
+                title="🚀 Auto-Redeem Global Status",
+                description=(
+                    f"**Queued Codes:** `{code}`\n\n"
+                    f"**Current Activity:** {current_status}\n"
+                    f"**Servers Pending in Queue:** `{queue_size}`\n"
+                    f"**Total Jobs Processed:** `{self.processed_jobs_count}`\n\n"
+                    "Click 'Trigger' to force all enabled servers to process this code.\n"
+                    "Click 'Refresh' to see the latest processing server."
+                ),
+                color=0xFF5733
+            )
+            embed.set_footer(text=f"Checked by {interaction.user.name}", icon_url=interaction.user.display_avatar.url)
+            
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(label="Trigger For All Enabled Servers", emoji="▶️", style=discord.ButtonStyle.danger, custom_id=f"auto_redeem_manual_trigger_{code}"))
+            view.add_item(discord.ui.Button(label="Refresh Status", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id=f"auto_redeem_manual_status_{code}"))
+            
+            try:
+                await self._safe_edit_message(interaction, embed=embed, view=view)
+            except discord.errors.HTTPException as e:
+                if e.code == 40060: # Already acknowledged
+                    await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=view)
+                else:
+                    raise
+            return
+
+        if custom_id and custom_id.startswith("auto_redeem_manual_trigger_"):
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+                return
+            
+            try:
+                await interaction.response.defer(ephemeral=True)
+            except discord.errors.HTTPException as e:
+                if e.code != 40060:
+                    raise
+            
+            code = custom_id.replace("auto_redeem_manual_trigger_", "")
+            
+            embed = discord.Embed(
+                title="🚀 Trigger Initiated",
+                description=(
+                    f"Triggering code `{code}` across all enabled servers.\n"
+                    "This operates securely using a background queue.\n"
+                    "Check the 'Refresh Status' button to monitor progress.\n"
+                ),
+                color=0x57F287
+            )
+            await interaction.followup.send(embed=embed, ephemeral=True)
+            
+            # trigger the background logic!
+            try:
+                await self.trigger_auto_redeem_for_new_codes([(code, "Manual Trigger")], is_recheck=True)
+            except Exception as e:
+                self.logger.exception(f"Error during manual trigger of code {code}: {e}")
+            return
+        # --------------------------------------
+
         # Handle gift code menu button
         if custom_id == "giftcode_menu":
             # Check admin permissions
@@ -2482,7 +2774,7 @@ class ManageGiftCode(commands.Cog):
                 row=2
             ))
             
-            await interaction.response.edit_message(embed=embed, view=view)
+            await self._safe_edit_message(interaction, embed=embed, view=view)
             return
         
         # Handle view codes button
@@ -3013,16 +3305,207 @@ class ManageGiftCode(commands.Cog):
                 row=1
             ))
             view.add_item(discord.ui.Button(
+                label="Manual Trigger & Status",
+                emoji="🚀",
+                style=discord.ButtonStyle.primary,
+                custom_id="auto_redeem_trigger_menu",
+                row=1
+            ))
+            view.add_item(discord.ui.Button(
                 label="◀ Back",
                 emoji="🏠",
                 style=discord.ButtonStyle.secondary,
                 custom_id="giftcode_menu",
-                row=1
+                row=2
             ))
             
-            await interaction.response.edit_message(embed=embed, view=view)
+            await self._safe_edit_message(interaction, embed=embed, view=view)
             return
-        
+
+        # Handle manual trigger menu
+        if custom_id == "auto_redeem_trigger_menu":
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message(
+                    "❌ Only administrators can trigger auto-redeem.",
+                    ephemeral=True
+                )
+                return
+            
+            await interaction.response.defer(ephemeral=True)
+            
+            try:
+                # Fetch all gift codes from database
+                all_codes = []
+                
+                # Fetch active codes using the same logic as /giftcode
+                active_codes_map = {}
+                
+                # 1. Fetch from website
+                try:
+                    from gift_codes import get_active_gift_codes
+                    website_codes = await get_active_gift_codes()
+                    if website_codes:
+                        for item in website_codes:
+                            if item.get('code') and item.get('is_active', True):
+                                active_codes_map[item['code']] = item.get('expiry', 'Unknown')
+                except Exception as e:
+                    self.logger.error(f"Error fetching website codes for trigger menu: {e}")
+                
+                # 2. Fetch from API
+                try:
+                    api_codes = await self.fetch_codes_from_api()
+                    if api_codes:
+                        for code_str, date_str in api_codes:
+                            if code_str not in active_codes_map:
+                                active_codes_map[code_str] = date_str
+                except Exception as e:
+                    self.logger.error(f"Error fetching API codes for trigger menu: {e}")
+                
+                # Filter by expiry date
+                valid_active_codes = []
+                now = datetime.now()
+                import dateutil.parser
+                
+                for code_str, expiry_str in active_codes_map.items():
+                    is_active = True
+                    if expiry_str and expiry_str != 'Unknown':
+                        try:
+                            expiry_date = dateutil.parser.parse(expiry_str, fuzzy=True)
+                            if expiry_date <= now:
+                                is_active = False
+                        except Exception:
+                            pass
+                    
+                    if is_active:
+                        valid_active_codes.append(code_str)
+                
+                all_codes = []
+                if valid_active_codes:
+                    # Get processed status from database
+                    _mongo_enabled = globals().get('mongo_enabled', lambda: False)
+                    db_status_map = {}
+                    
+                    if _mongo_enabled() and GiftCodesAdapter:
+                        try:
+                            mongo_codes = GiftCodesAdapter.get_all_with_status()
+                            if mongo_codes:
+                                for code_data in mongo_codes:
+                                    c = str(code_data.get('giftcode', ''))
+                                    proc = code_data.get('auto_redeem_processed', False)
+                                    date_added = code_data.get('date', '')
+                                    db_status_map[c] = (proc, date_added)
+                        except Exception as e:
+                            self.logger.warning(f"Failed to fetch from Mongo for trigger menu: {e}")
+                    
+                    if not db_status_map:
+                        try:
+                            self.cursor.execute("SELECT giftcode, auto_redeem_processed, date FROM gift_codes")
+                            for row in self.cursor.fetchall():
+                                db_status_map[row[0]] = (bool(row[1]), str(row[2]))
+                        except Exception as e:
+                            self.logger.error(f"SQLite fetch failed for trigger menu: {e}")
+                    
+                    # Build final list
+                    for code_str in valid_active_codes:
+                        processed = False
+                        date_str = active_codes_map[code_str]
+                        if code_str in db_status_map:
+                            processed, db_date = db_status_map[code_str]
+                            if db_date and db_date.strip() and date_str == 'Unknown':
+                                date_str = db_date
+                        
+                        all_codes.append((code_str, date_str, processed))
+                
+                if not all_codes:
+                    await interaction.followup.send("📋 No active gift codes found at the moment.", ephemeral=True)
+                    return
+                
+                recent_codes = all_codes[:25]
+                
+                class CodeTriggerSelectView(discord.ui.View):
+                    def __init__(self, codes_list, cog_instance):
+                        super().__init__(timeout=300)
+                        self.codes = codes_list
+                        self.cog = cog_instance
+                        
+                        options = []
+                        for code, date, processed in self.codes:
+                            status_emoji = "✅" if processed else "⏳"
+                            options.append(
+                                discord.SelectOption(
+                                    label=f"{code[:50]}",
+                                    description=f"{'Processed' if processed else 'Unprocessed'} • {date if date else 'No date'}",
+                                    value=f"trigger_select_{code}",
+                                    emoji=status_emoji
+                                )
+                            )
+                        
+                        select = discord.ui.Select(
+                            placeholder="Select a code to view or trigger...",
+                            options=options,
+                            custom_id="code_to_trigger_select"
+                        )
+                        select.callback = self.select_code
+                        self.add_item(select)
+                    
+                    async def select_code(self, select_interaction: discord.Interaction):
+                        await select_interaction.response.defer(ephemeral=True)
+                        selected_code = select_interaction.data["values"][0].replace("trigger_select_", "")
+                        
+                        # Calculate queue size accurately
+                        queue_size = self.cog.auto_redeem_queue.qsize()
+                        
+                        embed = discord.Embed(
+                            title="🚀 Manual Auto-Redeem Trigger",
+                            description=(
+                                f"**Code:** `{selected_code}`\n\n"
+                                f"**Global Queue Size:** `{queue_size}` servers pending\n\n"
+                                "Click the button below to force all enabled servers to process this code right now.\n"
+                                "Members who already redeemed it successfully will be safely skipped."
+                            ),
+                            color=0xFF5733
+                        )
+                        embed.set_footer(text=f"Triggered by {select_interaction.user.name}", icon_url=select_interaction.user.display_avatar.url)
+                        
+                        view = discord.ui.View()
+                        
+                        trigger_btn = discord.ui.Button(
+                            label="Trigger For All Enabled Servers",
+                            emoji="▶️",
+                            style=discord.ButtonStyle.danger,
+                            custom_id=f"auto_redeem_manual_trigger_{selected_code}"
+                        )
+                        view.add_item(trigger_btn)
+                        
+                        refresh_btn = discord.ui.Button(
+                            label="Refresh Status",
+                            emoji="🔄",
+                            style=discord.ButtonStyle.secondary,
+                            custom_id=f"auto_redeem_manual_status_{selected_code}"
+                        )
+                        view.add_item(refresh_btn)
+                        
+                        await select_interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                
+                view = CodeTriggerSelectView(recent_codes, self)
+                
+                embed = discord.Embed(
+                    title="🚀 Manual Code Trigger",
+                    description=(
+                        f"**Showing {len(recent_codes)} most recent codes.**\n\n"
+                        "Select a code below to view its status and forcefully trigger auto-redeem across all servers.\n\n"
+                        "*Note: Manually triggering is safe. It will skip users who have already redeemed the code successfully.*"
+                    ),
+                    color=0xFF5733
+                )
+                
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                
+            except Exception as e:
+                self.logger.exception(f"Error in manual trigger menu: {e}")
+                await interaction.followup.send(f"❌ An error occurred: {str(e)}", ephemeral=True)
+            return
+
         # Handle add member button - show submenu
         if custom_id == "auto_redeem_add_member":
             if not await self.check_admin_permission(interaction.user.id):
@@ -3093,7 +3576,7 @@ class ManageGiftCode(commands.Cog):
                 row=1
             ))
             
-            await interaction.response.edit_message(embed=embed, view=view)
+            await self._safe_edit_message(interaction, embed=embed, view=view)
             return
         
         # Handle add via FID button - show modal with WOS API integration
@@ -3283,7 +3766,7 @@ class ManageGiftCode(commands.Cog):
                 row=1
             ))
             
-            await interaction.response.edit_message(embed=embed, view=view)
+            await self._safe_edit_message(interaction, embed=embed, view=view)
             return
         
         # Handle remove via FID button
@@ -3433,9 +3916,11 @@ class ManageGiftCode(commands.Cog):
                         nickname = member.get('nickname', 'Unknown')
                         furnace_lv = member.get('furnace_lv', 0)
                         formatted_fc = self.cog.format_furnace_level(furnace_lv)
+                        safe_nick = str(nickname)[:50] if nickname else "Unknown"
                         
                         embed.add_field(
-                            name=f"{idx}. {nickname}",
+                            name=f"{idx}. {safe_nick}",
+
                             value=f"🆔 `{fid}`\n⚔️ {formatted_fc}",
                             inline=True
                         )
@@ -3679,7 +4164,7 @@ class ManageGiftCode(commands.Cog):
                 row=2
             ))
             
-            await interaction.response.edit_message(embed=embed, view=view)
+            await self._safe_edit_message(interaction, embed=embed, view=view)
             return
 
 
@@ -3735,11 +4220,13 @@ class ManageGiftCode(commands.Cog):
                             nickname = member.get('nickname', 'Unknown')
                             furnace_lv = member.get('furnace_lv', 0)
                             formatted_fc = self.cog.format_furnace_level(furnace_lv)
+                            safe_nick = str(nickname)[:40] if nickname else "Unknown"
                             
                             options.append(
                                 discord.SelectOption(
-                                    label=f"{nickname} (FC {formatted_fc})",
+                                    label=f"{safe_nick} (FC {formatted_fc})",
                                     description=f"FID: {fid}",
+
                                     value=fid,
                                     emoji="✅" if fid in self.selected_fids else "🗑️",
                                     default=(fid in self.selected_fids)
@@ -3964,8 +4451,9 @@ class ManageGiftCode(commands.Cog):
                     for fid, nickname, added_at, furnace_lv in page_members:
                         formatted_fc = self.cog.format_furnace_level(furnace_lv)
                         furnace_text = f" (FC {formatted_fc})" if furnace_lv else ""
+                        safe_nick = str(nickname)[:50] if nickname else "Unknown"
                         embed.add_field(
-                            name=f"👤 {nickname}{furnace_text}",
+                            name=f"👤 {safe_nick}{furnace_text}",
                             value=f"**FID:** `{fid}`\n**Added:** <t:{int(datetime.fromisoformat(str(added_at)).timestamp())}:R>",
                             inline=True
                         )
@@ -4860,7 +5348,7 @@ class ManageGiftCode(commands.Cog):
             )
             embed.set_footer(text=f"Enabled by {interaction.user.name}")
             
-            await interaction.response.edit_message(embed=embed, view=None)
+            await self._safe_edit_message(interaction, embed=embed, view=None)
             return
         
         # Handle disable auto redeem
@@ -4930,7 +5418,7 @@ class ManageGiftCode(commands.Cog):
             )
             embed.set_footer(text=f"Disabled by {interaction.user.name}")
             
-            await interaction.response.edit_message(embed=embed, view=None)
+            await self._safe_edit_message(interaction, embed=embed, view=None)
             return
         
         # Handle reset code status
@@ -5633,3 +6121,4 @@ class ManageGiftCode(commands.Cog):
 
 async def setup(bot):
     await bot.add_cog(ManageGiftCode(bot))
+

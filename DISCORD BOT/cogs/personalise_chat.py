@@ -221,7 +221,9 @@ class PlayerIDModal(discord.ui.Modal, title="🎮 Step 3: Player Information"):
             
             headers = {
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Origin": "https://wos-giftcode-api.centurygame.com",
+                "Origin": "https://wos-giftcode.centurygame.com",
+                "Referer": "https://wos-giftcode.centurygame.com/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
             }
             
             current_time = int(time.time() * 1000)
@@ -231,6 +233,9 @@ class PlayerIDModal(discord.ui.Modal, title="🎮 Step 3: Player Information"):
             
             async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
                 async with session.post(API_URL, data=payload, headers=headers, timeout=20) as resp:
+                    if resp.status == 403:
+                        logger.error(f"❌ 403 Forbidden in fetch_player_data for {player_id}. Origin header applied.")
+                        return None
                     try:
                         js = await resp.json()
                     except Exception:

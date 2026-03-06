@@ -183,7 +183,9 @@ class MinisterSchedule(commands.Cog):
         url = 'https://wos-giftcode-api.centurygame.com/api/player'
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://wos-giftcode-api.centurygame.com'
+            'Origin': 'https://wos-giftcode.centurygame.com',
+            'Referer': 'https://wos-giftcode.centurygame.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
         }
         current_time = int(time.time() * 1000)
         form = f"fid={fid}&time={current_time}"
@@ -194,6 +196,9 @@ class MinisterSchedule(commands.Cog):
             connector = ProxyConnector.from_url(proxy) if proxy else None
             async with aiohttp.ClientSession(connector=connector) as session:
                 async with session.post(url, headers=headers, data=form, ssl=False) as response:
+                    if response.status == 403:
+                        print(f"❌ 403 Forbidden in fetch_user_data for {fid}. Origin header applied.")
+                        return 403
                     if response.status == 200:
                         return await response.json()
                     else:

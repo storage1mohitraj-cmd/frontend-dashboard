@@ -923,8 +923,43 @@ class AutoRedeemMembersAdapter:
             return []
 
     @staticmethod
+    def _get_target_dbs() -> List[Any]:
+        """Helper to get all relevant databases to search or modify"""
+        db_list = []
+        clients_seen = set()
+        
+        def add_db(db):
+            if db:
+                key = (db.client.address, db.name)
+                if key not in clients_seen:
+                    db_list.append(db)
+                    clients_seen.add(key)
+                    
+                    # Also check 'discord_bot' on same cluster as fallback
+                    try:
+                        if 'discord_bot' in db.client.list_database_names() and db.name != 'discord_bot':
+                            db_key = (db.client.address, 'discord_bot')
+                            if db_key not in clients_seen:
+                                db_list.append(db.client['discord_bot'])
+                                clients_seen.add(db_key)
+                    except Exception:
+                        pass
+
+        try:
+            add_db(_get_db_main())
+        except Exception:
+            pass
+            
+        try:
+            add_db(_get_db_wos())
+        except Exception:
+            pass
+            
+        return db_list
+
+    @staticmethod
     def add_member(guild_id: int, fid: str, member_data: Dict[str, Any]) -> bool:
-        """Add a member to auto-redeem list"""
+        """Add a member to auto-redeem list (writes to primary DB)"""
         try:
             # Validate FID - reject null, empty, or 'None' values
             if not fid or not str(fid).strip() or str(fid).strip().lower() == 'none':
@@ -934,6 +969,7 @@ class AutoRedeemMembersAdapter:
             # Ensure fid is a clean string
             fid = str(fid).strip()
             
+            # Always write to the main DB
             db = _get_db_main()
             now = datetime.utcnow().isoformat()
             db[AutoRedeemMembersAdapter.COLL].update_one(
@@ -961,62 +997,92 @@ class AutoRedeemMembersAdapter:
 
     @staticmethod
     def remove_member(guild_id: int, fid: str) -> bool:
-        """Remove a member from auto-redeem list (Supports both V1 and V2 schema)"""
+        """Remove a member from auto-redeem list (True if removed from any DB)"""
         try:
-            db = _get_db_main()
-            # 1. Try removing from V2 (flat)
-            result = db[AutoRedeemMembersAdapter.COLL].delete_many({
-                'guild_id': int(guild_id),
-                'fid': str(fid)
-            })
-            removed_from_v2 = result.deleted_count > 0
+            fid_str = str(fid).strip()
+            search_gid = [int(guild_id), str(guild_id)]
+            removed = False
             
-            # 2. Also try pulling from V1 (grouped)
-            result = db[AutoRedeemMembersAdapter.COLL].update_many(
-                {'guild_id': int(guild_id), 'members.fid': str(fid)},
-                {'$pull': {'members': {'fid': str(fid)}}}
-            )
-            removed_from_v1 = result.modified_count > 0
+            for db in AutoRedeemMembersAdapter._get_target_dbs():
+                # 1. Try removing from V2 (flat)
+                res_v2 = db[AutoRedeemMembersAdapter.COLL].delete_many({
+                    'guild_id': {'$in': search_gid},
+                    'fid': fid_str
+                })
+                if res_v2.deleted_count > 0:
+                    removed = True
+                
+                # 2. Also try pulling from V1 (grouped)
+                res_v1 = db[AutoRedeemMembersAdapter.COLL].update_many(
+                    {'guild_id': {'$in': search_gid}, 'members.fid': fid_str},
+                    {'$pull': {'members': {'fid': fid_str}}}
+                )
+                if res_v1.modified_count > 0:
+                    removed = True
             
-            return removed_from_v1 or removed_from_v2
+            return removed
         except Exception as e:
             logger.error(f'Failed to remove auto-redeem member {fid} for guild {guild_id}: {e}')
             return False
 
     @staticmethod
     def member_exists(guild_id: int, fid: str) -> bool:
-        """Check if member exists in auto-redeem list (Supports both V1 and V2 schema)"""
+        """Check if member exists in any database or schema"""
         try:
-            db = _get_db_main()
-            # Check V2 (flat) first
-            doc = db[AutoRedeemMembersAdapter.COLL].find_one({
-                'guild_id': int(guild_id),
-                'fid': str(fid)
-            })
-            if doc:
-                return True
+            fid_str = str(fid).strip()
+            search_gid = [int(guild_id), str(guild_id)]
             
-            # check V1 (grouped)
-            doc = db[AutoRedeemMembersAdapter.COLL].find_one({
-                'guild_id': int(guild_id),
-                'members.fid': str(fid)
-            })
-            return doc is not None
+            for db in AutoRedeemMembersAdapter._get_target_dbs():
+                # Check V2 (flat)
+                doc = db[AutoRedeemMembersAdapter.COLL].find_one({
+                    'guild_id': {'$in': search_gid},
+                    'fid': fid_str
+                })
+                if doc:
+                    return True
+                
+                # check V1 (grouped)
+                doc = db[AutoRedeemMembersAdapter.COLL].find_one({
+                    'guild_id': {'$in': search_gid},
+                    'members.fid': fid_str
+                })
+                if doc:
+                    return True
+            return False
         except Exception as e:
             logger.error(f'Failed to check if member {fid} exists for guild {guild_id}: {e}')
             return False
 
     @staticmethod
     def batch_member_exists(guild_id: int, fids: List[str]) -> Dict[str, bool]:
-        """Batch check if multiple members exist in auto-redeem list"""
+        """Batch check if multiple members exist in auto-redeem list across all DBs"""
         try:
-            db = _get_db_main()
-            docs = db[AutoRedeemMembersAdapter.COLL].find({
-                'guild_id': int(guild_id),
-                'fid': {'$in': [str(fid) for fid in fids]}
-            })
-            existing_fids = {str(d.get('fid')) for d in docs}
-            return {str(fid): str(fid) in existing_fids for fid in fids}
+            results = {str(fid): False for fid in fids}
+            fid_strs = [str(fid).strip() for fid in fids]
+            search_gid = [int(guild_id), str(guild_id)]
+            
+            for db in AutoRedeemMembersAdapter._get_target_dbs():
+                # Check V2
+                docs = db[AutoRedeemMembersAdapter.COLL].find({
+                    'guild_id': {'$in': search_gid},
+                    'fid': {'$in': fid_strs}
+                })
+                for d in docs:
+                    results[str(d.get('fid'))] = True
+                
+                # Check V1 (expensive, but necessary if not all found)
+                if not all(results.values()):
+                    docs_v1 = db[AutoRedeemMembersAdapter.COLL].find({
+                        'guild_id': {'$in': search_gid},
+                        'members.fid': {'$in': fid_strs}
+                    })
+                    for doc in docs_v1:
+                        if 'members' in doc:
+                            for m in doc['members']:
+                                mfid = str(m.get('fid'))
+                                if mfid in results:
+                                    results[mfid] = True
+            return results
         except Exception as e:
             logger.error(f'Failed to batch check members for guild {guild_id}: {e}')
             return {str(fid): False for fid in fids}

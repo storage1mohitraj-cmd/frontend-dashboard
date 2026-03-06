@@ -126,7 +126,7 @@ class ManageGiftCode(commands.Cog):
         self.logger = logging.getLogger('manage_giftcode')
         self.logger.setLevel(logging.INFO)
         
-        self.giftcode_db = get_db_connection('giftcode.sqlite', check_same_thread=False)
+        self.giftcode_db = sqlite3.connect('db/giftcode.sqlite', check_same_thread=False)
         self.cursor = self.giftcode_db.cursor()
         self.settings_db = sqlite3.connect('db/settings.sqlite', check_same_thread=False)
         self.settings_cursor = self.settings_db.cursor()

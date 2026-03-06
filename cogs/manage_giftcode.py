@@ -3838,9 +3838,11 @@ class ManageGiftCode(commands.Cog):
                         nickname = member.get('nickname', 'Unknown')
                         furnace_lv = member.get('furnace_lv', 0)
                         formatted_fc = self.cog.format_furnace_level(furnace_lv)
+                        safe_nick = str(nickname)[:50] if nickname else "Unknown"
                         
                         embed.add_field(
-                            name=f"{idx}. {nickname}",
+                            name=f"{idx}. {safe_nick}",
+
                             value=f"🆔 `{fid}`\n⚔️ {formatted_fc}",
                             inline=True
                         )
@@ -4140,11 +4142,13 @@ class ManageGiftCode(commands.Cog):
                             nickname = member.get('nickname', 'Unknown')
                             furnace_lv = member.get('furnace_lv', 0)
                             formatted_fc = self.cog.format_furnace_level(furnace_lv)
+                            safe_nick = str(nickname)[:40] if nickname else "Unknown"
                             
                             options.append(
                                 discord.SelectOption(
-                                    label=f"{nickname} (FC {formatted_fc})",
+                                    label=f"{safe_nick} (FC {formatted_fc})",
                                     description=f"FID: {fid}",
+
                                     value=fid,
                                     emoji="✅" if fid in self.selected_fids else "🗑️",
                                     default=(fid in self.selected_fids)
@@ -4369,8 +4373,9 @@ class ManageGiftCode(commands.Cog):
                     for fid, nickname, added_at, furnace_lv in page_members:
                         formatted_fc = self.cog.format_furnace_level(furnace_lv)
                         furnace_text = f" (FC {formatted_fc})" if furnace_lv else ""
+                        safe_nick = str(nickname)[:50] if nickname else "Unknown"
                         embed.add_field(
-                            name=f"👤 {nickname}{furnace_text}",
+                            name=f"👤 {safe_nick}{furnace_text}",
                             value=f"**FID:** `{fid}`\n**Added:** <t:{int(datetime.fromisoformat(str(added_at)).timestamp())}:R>",
                             inline=True
                         )

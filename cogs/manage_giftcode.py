@@ -282,7 +282,7 @@ class ManageGiftCode(commands.Cog):
     async def _safe_edit_message(self, interaction: discord.Interaction, **kwargs):
         """Safely edit an interaction message, falling back to followup if already acknowledged."""
         try:
-            await self._safe_edit_message(interaction, **kwargs)
+            await interaction.response.edit_message(**kwargs)
         except discord.errors.HTTPException as e:
             if e.code == 40060:  # Interaction already acknowledged
                 try:

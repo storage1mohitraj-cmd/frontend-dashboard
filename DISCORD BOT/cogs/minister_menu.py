@@ -612,7 +612,10 @@ class MinisterMenu(commands.Cog):
 
     async def fetch_user_data(self, fid, proxy=None):
         url = 'https://wos-giftcode-api.centurygame.com/api/player'
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': 'https://wos-giftcode-api.centurygame.com'
+        }
         current_time = int(time.time() * 1000)
         form = f"fid={fid}&time={current_time}"
         sign = hashlib.md5((form + SECRET).encode('utf-8')).hexdigest()

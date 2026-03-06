@@ -359,6 +359,7 @@ import time
 from pathlib import Path
 import re
 from wos_api import fetch_player_info
+
 from beartrap_rag import is_beartrap_question, answer_beartrap_question
  
 # Ensure stdout/stderr use UTF-8 to avoid UnicodeEncodeError on Windows consoles

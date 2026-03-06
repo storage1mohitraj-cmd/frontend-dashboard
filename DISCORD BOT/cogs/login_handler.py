@@ -127,7 +127,10 @@ class LoginHandler:
                 form = f"fid={test_fid}&time={current_time}"
                 sign = hashlib.md5((form + self.secret).encode('utf-8')).hexdigest()
                 form = f"sign={sign}&{form}"
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                }
                 
                 async with session.post(self.api2_url, headers=headers, data=form, timeout=5) as response:
                     api_status["api2_available"] = response.status in [200, 429]
@@ -258,7 +261,10 @@ class LoginHandler:
         form = f"fid={fid}&time={current_time}"
         sign = hashlib.md5((form + self.secret).encode('utf-8')).hexdigest()
         form = f"sign={sign}&{form}"
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Origin': 'https://wos-giftcode-api.centurygame.com'
+        }
         
         try:
             # Use proxy if provided and main request fails

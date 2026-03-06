@@ -1354,7 +1354,10 @@ class ManageGiftCode(commands.Cog):
             data = self.encode_data(data_to_encode)
             
             try:
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                }
                 timeout = aiohttp.ClientTimeout(total=10)
                 
                 async with session.post(self.wos_captcha_url, headers=headers, data=data, timeout=timeout) as response:
@@ -1471,7 +1474,10 @@ class ManageGiftCode(commands.Cog):
             # Run async request
             # Run async request
             try:
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                }
                 timeout = aiohttp.ClientTimeout(total=15) # Longer timeout for redemption
                 
                 async with session.post(self.wos_giftcode_url, headers=headers, data=data, timeout=timeout) as response:

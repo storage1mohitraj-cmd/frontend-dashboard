@@ -75,7 +75,13 @@ class SheetsManager:
             
         The manager supports multiple sheets with separate caching for each sheet.
         """
-        self.creds_file = creds_file
+        # Use absolute path for credentials
+        if creds_file == 'creds.json':
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            self.creds_file = os.path.join(base_dir, creds_file)
+        else:
+            self.creds_file = creds_file
+
         self.cache_duration = cache_duration
         self.service = None
         self.cache = {}  # Dictionary to store data from different sheets

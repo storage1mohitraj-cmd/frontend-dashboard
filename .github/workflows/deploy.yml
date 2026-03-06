@@ -107,18 +107,26 @@ jobs:
           echo ""
           echo "🔄 Restarting bot with PM2..."
           if pm2 describe discordbot > /dev/null 2>&1; then
-            pm2 restart discordbot --update-env
-            echo "✅ Bot restarted successfully"
+            # Use start --force to update configurations like memory limit and backoff
+            pm2 start "./app.py" \
+              --name discordbot \
+              --interpreter "/home/opc/app/bot/DISCORD BOT/venv/bin/python" \
+              --max-memory-restart 600M \
+              --exp-backoff-restart-delay 1000 \
+              --time \
+              --force
+            echo "✅ Bot configuration updated and restarted"
           else
             echo "⚠️  'discordbot' not found in PM2. Starting it now..."
             pm2 start "./app.py" \
               --name discordbot \
-              --interpreter "/home/opc/app/bot/DISCORD BOT/venv/bin/python" \
-              --max-memory-restart 700M \
+              --interpreter "/home/opc/app/bot/DISCORD_BOT/venv/bin/python" \
+              --max-memory-restart 600M \
+              --exp-backoff-restart-delay 1000 \
               --time
-            pm2 save
             echo "✅ Bot started"
           fi
+          pm2 save
 
           echo ""
           pm2 list

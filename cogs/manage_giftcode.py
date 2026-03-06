@@ -378,7 +378,7 @@ class ManageGiftCode(commands.Cog):
                 pass  # Column already exists
             
             try:
-                self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+                self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN added_at TIMESTAMP")
                 self.logger.info("Added added_at column to gift_codes")
             except sqlite3.OperationalError:
                 pass  # Column already exists

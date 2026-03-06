@@ -2369,7 +2369,18 @@ class ManageGiftCode(commands.Cog):
         if not interaction.type == discord.InteractionType.component:
             return
         
+        # Early exit if interaction already handled by another cog listener
+        if interaction.response.is_done():
+            return
+        
         custom_id = interaction.data.get("custom_id", "")
+        
+        # Only handle custom_ids that belong to this cog.
+        # All managed IDs are namespaced under 'giftcode_' or 'auto_redeem_'.
+        # Do NOT add other prefixes here unless this cog's on_interaction handles them.
+        check_id = custom_id.rsplit(":", 1)[0] if ":" in custom_id else custom_id
+        if not (check_id.startswith("giftcode_") or check_id.startswith("auto_redeem_")):
+            return
         
         # Security: Parse user_id from custom_id if present
         if custom_id and ":" in custom_id:
@@ -2378,7 +2389,10 @@ class ManageGiftCode(commands.Cog):
                 if user_str.isdigit():
                     check_user_id = int(user_str)
                     if interaction.user.id != check_user_id:
-                        await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                        try:
+                            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                        except discord.errors.InteractionResponded:
+                            pass
                         return
                     custom_id = real_id
             except ValueError:

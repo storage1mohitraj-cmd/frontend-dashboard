@@ -10,15 +10,27 @@ from discord import app_commands
 import asyncio
 from typing import Optional
 import os
+import logging
 
-# Import our alliance monitoring modules
-from alliance_monitor.scanner import AllianceScanner, ScanResult
-from alliance_monitor.monitor_config import MonitorConfig
-from alliance_monitor.capture import ScreenCapture
-from alliance_monitor.status_detector import OnlineStatusDetector
-from alliance_monitor.detector import OnlineDetector
-from alliance_monitor.ocr_reader import OCRReader
-import cv2
+logger = logging.getLogger(__name__)
+
+# Import our alliance monitoring modules (optional - requires paddleocr)
+try:
+    from alliance_monitor.scanner import AllianceScanner, ScanResult
+    from alliance_monitor.monitor_config import MonitorConfig
+    from alliance_monitor.capture import ScreenCapture
+    from alliance_monitor.status_detector import OnlineStatusDetector
+    from alliance_monitor.detector import OnlineDetector
+    from alliance_monitor.ocr_reader import OCRReader
+    import cv2
+    ALLIANCE_MONITOR_AVAILABLE = True
+except ImportError as _import_err:
+    ALLIANCE_MONITOR_AVAILABLE = False
+    _IMPORT_ERROR_MSG = (
+        f"Alliance Monitor is unavailable: {_import_err}\n"
+        "Install missing dependencies (e.g. `pip install paddleocr`) to enable this feature."
+    )
+    logger.warning(f"[AllianceMonitor] Failed to import dependencies: {_import_err}")
 
 
 class AllianceMonitorCog(commands.Cog, name="AllianceMonitor"):
@@ -26,7 +38,14 @@ class AllianceMonitorCog(commands.Cog, name="AllianceMonitor"):
     
     def __init__(self, bot):
         self.bot = bot
-        self.scanner = AllianceScanner()
+        self.scanner = AllianceScanner() if ALLIANCE_MONITOR_AVAILABLE else None
+
+    async def _check_available(self, ctx) -> bool:
+        """Return True if alliance monitor deps are available, else send error and return False."""
+        if not ALLIANCE_MONITOR_AVAILABLE:
+            await ctx.send(f"❌ **Alliance Monitor Unavailable**\n{_IMPORT_ERROR_MSG}")
+            return False
+        return True
     
     @commands.command(name="online", help="Check which alliance members are currently online")
     async def check_online(self, ctx):
@@ -35,6 +54,9 @@ class AllianceMonitorCog(commands.Cog, name="AllianceMonitor"):
         
         Usage: !online
         """
+        if not await self._check_available(ctx):
+            return
+        
         # Check if scan is allowed
         allowed, reason = self.scanner.should_allow_scan()
         if not allowed:
@@ -111,6 +133,8 @@ class AllianceMonitorCog(commands.Cog, name="AllianceMonitor"):
         
         Usage: !online_test
         """
+        if not await self._check_available(ctx):
+            return
         await ctx.send("📸 Testing screenshot capture...")
         
         capture = ScreenCapture()
@@ -145,6 +169,8 @@ class AllianceMonitorCog(commands.Cog, name="AllianceMonitor"):
         
         Usage: !online_config
         """
+        if not await self._check_available(ctx):
+            return
         config_info = f"""
 **Alliance Monitor Configuration**
 
@@ -179,6 +205,8 @@ To adjust coordinates, edit `alliance_monitor/monitor_config.py`
         
         Usage: !online_visualize
         """
+        if not await self._check_available(ctx):
+            return
         await ctx.send("📸 Capturing screenshot for visualization...")
         
         capture = ScreenCapture()
@@ -221,6 +249,8 @@ To adjust coordinates, edit `alliance_monitor/monitor_config.py`
         Debug OCR extraction using DYNAMIC CARD DETECTION.
         Draws boxes around detected cards and extracted names.
         """
+        if not await self._check_available(ctx):
+            return
         await ctx.send("🔍 Running Dynamic CV Debug Scan...")
         
         capture = ScreenCapture()
@@ -297,6 +327,8 @@ To adjust coordinates, edit `alliance_monitor/monitor_config.py`
         Visual coordinate calibration tool.
         Shows colored boxes on screenshot indicating where bot looks for data.
         """
+        if not await self._check_available(ctx):
+            return
         await ctx.send("🎯 Running Calibration Scan...")
         
         capture = ScreenCapture()
@@ -370,6 +402,8 @@ To adjust coordinates, edit `alliance_monitor/monitor_config.py`
         """
         Test the new AdvancedOCR with dynamic card detection.
         """
+        if not await self._check_available(ctx):
+            return
         await ctx.send("🚀 Testing Advanced OCR...")
         
         from alliance_monitor.capture import ScreenCapture
@@ -420,4 +454,6 @@ To adjust coordinates, edit `alliance_monitor/monitor_config.py`
 
 async def setup(bot):
     """Setup function for the cog"""
+    if not ALLIANCE_MONITOR_AVAILABLE:
+        logger.warning("[AllianceMonitor] Cog loaded in degraded mode (paddleocr missing). Commands will report unavailability.")
     await bot.add_cog(AllianceMonitorCog(bot))

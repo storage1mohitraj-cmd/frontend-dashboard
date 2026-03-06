@@ -476,12 +476,17 @@ class GiftCodeAPI:
 
                                         # Some DB entries may store ISO timestamps like 'YYYY-MM-DDTHH:MM:SS.ssssss'.
                                         # Normalize to date-only before parsing to avoid ValueError.
-                                        date_str_clean = db_date[:10] if isinstance(db_date, str) else str(db_date)[:10]
-                                        date_obj = datetime.strptime(date_str_clean, "%Y-%m-%d")
-                                        formatted_date = date_obj.strftime("%d.%m.%Y")
+                                        # Also ensure db_code is a plain string (MongoDB ObjectId-safe).
+                                        db_code_str = str(db_code)
+                                        date_str_clean = str(db_date)[:10] if db_date is not None else datetime.now().strftime("%Y-%m-%d")
+                                        try:
+                                            date_obj = datetime.strptime(date_str_clean, "%Y-%m-%d")
+                                            formatted_date = date_obj.strftime("%d.%m.%Y")
+                                        except (ValueError, TypeError):
+                                            formatted_date = datetime.now().strftime("%d.%m.%Y")
                                         
                                         data = {
-                                            'code': db_code,
+                                            'code': db_code_str,
                                             'date': formatted_date
                                         }
                                         

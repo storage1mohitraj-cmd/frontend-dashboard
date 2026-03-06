@@ -5,8 +5,14 @@ Uses state-of-the-art deep learning OCR for maximum accuracy
 
 import cv2
 import numpy as np
-from paddleocr import PaddleOCR
 from typing import List, Tuple, Optional, Dict
+
+try:
+    from paddleocr import PaddleOCR
+    PADDLEOCR_AVAILABLE = True
+except ImportError:
+    PADDLEOCR_AVAILABLE = False
+    PaddleOCR = None
 
 
 class AdvancedOCR:
@@ -14,9 +20,15 @@ class AdvancedOCR:
     Dynamic OCR using PaddleOCR (deep learning).
     Detects blue player cards and extracts text from each card.
     Works regardless of scroll position!
+    If paddleocr is not installed, the class raises RuntimeError on instantiation.
     """
     
     def __init__(self):
+        if not PADDLEOCR_AVAILABLE:
+            raise RuntimeError(
+                "paddleocr is not installed. "
+                "Install it with: pip install paddleocr"
+            )
         # Using 'ch' (Chinese) handles both English and Chinese characters perfectly
         # It handles names like 'saleh' and Special Symbols/Characters well.
         try:

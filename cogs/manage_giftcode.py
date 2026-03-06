@@ -1005,6 +1005,14 @@ class ManageGiftCode(commands.Cog):
                             login_successful = True
                             self.logger.info(f"✅ Login successful for {nickname} (FID: {fid}, attempt {login_attempt})")
                             break
+                        elif msg == "NO_MSG" or not msg:
+                            # Empty response = Cloudflare is rate-limiting us
+                            # Use a long backoff to allow IP to cool down
+                            rate_limit_delay = min(30.0 * login_attempt, 120.0)
+                            self.logger.warning(f"🚫 Login rate-limited (NO_MSG) for {nickname} (FID: {fid}), attempt {login_attempt}/{MAX_LOGIN_RETRIES}. Backing off {rate_limit_delay:.0f}s...")
+                            if session_id is not None:
+                                await self.session_pool.mark_rate_limited(session_id)
+                            await asyncio.sleep(rate_limit_delay)
                         else:
                             retry_delay = min(RETRY_DELAY_BASE * login_attempt, MAX_RETRY_DELAY)
                             self.logger.warning(f"Login attempt {login_attempt}/{MAX_LOGIN_RETRIES} failed for {nickname} (FID: {fid}), API returned: {msg}, retrying in {retry_delay:.1f}s")
@@ -1013,12 +1021,12 @@ class ManageGiftCode(commands.Cog):
                         # Check if HTML error page (rate limited)
                         resp_text = await response.text()
                         if resp_text.strip().startswith('<!DOCTYPE') or resp_text.strip().startswith('<html'):
-                            self.logger.warning(f"Login rate limited for {nickname} (FID: {fid}), session {session_id}, attempt {login_attempt}")
+                            self.logger.warning(f"Login HTML-rate-limited for {nickname} (FID: {fid}), session {session_id}, attempt {login_attempt}")
                             if session_id is not None:
                                 await self.session_pool.mark_rate_limited(session_id)
                             # Wait longer when rate limited
-                            retry_delay = min(RETRY_DELAY_BASE * 2 * login_attempt, MAX_RETRY_DELAY)
-                            await asyncio.sleep(retry_delay)
+                            rate_limit_delay = min(30.0 * login_attempt, 120.0)
+                            await asyncio.sleep(rate_limit_delay)
                         else:
                             raise json_err
                 except Exception as e:
@@ -1617,10 +1625,16 @@ class ManageGiftCode(commands.Cog):
             data = self.encode_data(data_to_encode)
             
             # Run async request
-            # Run async request
             try:
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-                timeout = aiohttp.ClientTimeout(total=15) # Longer timeout for redemption
+                headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Origin': 'https://wos-giftcode-api.centurygame.com',
+                    'Referer': 'https://wos-giftcode-api.centurygame.com/',
+                }
+                timeout = aiohttp.ClientTimeout(total=20)  # Longer timeout for redemption
                 
                 async with session.post(self.wos_giftcode_url, headers=headers, data=data, timeout=timeout) as response:
                     # Check for rate limiting
@@ -1686,6 +1700,7 @@ class ManageGiftCode(commands.Cog):
     
     async def get_stove_info_wos(self, player_id, session=None):
         """Asynchronously get player info and establish session for WOS API calls"""
+        import random
         if session is None:
             session = self.session if self.session else aiohttp.ClientSession()
         
@@ -1696,14 +1711,22 @@ class ManageGiftCode(commands.Cog):
         }
         data = self.encode_data(data_to_encode)
         
-        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        # Use realistic browser-like headers to avoid Cloudflare fingerprinting
+        headers = {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Mobile Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Origin': 'https://wos-giftcode-api.centurygame.com',
+            'Referer': 'https://wos-giftcode-api.centurygame.com/',
+        }
         
         try:
             async with session.post(
                 self.wos_player_info_url, 
                 headers=headers, 
                 data=data, 
-                timeout=aiohttp.ClientTimeout(total=10)
+                timeout=aiohttp.ClientTimeout(total=15)
             ) as response:
                 # Read response info
                 try:

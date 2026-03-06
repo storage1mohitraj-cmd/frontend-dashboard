@@ -626,52 +626,62 @@ class AutoRedeemMembersAdapter:
     COLL = 'auto_redeem_members'
 
     @staticmethod
-    def get_members(guild_id: int) -> List[Dict[str, Any]]:
-        """Get all auto-redeem members for a guild with support for hybrid schemas"""
+    def get_members(guild_id: int) -> list:
+        """Get all auto-redeem members for a guild with support for hybrid schemas (V1 array + V2 flat)"""
         try:
             db = _get_db()
             members = []
             seen_fids = set()
+            guild_id_int = int(guild_id)
 
             # 1. Fetch flat documents (Schema V2)
             flat_docs = list(db[AutoRedeemMembersAdapter.COLL].find({
-                'guild_id': int(guild_id),
+                'guild_id': guild_id_int,
                 'fid': {'$nin': [None, '', 'None']}
             }))
             
             for doc in flat_docs:
-                fid = str(doc.get('fid')).strip()
-                if fid not in seen_fids:
+                try:
+                    fid = str(doc.get('fid', '')).strip()
+                    if not fid or fid.lower() == 'none' or fid in seen_fids:
+                        continue
                     members.append({
                         'fid': fid,
-                        'nickname': doc.get('nickname', 'Unknown'),
-                        'furnace_lv': int(doc.get('furnace_lv', 0)),
-                        'avatar_image': doc.get('avatar_image', ''),
+                        'nickname': doc.get('nickname') or 'Unknown',
+                        'furnace_lv': int(doc.get('furnace_lv') or 0),
+                        'avatar_image': doc.get('avatar_image') or '',
                         'added_by': doc.get('added_by'),
                         'added_at': doc.get('added_at')
                     })
                     seen_fids.add(fid)
+                except Exception as doc_err:
+                    logger.warning(f'Error parsing V2 member doc: {doc_err}')
 
             # 2. Fetch grouped documents (Schema V1 - legacy)
             grouped_docs = list(db[AutoRedeemMembersAdapter.COLL].find({
-                'guild_id': int(guild_id),
+                'guild_id': guild_id_int,
                 'members': {'$exists': True}
             }))
             
             for gdoc in grouped_docs:
-                for member in gdoc.get('members', []):
-                    fid = str(member.get('fid', '')).strip()
-                    if fid and fid.lower() != 'none' and fid not in seen_fids:
+                for member in (gdoc.get('members') or []):
+                    try:
+                        fid = str(member.get('fid') or '').strip()
+                        if not fid or fid.lower() == 'none' or fid in seen_fids:
+                            continue
                         members.append({
                             'fid': fid,
-                            'nickname': member.get('nickname', 'Unknown'),
-                            'furnace_lv': int(member.get('furnace_lv', 0)),
-                            'avatar_image': member.get('avatar_image', ''),
+                            'nickname': member.get('nickname') or 'Unknown',
+                            'furnace_lv': int(member.get('furnace_lv') or 0),
+                            'avatar_image': member.get('avatar_image') or '',
                             'added_by': member.get('added_by'),
                             'added_at': member.get('added_at')
                         })
                         seen_fids.add(fid)
+                    except Exception as mem_err:
+                        logger.warning(f'Error parsing V1 member: {mem_err}')
 
+            logger.info(f'get_members guild={guild_id_int}: V2={len(flat_docs)} flat_docs, V1={len(grouped_docs)} array_docs, total_valid={len(members)}')
             return members
         except Exception as e:
             logger.error(f'Failed to get auto-redeem members for guild {guild_id}: {e}')

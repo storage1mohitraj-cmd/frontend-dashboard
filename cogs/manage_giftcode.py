@@ -197,7 +197,49 @@ class ManageGiftCode(commands.Cog):
         # Stop signals for auto-redeem
         self.stop_signals = {}  # {guild_id: boolean}
         
+        # Global queue for staggering auto-redeem across servers limit memory spikes
+        self.auto_redeem_queue = asyncio.Queue()
+        
         self.session = None
+
+    async def cog_load(self):
+        """Called when the cog is loaded."""
+        self._auto_redeem_worker.start()
+
+    async def cog_unload(self):
+        """Called when the cog is unloaded."""
+        self._auto_redeem_worker.cancel()
+        
+    @tasks.loop(seconds=1)
+    async def _auto_redeem_worker(self):
+        """Background worker that processes auto-redeems sequentially to prevent global memory spikes."""
+        try:
+            # Wait for a job
+            job = await self.auto_redeem_queue.get()
+            guild_id, code, is_recheck = job
+            
+            self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code}")
+            
+            try:
+                # Await the actual process (runs sequentially for this worker)
+                await self.process_auto_redeem(guild_id, code, silent_on_skip=is_recheck)
+            except Exception as e:
+                self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code}: {e}")
+            finally:
+                # Mark this task as done
+                self.auto_redeem_queue.task_done()
+                
+                # Small delay between guilds to let memory/network settle
+                await asyncio.sleep(2.0)
+                
+        except Exception as e:
+            self.logger.error(f"❌ [WORKER] Critical error in queue loop: {e}")
+            await asyncio.sleep(5.0)
+
+    @_auto_redeem_worker.before_loop
+    async def before_auto_redeem_worker(self):
+        await self.bot.wait_until_ready()
+        self.logger.info("👷 Auto-redeem queue worker started")
 
     @commands.command(name="test_auto_redeem")
     async def test_auto_redeem(self, ctx, code: str, fid: str = None):
@@ -2314,54 +2356,61 @@ class ManageGiftCode(commands.Cog):
                 
                 for (guild_id,) in enabled_guilds:
                     try:
-                        # Run auto-redeem in background to avoid blocking
-                        asyncio.create_task(self.process_auto_redeem(guild_id, code, silent_on_skip=is_recheck))
-                        self.logger.info(f"✅ Started auto-redeem task: guild={guild_id}, code={code}")
+                        # Queue the auto-redeem to prevent memory/ratelimit spikes
+                        self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
+                        self.logger.info(f"📥 Queued auto-redeem: guild={guild_id}, code={code}")
                     except Exception as e:
-                        self.logger.error(f"❌ Failed to start auto-redeem for guild {guild_id}: {e}")
+                        self.logger.error(f"❌ Failed to queue auto-redeem for guild {guild_id}: {e}")
                 
-                self.logger.info(f"📊 Triggered auto-redeem for code {code} across {len(enabled_guilds)} guilds")
+                self.logger.info(f"📊 Queued auto-redeem for code {code} across {len(enabled_guilds)} guilds")
                 
-                # Mark code as processed after triggering for all guilds
-                # This prevents re-processing on restart while allowing all guilds to process the code
-                try:
-                    self.logger.info(f"🏁 Marking code {code} as processed after dispatching to all guilds...")
-                    
-                    # Mark in MongoDB if available
-                    mongo_marked = False
-                    if mongo_enabled() and GiftCodesAdapter:
-                        try:
-                            GiftCodesAdapter.mark_code_processed(code)
-                            mongo_marked = True
-                            self.logger.info(f"✅ Marked {code} as processed in MongoDB")
-                        except Exception as e:
-                            self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
-                    
-                    # Also mark in SQLite for consistency
-                    sqlite_marked = False
-                    try:
-                        self.cursor.execute(
-                            "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
-                            (code,)
-                        )
-                        self.giftcode_db.commit()
-                        sqlite_marked = True
-                        self.logger.info(f"✅ Marked {code} as processed in SQLite")
-                    except Exception as e:
-                        self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
-                    
-                    if not mongo_marked and not sqlite_marked:
-                        self.logger.error(f"❌ CRITICAL: Failed to mark {code} as processed in ANY database!")
-                    else:
-                        self.logger.info(f"🎉 Successfully marked {code} as processed (MongoDB: {mongo_marked}, SQLite: {sqlite_marked})")
-                except Exception as e:
-                    self.logger.error(f"❌ Error marking code {code} as processed: {e}")
-            
+                # We launch a monitor task to mark it as processed ONLY when the queue finishes
+                asyncio.create_task(self._mark_code_when_queue_empty(code))
+                
             self.logger.info(f"✅ Processed {len(new_codes)} codes for auto-redeem")
             self.logger.info("🏁 === TRIGGER AUTO-REDEEM COMPLETE ===")
         
         except Exception as e:
             self.logger.exception(f"Error triggering auto-redeem: {e}")
+
+    async def _mark_code_when_queue_empty(self, code):
+        """Waits for the queue to empty before marking a code as fully globally processed."""
+        try:
+            self.logger.info(f"⏳ Waiting for auto-redeem queue to finish before marking {code} as processed...")
+            await self.auto_redeem_queue.join()
+            
+            self.logger.info(f"🏁 Queue empty! Marking code {code} as 100% processed globally.")
+            
+            # Mark in MongoDB if available
+            mongo_marked = False
+            if mongo_enabled() and GiftCodesAdapter:
+                try:
+                    GiftCodesAdapter.mark_code_processed(code)
+                    mongo_marked = True
+                    self.logger.info(f"✅ Marked {code} as processed in MongoDB")
+                except Exception as e:
+                    self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
+            
+            # Mark in SQLite for consistency
+            sqlite_marked = False
+            try:
+                self.cursor.execute(
+                    "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
+                    (code,)
+                )
+                self.giftcode_db.commit()
+                sqlite_marked = True
+                self.logger.info(f"✅ Marked {code} as processed in SQLite")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
+                
+            if not mongo_marked and not sqlite_marked:
+                self.logger.error(f"❌ CRITICAL: Failed to mark {code} as processed in ANY database!")
+            else:
+                self.logger.info(f"🎉 Successfully marked {code} as processed (MongoDB: {mongo_marked}, SQLite: {sqlite_marked})")
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error waiting for queue to mark {code}: {e}")
     
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):

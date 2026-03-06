@@ -131,6 +131,9 @@ class ManageGiftCode(commands.Cog):
         self.settings_db = sqlite3.connect('db/settings.sqlite', check_same_thread=False)
         self.settings_cursor = self.settings_db.cursor()
         
+        # Initialize database tables and columns
+        self.setup_database()
+        
         # API Configuration
         self.api_url = "http://gift-code-api.whiteout-bot.com/giftcode_api.php"
         self.api_key = "super_secret_bot_token_nobody_will_ever_find"
@@ -203,12 +206,35 @@ class ManageGiftCode(commands.Cog):
         self.session = None
 
     async def cog_load(self):
-        """Called when the cog is loaded."""
+        """Called when the cog is loaded. Initializes background tasks and sessions."""
+        self.session = aiohttp.ClientSession()
+        self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
+        
+        # Start background workers
         self._auto_redeem_worker.start()
+        self.api_check_task.start()
+        
+        # Trigger startup check for existing codes
+        asyncio.create_task(self.process_existing_codes_on_startup())
 
     async def cog_unload(self):
-        """Called when the cog is unloaded."""
+        """Called when the cog is unloaded. Performs cleanup."""
+        # Stop background workers
         self._auto_redeem_worker.cancel()
+        self.api_check_task.cancel()
+        
+        # Close sessions
+        if self.session:
+            await self.session.close()
+            self.logger.info("ManageGiftCode: Shared aiohttp session closed.")
+        
+        # Close database connections
+        try:
+            self.giftcode_db.close()
+            self.settings_db.close()
+            self.logger.info("ManageGiftCode: Database connections closed.")
+        except Exception as e:
+            self.logger.error(f"Error closing databases in cog_unload: {e}")
         
     @tasks.loop(seconds=1)
     async def _auto_redeem_worker(self):
@@ -326,25 +352,6 @@ class ManageGiftCode(commands.Cog):
             await ctx.send(f"❌ Error during test: {e}")
             self.logger.exception(f"Error in test_auto_redeem: {e}")
 
-    async def cog_load(self):
-        """Initialize aiohttp session when cog is loaded"""
-        self.session = aiohttp.ClientSession()
-        self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
-        
-        # Trigger startup check for existing codes
-        asyncio.create_task(self.process_existing_codes_on_startup())
-
-    async def cog_unload(self):
-        """Clean up when cog is unloaded"""
-        self.api_check_task.cancel()
-        if self.session:
-            await self.session.close()
-            self.logger.info("ManageGiftCode: Shared aiohttp session closed.")
-        try:
-            self.giftcode_db.close()
-            self.settings_db.close()
-        except:
-            pass
     
     def setup_database(self):
         """Initialize gift code database tables"""
@@ -789,14 +796,6 @@ class ManageGiftCode(commands.Cog):
             self.logger.error(f"Error fetching player data for FID {fid}: {e}")
             return None
     
-    def cog_unload(self):
-        """Clean up when cog is unloaded"""
-        self.api_check_task.cancel()
-        try:
-            self.giftcode_db.close()
-            self.settings_db.close()
-        except:
-            pass
     
     async def check_admin_permission(self, user_id: int) -> bool:
         """Check if user has admin permissions"""

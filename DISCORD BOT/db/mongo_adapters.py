@@ -637,12 +637,14 @@ class GiftCodesAdapter:
         try:
             db = _get_db_wos()
             docs = db[GiftCodesAdapter.COLL].find({})
-            # Filter out docs where _id is not a string (e.g. malformed ObjectId docs)
-            return [
-                (d.get('_id'), d.get('date'), d.get('validation_status')) 
-                for d in docs 
-                if isinstance(d.get('_id'), str)
-            ]
+            # Filter out docs and ensure string types
+            results = []
+            for d in docs:
+                _id = d.get('_id')
+                if _id:
+                    # Always ensure _id is a string (could be ObjectId)
+                    results.append((str(_id), d.get('date'), d.get('validation_status')))
+            return results
         except Exception as e:
             logger.error(f'Failed to get all gift codes from Mongo: {e}')
             return []
@@ -724,17 +726,19 @@ class GiftCodesAdapter:
         try:
             db = _get_db_wos()
             docs = db[GiftCodesAdapter.COLL].find({})
-            return [
-                {
-                    'giftcode': d.get('_id'),
-                    'date': d.get('date'),
-                    'validation_status': d.get('validation_status'),
-                    'auto_redeem_processed': d.get('auto_redeem_processed', False),
-                    'created_at': d.get('created_at'),
-                    'updated_at': d.get('updated_at')
-                }
-                for d in docs
-            ]
+            results = []
+            for d in docs:
+                _id = d.get('_id')
+                if _id:
+                    results.append({
+                        'giftcode': str(_id),
+                        'date': d.get('date'),
+                        'validation_status': d.get('validation_status'),
+                        'auto_redeem_processed': d.get('auto_redeem_processed', False),
+                        'created_at': d.get('created_at'),
+                        'updated_at': d.get('updated_at')
+                    })
+            return results
         except Exception as e:
             logger.error(f'Failed to get all gift codes with status: {e}')
             return []
@@ -2187,6 +2191,10 @@ class PersistentViewsAdapter:
         try:
             db = _get_db_main()
             docs = list(db[PersistentViewsAdapter.COLL].find({}))
+            # Convert _id (ObjectId) to string for JSON serialization safety
+            for doc in docs:
+                if '_id' in doc:
+                    doc['_id'] = str(doc['_id'])
             return docs
         except Exception as e:
             logger.error(f'Failed to get all persistent views: {e}')

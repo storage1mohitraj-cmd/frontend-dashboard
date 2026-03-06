@@ -476,9 +476,17 @@ class GiftCodeAPI:
 
                                         # Some DB entries may store ISO timestamps like 'YYYY-MM-DDTHH:MM:SS.ssssss'.
                                         # Normalize to date-only before parsing to avoid ValueError.
+                                        if not db_date or str(db_date).lower() == 'none':
+                                            self.logger.warning(f"Skipping code {db_code} push - missing or invalid date: {db_date}")
+                                            continue
+                                            
                                         date_str_clean = db_date[:10] if isinstance(db_date, str) else str(db_date)[:10]
-                                        date_obj = datetime.strptime(date_str_clean, "%Y-%m-%d")
-                                        formatted_date = date_obj.strftime("%d.%m.%Y")
+                                        try:
+                                            date_obj = datetime.strptime(date_str_clean, "%Y-%m-%d")
+                                            formatted_date = date_obj.strftime("%d.%m.%Y")
+                                        except ValueError as e:
+                                            self.logger.warning(f"Skipping code {db_code} push - date parse error: {e}")
+                                            continue
                                         
                                         data = {
                                             'code': db_code,

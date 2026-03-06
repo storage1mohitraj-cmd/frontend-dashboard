@@ -1088,6 +1088,12 @@ class ManageGiftCode(commands.Cog):
             
             if not channel_id:
                 self.logger.warning(f"No import channel configured for guild {guild_id}")
+                try:
+                    # Try to notify the command context if possible, but here we only have guild_id
+                    # This usually happens if setup wasn't completed
+                    pass
+                except Exception:
+                    pass
                 return
             
             channel = self.bot.get_channel(channel_id)
@@ -1100,6 +1106,13 @@ class ManageGiftCode(commands.Cog):
             
             if not members_data:
                 self.logger.info(f"No auto-redeem members for guild {guild_id}")
+                try:
+                    await channel.send(
+                        f"❌ **Auto-Redeem Stopped**: No members found in the auto-redeem list for this server.\n"
+                        f"💡 Use `!add <FID>` or `!import` to add members first."
+                    )
+                except Exception:
+                    pass
                 return
             
             

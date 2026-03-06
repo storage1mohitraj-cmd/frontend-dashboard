@@ -295,65 +295,98 @@ class ManageGiftCode(commands.Cog):
     async def _sync_mongo_to_sqlite_on_startup(self):
         """At startup, pull ALL member/settings data from MongoDB into SQLite for robustness."""
         await self.bot.wait_until_ready()
-        if not (mongo_enabled() and AutoRedeemMembersAdapter and AutoRedeemSettingsAdapter):
+        if not mongo_enabled():
             return
         
         try:
             self.logger.info("🔄 [STARTUP] Syncing MongoDB auto-redeem data to SQLite...")
+            db = _get_db()
             
-            # --- Members ---
+            # --- Members (handle both V1 array-style and V2 flat docs) ---
             synced_members = 0
+            skipped = 0
             try:
-                db = _get_db()
-                all_member_docs = list(db['auto_redeem_members'].find(
-                    {'fid': {'$nin': [None, '', 'None']}}
-                ))
+                all_member_docs = list(db['auto_redeem_members'].find({}))
+                self.logger.info(f"📊 [STARTUP] Found {len(all_member_docs)} member docs in MongoDB")
+                
                 for doc in all_member_docs:
                     try:
                         guild_id = int(doc.get('guild_id', 0))
-                        fid = str(doc.get('fid', '')).strip()
-                        if not guild_id or not fid:
+                        if not guild_id:
+                            skipped += 1
                             continue
-                        nickname = doc.get('nickname', 'Unknown')
-                        furnace_lv = int(doc.get('furnace_lv', 0))
-                        avatar_image = doc.get('avatar_image', '')
-                        added_by = doc.get('added_by')
-                        added_at = str(doc.get('added_at', ''))
-                        self.cursor.execute("""
-                            INSERT OR REPLACE INTO auto_redeem_members
-                            (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """, (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at))
-                        synced_members += 1
+                        
+                        fid = doc.get('fid')
+                        
+                        if fid and str(fid).strip() and str(fid).strip().lower() != 'none':
+                            # V2 flat doc - direct member
+                            fid_str = str(fid).strip()
+                            nickname = doc.get('nickname', 'Unknown') or 'Unknown'
+                            furnace_lv = int(doc.get('furnace_lv', 0) or 0)
+                            avatar_image = doc.get('avatar_image', '') or ''
+                            added_by = doc.get('added_by')
+                            added_at = str(doc.get('added_at', '') or '')
+                            self.cursor.execute("""
+                                INSERT OR REPLACE INTO auto_redeem_members
+                                (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """, (guild_id, fid_str, nickname, furnace_lv, avatar_image, added_by, added_at))
+                            synced_members += 1
+                        
+                        elif 'members' in doc and isinstance(doc['members'], list):
+                            # V1 array-style doc - embedded members list
+                            for member in doc['members']:
+                                try:
+                                    m_fid = member.get('fid')
+                                    if not m_fid or str(m_fid).strip().lower() == 'none':
+                                        continue
+                                    m_fid_str = str(m_fid).strip()
+                                    m_nick = member.get('nickname', 'Unknown') or 'Unknown'
+                                    m_fl = int(member.get('furnace_lv', 0) or 0)
+                                    m_avatar = member.get('avatar_image', '') or ''
+                                    m_added_by = member.get('added_by')
+                                    m_added_at = str(member.get('added_at', '') or '')
+                                    self.cursor.execute("""
+                                        INSERT OR REPLACE INTO auto_redeem_members
+                                        (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
+                                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                                    """, (guild_id, m_fid_str, m_nick, m_fl, m_avatar, m_added_by, m_added_at))
+                                    synced_members += 1
+                                except Exception as inner_e:
+                                    self.logger.warning(f"Failed to sync V1 member: {inner_e}")
+                        else:
+                            skipped += 1
                     except Exception as me:
                         self.logger.warning(f"Failed to sync member doc to SQLite: {me}")
+                
                 self.giftcode_db.commit()
-                self.logger.info(f"✅ [STARTUP] Synced {synced_members} member records from MongoDB to SQLite")
+                self.logger.info(f"✅ [STARTUP] Synced {synced_members} member records from MongoDB to SQLite (skipped {skipped})")
             except Exception as e:
                 self.logger.error(f"❌ [STARTUP] Member sync failed: {e}")
 
             # --- Settings ---
             synced_settings = 0
             try:
-                all_settings = AutoRedeemSettingsAdapter.get_all_settings()
-                for s in (all_settings or []):
-                    try:
-                        guild_id = int(s.get('guild_id', 0))
-                        enabled = 1 if s.get('enabled', False) else 0
-                        updated_by = s.get('updated_by')
-                        updated_at = str(s.get('updated_at', ''))
-                        if not guild_id:
-                            continue
-                        self.cursor.execute("""
-                            INSERT OR REPLACE INTO auto_redeem_settings
-                            (guild_id, enabled, updated_by, updated_at)
-                            VALUES (?, ?, ?, ?)
-                        """, (guild_id, enabled, updated_by, updated_at))
-                        synced_settings += 1
-                    except Exception as se:
-                        self.logger.warning(f"Failed to sync settings for guild {s.get('guild_id')}: {se}")
-                self.giftcode_db.commit()
-                self.logger.info(f"✅ [STARTUP] Synced {synced_settings} guild settings from MongoDB to SQLite")
+                if AutoRedeemSettingsAdapter:
+                    all_settings = AutoRedeemSettingsAdapter.get_all_settings()
+                    for s in (all_settings or []):
+                        try:
+                            guild_id = int(s.get('guild_id', 0))
+                            enabled = 1 if s.get('enabled', False) else 0
+                            updated_by = s.get('updated_by')
+                            updated_at = str(s.get('updated_at', '') or '')
+                            if not guild_id:
+                                continue
+                            self.cursor.execute("""
+                                INSERT OR REPLACE INTO auto_redeem_settings
+                                (guild_id, enabled, updated_by, updated_at)
+                                VALUES (?, ?, ?, ?)
+                            """, (guild_id, enabled, updated_by, updated_at))
+                            synced_settings += 1
+                        except Exception as se:
+                            self.logger.warning(f"Failed to sync settings for guild {s.get('guild_id')}: {se}")
+                    self.giftcode_db.commit()
+                    self.logger.info(f"✅ [STARTUP] Synced {synced_settings} guild settings from MongoDB to SQLite")
             except Exception as e:
                 self.logger.error(f"❌ [STARTUP] Settings sync failed: {e}")
 

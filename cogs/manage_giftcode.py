@@ -610,7 +610,7 @@ class ManageGiftCode(commands.Cog):
                             from_source = "MongoDB"
                             cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from MongoDB for guild {guild_id}")
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB get_members failed for guild {guild_id}: {e}. Falling back to SQLite.")
+                        cog_instance.logger.warning(f"⚠️ MongoDB get_members failed for guild {guild_id}: {e}. Falling back to SQLite.")
                         members = []
                 
                 # Step 2: Fallback to SQLite if MongoDB is empty or failed
@@ -636,7 +636,9 @@ class ManageGiftCode(commands.Cog):
                         ]
                         from_source = "SQLite"
                         if rows:
-                            cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from SQLite for guild {guild_id}")
+                            cog_instance.logger.info(f"✅ Fetched {len(members)} auto-redeem members from SQLite for guild {guild_id}")
+                        else:
+                            cog_instance.logger.warning(f"⚠️ SQLite returned 0 members for guild {guild_id} — check auto_redeem_members table")
                         
                         # Step 3: Sync members from SQLite to MongoDB (if MongoDB is enabled)
                         # This ensures Oracle VM deployments with SQLite data get synced to MongoDB

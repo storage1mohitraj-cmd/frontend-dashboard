@@ -203,6 +203,8 @@ class ManageGiftCode(commands.Cog):
         
         # Global queue for staggering auto-redeem across servers limit memory spikes
         self.auto_redeem_queue = asyncio.Queue()
+        self.current_job = None  # Track what's currently processing: (guild_id, code)
+        self.processed_jobs_count = 0
         
         self.session = None
 
@@ -246,6 +248,7 @@ class ManageGiftCode(commands.Cog):
             # Wait for a job
             job = await self.auto_redeem_queue.get()
             guild_id, code, is_recheck = job
+            self.current_job = (guild_id, code)
             
             self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code}")
             
@@ -255,6 +258,8 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code}: {e}")
             finally:
+                self.current_job = None
+                self.processed_jobs_count += 1
                 # Mark this task as done
                 self.auto_redeem_queue.task_done()
                 
@@ -262,6 +267,7 @@ class ManageGiftCode(commands.Cog):
                 await asyncio.sleep(2.0)
                 
         except Exception as e:
+            self.current_job = None
             self.logger.error(f"❌ [WORKER] Critical error in queue loop: {e}")
             await asyncio.sleep(5.0)
 
@@ -2456,23 +2462,40 @@ class ManageGiftCode(commands.Cog):
                 return
             code = custom_id.replace("auto_redeem_manual_status_", "")
             queue_size = self.auto_redeem_queue.qsize()
+            
+            # Get current job info
+            current_status = "💤 Idle"
+            if self.current_job:
+                g_id, c_code = self.current_job
+                guild = self.bot.get_guild(g_id)
+                guild_name = guild.name if guild else f"ID: {g_id}"
+                current_status = f"⚙️ Processing: **{guild_name}** for code `{c_code}`"
+            
             embed = discord.Embed(
-                title="🚀 Manual Auto-Redeem Trigger (Refreshed)",
+                title="🚀 Auto-Redeem Global Status",
                 description=(
-                    f"**Code:** `{code}`\n\n"
-                    f"**Global Queue Size:** `{queue_size}` servers pending\n\n"
-                    "Click the button below to force all enabled servers to process this code right now.\n"
-                    "Members who already redeemed it successfully will be safely skipped."
+                    f"**Queued Codes:** `{code}`\n\n"
+                    f"**Current Activity:** {current_status}\n"
+                    f"**Servers Pending in Queue:** `{queue_size}`\n"
+                    f"**Total Jobs Processed:** `{self.processed_jobs_count}`\n\n"
+                    "Click 'Trigger' to force all enabled servers to process this code.\n"
+                    "Click 'Refresh' to see the latest processing server."
                 ),
                 color=0xFF5733
             )
-            embed.set_footer(text=f"Refreshed by {interaction.user.name}", icon_url=interaction.user.display_avatar.url)
+            embed.set_footer(text=f"Checked by {interaction.user.name}", icon_url=interaction.user.display_avatar.url)
             
             view = discord.ui.View()
             view.add_item(discord.ui.Button(label="Trigger For All Enabled Servers", emoji="▶️", style=discord.ButtonStyle.danger, custom_id=f"auto_redeem_manual_trigger_{code}"))
             view.add_item(discord.ui.Button(label="Refresh Status", emoji="🔄", style=discord.ButtonStyle.secondary, custom_id=f"auto_redeem_manual_status_{code}"))
             
-            await interaction.response.edit_message(embed=embed, view=view)
+            try:
+                await interaction.response.edit_message(embed=embed, view=view)
+            except discord.errors.HTTPException as e:
+                if e.code == 40060: # Already acknowledged
+                    await interaction.followup.edit_message(message_id=interaction.message.id, embed=embed, view=view)
+                else:
+                    raise
             return
 
         if custom_id and custom_id.startswith("auto_redeem_manual_trigger_"):
@@ -2480,7 +2503,12 @@ class ManageGiftCode(commands.Cog):
                 await interaction.response.send_message("❌ Admin only.", ephemeral=True)
                 return
             
-            await interaction.response.defer(ephemeral=True)
+            try:
+                await interaction.response.defer(ephemeral=True)
+            except discord.errors.HTTPException as e:
+                if e.code != 40060:
+                    raise
+            
             code = custom_id.replace("auto_redeem_manual_trigger_", "")
             
             embed = discord.Embed(
@@ -2488,6 +2516,7 @@ class ManageGiftCode(commands.Cog):
                 description=(
                     f"Triggering code `{code}` across all enabled servers.\n"
                     "This operates securely using a background queue.\n"
+                    "Check the 'Refresh Status' button to monitor progress.\n"
                 ),
                 color=0x57F287
             )

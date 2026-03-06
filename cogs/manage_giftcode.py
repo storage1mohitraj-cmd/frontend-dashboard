@@ -1707,8 +1707,10 @@ class ManageGiftCode(commands.Cog):
             ) as response:
                 # Read response info
                 try:
-                    resp_json = await response.json()
-                except Exception:
+                    resp_json = await response.json(content_type=None)
+                except Exception as json_e:
+                    raw_text = await response.text()
+                    self.logger.error(f"Failed to parse JSON for {player_id}. Status: {response.status}, Raw text: {raw_text[:200]}")
                     resp_json = {}
                 return session, response, resp_json
         except Exception as e:

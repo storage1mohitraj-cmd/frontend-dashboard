@@ -717,7 +717,7 @@ class TimeParser:
         return 'ist'
 
     @staticmethod
-    def parse_time_string(time_str: str) -> tuple[Optional[datetime], dict]:
+    def parse_time_string(time_str: str, user_tz: str = None) -> tuple[Optional[datetime], dict]:
         """
         Parse time string into datetime object with timezone support + recurring info
         For relative times ("5 minutes", "1 hour"), uses local timezone
@@ -754,9 +754,9 @@ class TimeParser:
             "pattern": original_str
         }
         
-        # For relative times without explicit timezone, use local timezone
+        # For relative times without explicit timezone, use local timezone (or user's configured tz)
         if not timezone_abbr:
-            timezone_abbr = TimeParser.get_local_timezone()
+            timezone_abbr = user_tz if user_tz else TimeParser.get_local_timezone()
             
         # Get current time in the target timezone for proper comparison
         # If no timezone specified, use UTC
@@ -1121,11 +1121,17 @@ class ReminderSystem(commands.Cog):
             due_reminders = self.storage.get_due_reminders()
             
             # Split reminders into those to send and those to skip (silently process)
+            # Use a 5-minute rolling tolerance to skip genuinely missed reminders 
+            # while accurately sending valid ones even if the bot just restarted.
             to_send = []
             to_skip = []
             
+            now = get_accurate_utc_time()
+            tolerance = timedelta(minutes=5)
+            
             for r in due_reminders:
-                if r['reminder_time'] >= self.startup_time:
+                # If the reminder is older than 5 minutes (due to downtime), skip it silently
+                if (now - r['reminder_time']) <= tolerance:
                     to_send.append(r)
                 else:
                     to_skip.append(r)
@@ -1327,12 +1333,19 @@ class ReminderSystem(commands.Cog):
         """
         # Channel is now required - no default fallback needed
             
+        # Get the user's timezone preference before parsing
+        user_tz = None
+        try:
+            user_tz = get_user_timezone(interaction.user.id)
+        except Exception:
+            pass
+
         # Parse the time with timezone support and recurring info
-        parsed_result = TimeParser.parse_time_string(time_str)
+        parsed_result = TimeParser.parse_time_string(time_str, user_tz=user_tz)
         reminder_time, recurring_info = parsed_result if parsed_result[0] else (None, {})
         
         # Log timezone information for debugging
-        detected_tz = TimeParser.get_local_timezone()
+        detected_tz = user_tz if user_tz else TimeParser.get_local_timezone()
         logger.info(f"Reminder parsing: '{time_str}' | Detected local TZ: {detected_tz.upper()} | Result: {reminder_time} | Recurring: {recurring_info.get('is_recurring', False)}")
         
         if not reminder_time:

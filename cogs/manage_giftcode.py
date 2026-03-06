@@ -2261,7 +2261,7 @@ class ManageGiftCode(commands.Cog):
         except Exception as e:
             self.logger.exception(f"Error notifying admins: {e}")
     
-    async def trigger_auto_redeem_for_new_codes(self, new_codes):
+    async def trigger_auto_redeem_for_new_codes(self, new_codes, is_recheck=False):
         """Trigger auto-redeem for all guilds with auto-redeem enabled"""
         try:
             self.logger.info("🔔 === TRIGGER AUTO-REDEEM ===")

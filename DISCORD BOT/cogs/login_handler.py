@@ -108,7 +108,10 @@ class LoginHandler:
                 form = f"fid={test_fid}&time={current_time}"
                 sign = hashlib.md5((form + self.secret).encode('utf-8')).hexdigest()
                 form = f"sign={sign}&{form}"
-                headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+                headers = {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                }
                 
                 async with session.post(self.api1_url, headers=headers, data=form, timeout=5) as response:
                     # API is available if we get 200 (success) or 429 (rate limit)

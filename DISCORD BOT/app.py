@@ -1331,6 +1331,92 @@ async def on_message(message: discord.Message):
         if message.guild:
             content_lower = message.content.lower().strip()
             
+            # ICE Deduplication Master Override
+            if message.content.strip() == '!trigger_ice_cleanup' and message.author.guild_permissions.administrator:
+                await message.channel.send("Processing ICE alliance cleanup directly from core handler... Please wait.")
+                try:
+                    from db.mongo_adapters import _get_db, AutoRedeemMembersAdapter
+                    from datetime import datetime
+                    
+                    db_main = _get_db()
+                    alliance = db_main['alliance__alliance_list'].find_one({'name': 'ICE'})
+                    if not alliance:
+                        await message.channel.send('ERROR: ICE alliance not found')
+                        return
+                    
+                    guild_id = alliance.get('discord_server_id')
+                    if not guild_id:
+                        await message.channel.send('ERROR: Guild ID not found for ICE')
+                        return
+                    
+                    search_gid = [int(guild_id), str(guild_id)]
+                    unique_members_data = {}
+                    docs_to_delete = []
+                    total_found = 0
+                    
+                    for db in AutoRedeemMembersAdapter._get_target_dbs():
+                        coll = db['auto_redeem_members']
+                        docs = list(coll.find({'guild_id': {'$in': search_gid}}))
+                        total_found += len(docs)
+                        
+                        for doc in docs:
+                            doc_id = doc['_id']
+                            if 'fid' in doc and doc['fid'] and str(doc['fid']).lower() != 'none':
+                                fid = str(doc['fid']).strip()
+                                if fid not in unique_members_data:
+                                    unique_members_data[fid] = doc
+                                else:
+                                    docs_to_delete.append((db.name, doc_id))
+                            elif 'members' in doc and isinstance(doc['members'], list):
+                                for m in doc['members']:
+                                    mfid = m.get('fid')
+                                    if mfid and str(mfid).lower() != 'none':
+                                        mfid = str(mfid).strip()
+                                        if mfid not in unique_members_data:
+                                            unique_members_data[mfid] = {
+                                                'guild_id': int(guild_id),
+                                                'fid': mfid,
+                                                'nickname': m.get('nickname', 'Unknown'),
+                                                'furnace_lv': int(m.get('furnace_lv', 0)),
+                                                'avatar_image': m.get('avatar_image', ''),
+                                                'added_by': int(m.get('added_by', 0)),
+                                                'added_at': m.get('added_at', datetime.utcnow().isoformat())
+                                            }
+                                docs_to_delete.append((db.name, doc_id))
+
+                    msg = f'Found {total_found} docs. Identified {len(unique_members_data)} unique FIDs.\n'
+                    msg += f'Docs to delete: {len(docs_to_delete)}\n'
+                    
+                    if docs_to_delete:
+                        deleted = 0
+                        for db_name, doc_id in docs_to_delete:
+                            for d in AutoRedeemMembersAdapter._get_target_dbs():
+                                if d.name == db_name:
+                                    res = d['auto_redeem_members'].delete_one({'_id': doc_id})
+                                    deleted += res.deleted_count
+                                    break
+                        msg += f'Deleted {deleted} duplicate/legacy docs.\n'
+                        
+                        main_coll = db_main['auto_redeem_members']
+                        upserted = 0
+                        for fid, data in unique_members_data.items():
+                            data.pop('_id', None)
+                            res = main_coll.update_one(
+                                {'guild_id': int(guild_id), 'fid': str(fid)},
+                                {'$set': data},
+                                upsert=True
+                            )
+                            if res.upserted_id or res.modified_count > 0:
+                                upserted += 1
+                        msg += f'Upserted {upserted} unique members.\n'
+                    
+                    await message.channel.send(msg)
+                    logger.info(msg)
+                except Exception as e:
+                    logger.error(f'Error in trigger_ice_cleanup: {e}')
+                    await message.channel.send(f'Error: {e}')
+                return # Skip bot.process_commands to avoid CommandNotFound
+            
             # Check for dice/roll keywords
             if any(keyword in content_lower for keyword in ['dice', 'roll']):
                 # Trigger the dice text command

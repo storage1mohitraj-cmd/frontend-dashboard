@@ -2667,8 +2667,8 @@ class Music(commands.Cog):
                     raise discord.Forbidden(None, "Bot lacks Connect or Speak permissions in the voice channel")
                 
                 player = None
-                max_connect_retries = 3  # More retries with shorter timeout
-                connect_timeout = 15.0  # Reduced timeout for faster failure (Discord recommends 10-20s)
+                max_connect_retries = 2  # Fewer retries, but much longer timeout
+                connect_timeout = 30.0  # Increased timeout for public Lavalink servers which can be slow
                 
                 for attempt in range(max_connect_retries):
                     try:

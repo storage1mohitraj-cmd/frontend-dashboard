@@ -4,8 +4,8 @@ from pymongo import MongoClient
 import json
 from datetime import datetime
 
-MONGO_URI = 'mongodb+srv://iammagnusx1_db_user:zYFHUOjjXhfGLpMs@reminderbot.r6hso.mongodb.net/?retryWrites=true&w=majority&appName=WOSBOT'
-MONGO_WOS_URI = 'mongodb+srv://admin:Magnus123@cluster0.p8vbe.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0'
+MONGO_URI = 'mongodb://iammagnusx1_db_user:zYFHUOjjXhfGLpMs@ac-uofhnd3-shard-00-00.r6hso.mongodb.net:27017,ac-uofhnd3-shard-00-01.r6hso.mongodb.net:27017,ac-uofhnd3-shard-00-02.r6hso.mongodb.net:27017/?ssl=true&replicaSet=atlas-2y4jxj-shard-0&authSource=admin&retryWrites=true&w=majority&appName=WOSBOT'
+MONGO_WOS_URI = 'mongodb://admin:Magnus123@cluster0-shard-00-00.p8vbe.mongodb.net:27017,cluster0-shard-00-01.p8vbe.mongodb.net:27017,cluster0-shard-00-02.p8vbe.mongodb.net:27017/?ssl=true&replicaSet=atlas-13c5h9-shard-0&authSource=admin&retryWrites=true&w=majority&appName=Cluster0'
 
 def dedup_ice():
     client_main = MongoClient(MONGO_URI)

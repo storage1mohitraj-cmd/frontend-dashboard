@@ -321,7 +321,9 @@ class ManageGiftCode(commands.Cog):
                         if fid and str(fid).strip() and str(fid).strip().lower() != 'none':
                             # V2 flat doc - direct member
                             fid_str = str(fid).strip()
-                            nickname = doc.get('nickname', 'Unknown') or 'Unknown'
+                            raw_nick = doc.get('nickname', 'Unknown')
+                            if isinstance(raw_nick, dict): raw_nick = raw_nick.get('nickname', 'Unknown')
+                            nickname = str(raw_nick) if raw_nick else 'Unknown'
                             furnace_lv = int(doc.get('furnace_lv', 0) or 0)
                             avatar_image = doc.get('avatar_image', '') or ''
                             added_by = doc.get('added_by')
@@ -341,7 +343,9 @@ class ManageGiftCode(commands.Cog):
                                     if not m_fid or str(m_fid).strip().lower() == 'none':
                                         continue
                                     m_fid_str = str(m_fid).strip()
-                                    m_nick = member.get('nickname', 'Unknown') or 'Unknown'
+                                    raw_nick = member.get('nickname', 'Unknown')
+                                    if isinstance(raw_nick, dict): raw_nick = raw_nick.get('nickname', 'Unknown')
+                                    m_nick = str(raw_nick) if raw_nick else 'Unknown'
                                     m_fl = int(member.get('furnace_lv', 0) or 0)
                                     m_avatar = member.get('avatar_image', '') or ''
                                     m_added_by = member.get('added_by')

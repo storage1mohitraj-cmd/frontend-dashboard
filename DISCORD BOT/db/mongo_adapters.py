@@ -894,10 +894,13 @@ class AutoRedeemMembersAdapter:
                         if fid and str(fid).lower() != 'none':
                             fid_str = str(fid).strip()
                             if fid_str not in seen_fids:
+                                raw_nick = doc.get('nickname', 'Unknown')
+                                if isinstance(raw_nick, dict):
+                                    raw_nick = raw_nick.get('nickname', 'Unknown')
                                 members.append({
                                     'fid': fid_str,
-                                    'nickname': doc.get('nickname', 'Unknown'),
-                                    'furnace_lv': int(doc.get('furnace_lv', 0)),
+                                    'nickname': str(raw_nick) if raw_nick else 'Unknown',
+                                    'furnace_lv': int(doc.get('furnace_lv', 0) or 0),
                                     'avatar_image': doc.get('avatar_image', ''),
                                     'added_by': int(doc.get('added_by', 0)),
                                     'added_at': doc.get('added_at')
@@ -911,10 +914,13 @@ class AutoRedeemMembersAdapter:
                                 if mfid and str(mfid).lower() != 'none':
                                     mfid_str = str(mfid).strip()
                                     if mfid_str not in seen_fids:
+                                        raw_nick = m.get('nickname', 'Unknown')
+                                        if isinstance(raw_nick, dict):
+                                            raw_nick = raw_nick.get('nickname', 'Unknown')
                                         members.append({
                                             'fid': mfid_str,
-                                            'nickname': m.get('nickname', 'Unknown'),
-                                            'furnace_lv': int(m.get('furnace_lv', 0)),
+                                            'nickname': str(raw_nick) if raw_nick else 'Unknown',
+                                            'furnace_lv': int(m.get('furnace_lv', 0) or 0),
                                             'avatar_image': m.get('avatar_image', ''),
                                             'added_by': int(m.get('added_by', 0)),
                                             'added_at': m.get('added_at')

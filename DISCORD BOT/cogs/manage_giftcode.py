@@ -6220,39 +6220,6 @@ class ManageGiftCode(commands.Cog):
             self.logger.error(f'Error in cleanup_ice: {e}')
             await ctx.send(f'Error: {e}')
 
-                msg = f'Found {total_found} docs. Identified {len(unique_members_data)} unique FIDs.\n'
-                msg += f'Docs to delete: {len(docs_to_delete)}\n'
-                
-                if docs_to_delete:
-                    deleted = 0
-                    for db_name, doc_id in docs_to_delete:
-                        for d in AutoRedeemMembersAdapter._get_target_dbs():
-                            if d.name == db_name:
-                                res = d['auto_redeem_members'].delete_one({'_id': doc_id})
-                                deleted += res.deleted_count
-                                break
-                    msg += f'Deleted {deleted} duplicate/legacy docs.\n'
-                    
-                    main_coll = db_main['auto_redeem_members']
-                    upserted = 0
-                    for fid, data in unique_members_data.items():
-                        data.pop('_id', None)
-                        res = main_coll.update_one(
-                            {'guild_id': int(guild_id), 'fid': str(fid)},
-                            {'$set': data},
-                            upsert=True
-                        )
-                        if res.upserted_id or res.modified_count > 0:
-                            upserted += 1
-                    msg += f'Upserted {upserted} unique members.\n'
-                
-                await message.channel.send(msg)
-                self.logger.info(msg)
-                
-            except Exception as e:
-                self.logger.error(f'Error in cleanup_ice: {e}')
-                await message.channel.send(f'Error: {e}')
-
 
 async def setup(bot):
     await bot.add_cog(ManageGiftCode(bot))

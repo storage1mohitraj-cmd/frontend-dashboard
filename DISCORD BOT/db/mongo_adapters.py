@@ -782,6 +782,64 @@ class GiftCodesAdapter:
             return False
 
 
+class SentGiftCodesAdapter:
+    """Adapter for tracking gift codes sent to specific guilds in MongoDB"""
+    COLL = 'sent_giftcodes'
+
+    @staticmethod
+    def get_sent_codes(guild_id: int) -> set:
+        """Get set of gift codes already sent to a guild"""
+        try:
+            db = _get_db_main()
+            doc = db[SentGiftCodesAdapter.COLL].find_one({'_id': str(guild_id)})
+            if doc:
+                return set(doc.get('codes', []))
+            return set()
+        except Exception as e:
+            logger.error(f'Failed to get sent codes for guild {guild_id}: {e}')
+            return set()
+
+    @staticmethod
+    def mark_codes_sent(guild_id: int, codes: List[str], source: str = 'auto') -> bool:
+        """Mark gift codes as sent for a guild"""
+        try:
+            db = _get_db_main()
+            now = datetime.utcnow().isoformat()
+            
+            # Using $addToSet for automatic deduplication in MongoDB
+            db[SentGiftCodesAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$addToSet': {'codes': {'$each': [str(c).strip().upper() for c in codes if c]}},
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'last_sent_at': now,
+                        'updated_at': now,
+                        'source': source
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to mark codes sent for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    def is_code_sent(guild_id: int, code: str) -> bool:
+        """Check if a specific code was already sent to a guild"""
+        try:
+            db = _get_db_main()
+            count = db[SentGiftCodesAdapter.COLL].count_documents({
+                '_id': str(guild_id),
+                'codes': str(code).strip().upper()
+            })
+            return count > 0
+        except Exception:
+            return False
+
+
 class AutoRedeemSettingsAdapter:
     """Adapter for managing auto redeem settings in MongoDB"""
     COLL = 'auto_redeem_settings'
@@ -1364,7 +1422,7 @@ class AllianceSettingsAdapter:
             return []
 
     @staticmethod
-    def upsert(alliance_id: int, channel_id: int, interval: int, giftcodecontrol: Optional[int ] = None, giftcode_channel: Optional[int ] = None) -> bool:
+    def upsert(alliance_id: int, channel_id: int, interval: int, giftcodecontrol: Optional[int] = None, giftcode_channel: Optional[int] = None) -> bool:
         try:
             db = _get_db_main()
             now = datetime.utcnow().isoformat()

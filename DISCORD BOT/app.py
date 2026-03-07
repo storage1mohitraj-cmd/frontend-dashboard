@@ -903,12 +903,12 @@ async def setup_hook():
         "cogs.server_age",
         "cogs.personalise_chat",
         "cogs.music",  # Music bot functionality
-        "cogs.voice_conversation",  # Voice chat with AI
-        "cogs.tts",  # Text-to-Speech in voice channels
-        "cogs.auto_translate",  # Auto-translate with DeepL
+        #"cogs.voice_conversation",  # Voice chat with AI
+        #"cogs.tts",  # Text-to-Speech in voice channels
+        #"cogs.auto_translate",  # Auto-translate with DeepL
         "cogs.message_extractor",  # Message extraction for global admins
         "cogs.tictactoe",  # Tic-Tac-Toe game
-        "cogs.alliance_monitor",  # Alliance online status monitoring
+        #"cogs.alliance_monitor",  # Alliance online status monitoring
         "cogs.debug_mongo_cog",  # Temporary debug cog for MongoDB
     ]
     
@@ -1116,6 +1116,14 @@ async def on_ready():
         # Sync commands automatically to fix visibility issues
         synced = await bot.tree.sync()
         logger.info(f"✅ Synced {len(synced)} commands globally")
+        
+        # Start gift code poster background task
+        try:
+            import giftcode_poster
+            asyncio.create_task(giftcode_poster.start_poster(bot))
+            logger.info("🚀 Started gift code poster background task")
+        except Exception as e:
+            logger.error(f"❌ Failed to start gift code poster: {e}")
         
     except Exception as e:
         logger.error(f"❌ Error in on_ready: {e}", exc_info=True)

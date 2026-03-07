@@ -47,7 +47,7 @@ class GiftCodeScraper:
         }
         self.cache_data = None
         self.last_fetched = None
-        self.cache_duration = timedelta(minutes=10)
+        self.cache_duration = timedelta(seconds=30)
     
     async def fetch_gift_codes(self):
         """
@@ -327,11 +327,11 @@ class GiftCodeScraper:
             expired_section_text = ""
             
             # Try to find section divisions
-            active_match = re.search(r'Active Codes?(.*?)(?=Expired Codes?|$)', text,Union[re.IGNORECASE, re.DOTALL])
+            active_match = re.search(r'Active Codes?(.*?)(?=Expired Codes?|$)', text, re.IGNORECASE | re.DOTALL)
             if active_match:
                 active_section_text = active_match.group(1)
             
-            expired_match = re.search(r'Expired Codes?(.*?)(?=Final Results|$)', text,Union[re.IGNORECASE, re.DOTALL])
+            expired_match = re.search(r'Expired Codes?(.*?)(?=Final Results|$)', text, re.IGNORECASE | re.DOTALL)
             if expired_match:
                 expired_section_text = expired_match.group(1)
             

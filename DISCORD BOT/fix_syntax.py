@@ -63,10 +63,12 @@ def fix_file(filepath):
     return False
 
 def main():
-    exclude_dirs = {'venv', 'bot_venv', '__pycache__', '.git'}
+    exclude_dirs = {'venv', 'bot_venv', '__pycache__', '.git', 'backup', 'backups', 'bot_venv_old'}
     count = 0
     for root, dirs, files in os.walk('.'):
-        dirs[:] = [d for d in dirs if d not in exclude_dirs]
+        # Filter out directories starting with . or in exclude_dirs
+        dirs[:] = [d for d in dirs if d not in exclude_dirs and not d.startswith('.')]
+
         for file in files:
             if file.endswith('.py'):
                 if fix_file(os.path.join(root, file)):

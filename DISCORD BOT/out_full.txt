@@ -1,0 +1,500 @@
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:25:57 [INFO] wavelink.websocket: Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "21.883596948722722" seconds.[0m
+[33m⚠️ 21:26:19 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:26:19 [INFO] wavelink.websocket: Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "0.3867719577437507" seconds.[0m
+[33m⚠️ 21:26:19 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:26:19 [INFO] wavelink.websocket: Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "5.471979241211523" seconds.[0m
+[33m⚠️ 21:26:25 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:26:25 [INFO] wavelink.websocket: Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "10.943958482423046" seconds.[0m
+[33m⚠️ 21:26:36 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:26:36 [INFO] wavelink.websocket: Node(identifier=0qP6L-uADuew0JUK, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "21.88791696484609" seconds.[0m
+[33m⚠️ 21:26:50 [WARNING] main: Received signal 2; shutting down gracefully...[0m
+[33m⚠️ 21:26:50 [WARNING] main: Stack at signal time:
+  File "/home/opc/app/bot/DISCORD BOT/app.py", line 4569, in <module>
+    bot.run(TOKEN)
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/client.py", line 933, in run
+    asyncio.run(runner())
+  File "/usr/lib64/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+  File "/usr/lib64/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "/usr/lib64/python3.11/asyncio/base_events.py", line 641, in run_until_complete
+    self.run_forever()
+  File "/usr/lib64/python3.11/asyncio/base_events.py", line 608, in run_forever
+    self._run_once()
+  File "/usr/lib64/python3.11/asyncio/base_events.py", line 1898, in _run_once
+    event_list = self._selector.select(timeout)
+  File "/usr/lib64/python3.11/selectors.py", line 468, in select
+    fd_event_list = self._selector.poll(timeout, max_ev)
+[0m
+[33m⚠️ 21:26:50 [WARNING] main: Asyncio task snapshot:
+Active asyncio tasks: 9
+- Task: Task-10 state=PENDING
+  Stack:
+    /home/opc/app/bot/DISCORD BOT/cogs/bear_trap.py:239 check_notifications
+- Task: discord-ext-tasks: ReminderSystem.check_reminders state=PENDING
+  Stack:
+    /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/ext/tasks/__init__.py:210 _loop
+- Task: discord-ext-tasks: Alliance.monitor_alliances state=PENDING
+  Stack:
+    /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/ext/tasks/__init__.py:210 _loop
+- Task: discord-ext-tasks: ManageGiftCode._auto_redeem_worker state=PENDING
+  Stack:
+    /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/ext/tasks/__init__.py:210 _loop
+- Task: Task-1 state=PENDING
+  Stack:
+    /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/client.py:922 runner
+- Task: Task-5 state=PENDING
+  Stack:
+    /home/opc/app/bot/DISCORD BOT/cogs/gift_operationsapi.py:190 start_api_check
+- Task: Task-9 state=PENDING
+  Stack:
+    /home/opc/app/bot/DISCORD BOT/cogs/manage_giftcode.py:297 _sync_mongo_to_sqlite_on_startup
+- Task: discord-ext-tasks: ManageGiftCode.api_check_task state=PENDING
+  Stack:
+    /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/ext/tasks/__init__.py:210 _loop
+- Task: discord-ext-tasks: BirthdaySystem.check_birthdays state=PENDING
+  Stack:
+    /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/ext/tasks/__init__.py:210 _loop[0m
+[33m⚠️ 21:26:50 [WARNING] main: Could not import MongoDB cleanup: cannot import name 'close_mongo_client' from 'db.mongo_client_wrapper' (/home/opc/app/bot/DISCORD BOT/db/mongo_client_wrapper.py)[0m
+[SETUP] ✓ Requirements unchanged — skipping pip install (using cached environment)
+[SETUP] Bot initialization complete
+[INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+
+
+
+  __  __          _____ _   _ _    _  _____ 
+ |  \/  |   /\   / ____| \ | | |  | |/ ____|
+ | \  / |  /  \ | |  __|  \| | |  | | (___  
+ | |\/| | / /\ \| | |_ | . ` | |  | |\___ \ 
+ | |  | |/ ____ \ |__| | |\  | |__| |____) |
+ |_|  |_/_/    \_\_____|_| \_|\____/|_____/ 
+
+✨ MAGNUS — Clean Console • started at 2026-03-07 21:26:59
+
+
+Checking dependencies...
+! Warning: requirements.txt contains obsolete packages from older version
+! Kept requirements.txt despite obsolete packages
+Installing 18 missing packages...
+Requirement already satisfied: discord.py>=2.5.2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (2.7.1)
+Requirement already satisfied: aiohttp<4,>=3.7.4 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from discord.py>=2.5.2) (3.13.3)
+Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4,>=3.7.4->discord.py>=2.5.2) (2.6.1)
+Requirement already satisfied: aiosignal>=1.4.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4,>=3.7.4->discord.py>=2.5.2) (1.4.0)
+Requirement already satisfied: attrs>=17.3.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4,>=3.7.4->discord.py>=2.5.2) (25.4.0)
+Requirement already satisfied: frozenlist>=1.1.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4,>=3.7.4->discord.py>=2.5.2) (1.8.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4,>=3.7.4->discord.py>=2.5.2) (6.7.1)
+Requirement already satisfied: propcache>=0.2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4,>=3.7.4->discord.py>=2.5.2) (0.4.1)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4,>=3.7.4->discord.py>=2.5.2) (1.23.0)
+Requirement already satisfied: idna>=2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from yarl<2.0,>=1.17.0->aiohttp<4,>=3.7.4->discord.py>=2.5.2) (3.11)
+Requirement already satisfied: typing-extensions>=4.2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiosignal>=1.4.0->aiohttp<4,>=3.7.4->discord.py>=2.5.2) (4.15.0)
+Installed discord.py>=2.5.2
+Requirement already satisfied: PyNaCl>=1.5.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (1.6.2)
+Requirement already satisfied: cffi>=2.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from PyNaCl>=1.5.0) (2.0.0)
+Requirement already satisfied: pycparser in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cffi>=2.0.0->PyNaCl>=1.5.0) (3.0)
+Installed PyNaCl>=1.5.0
+Requirement already satisfied: aiohttp-socks>=0.10.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (0.11.0)
+Requirement already satisfied: aiohttp>=3.10.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp-socks>=0.10.1) (3.13.3)
+Requirement already satisfied: python-socks<3.0.0,>=2.4.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from python-socks[asyncio]<3.0.0,>=2.4.3->aiohttp-socks>=0.10.1) (2.8.1)
+Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (2.6.1)
+Requirement already satisfied: aiosignal>=1.4.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (1.4.0)
+Requirement already satisfied: attrs>=17.3.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (25.4.0)
+Requirement already satisfied: frozenlist>=1.1.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (1.8.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (6.7.1)
+Requirement already satisfied: propcache>=0.2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (0.4.1)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (1.23.0)
+Requirement already satisfied: idna>=2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from yarl<2.0,>=1.17.0->aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (3.11)
+Requirement already satisfied: typing-extensions>=4.2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiosignal>=1.4.0->aiohttp>=3.10.0->aiohttp-socks>=0.10.1) (4.15.0)
+Installed aiohttp-socks>=0.10.1
+Requirement already satisfied: python-dotenv>=1.1.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (1.2.2)
+Installed python-dotenv>=1.1.0
+Requirement already satisfied: arabic-reshaper==3.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (3.0.0)
+Installed arabic-reshaper==3.0.0
+Requirement already satisfied: python-bidi==0.6.6 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (0.6.6)
+Installed python-bidi==0.6.6
+Requirement already satisfied: pillow>=10.4.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (12.1.1)
+Installed pillow>=10.4.0
+Requirement already satisfied: google-api-python-client>=2.90.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (2.192.0)
+Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-python-client>=2.90.0) (0.31.2)
+Requirement already satisfied: google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-python-client>=2.90.0) (2.48.0)
+Requirement already satisfied: google-auth-httplib2<1.0.0,>=0.2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-python-client>=2.90.0) (0.3.0)
+Requirement already satisfied: google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-python-client>=2.90.0) (2.30.0)
+Requirement already satisfied: uritemplate<5,>=3.0.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-python-client>=2.90.0) (4.2.0)
+Requirement already satisfied: googleapis-common-protos<2.0.0,>=1.56.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (1.72.0)
+Requirement already satisfied: protobuf<7.0.0,>=4.25.8 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (6.33.5)
+Requirement already satisfied: proto-plus<2.0.0,>=1.22.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (1.27.1)
+Requirement already satisfied: requests<3.0.0,>=2.20.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (2.32.5)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.90.0) (0.4.2)
+Requirement already satisfied: cryptography>=38.0.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.90.0) (46.0.5)
+Requirement already satisfied: rsa<5,>=3.1.4 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.90.0) (4.9.1)
+Requirement already satisfied: pyparsing<4,>=3.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-api-python-client>=2.90.0) (3.3.2)
+Requirement already satisfied: charset_normalizer<4,>=2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests<3.0.0,>=2.20.0->google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (3.4.5)
+Requirement already satisfied: idna<4,>=2.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests<3.0.0,>=2.20.0->google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (3.11)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests<3.0.0,>=2.20.0->google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (2.6.3)
+Requirement already satisfied: certifi>=2017.4.17 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests<3.0.0,>=2.20.0->google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.90.0) (2026.2.25)
+Requirement already satisfied: pyasn1>=0.1.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from rsa<5,>=3.1.4->google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.90.0) (0.6.2)
+Requirement already satisfied: cffi>=2.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cryptography>=38.0.3->google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.90.0) (2.0.0)
+Requirement already satisfied: pycparser in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.90.0) (3.0)
+Installed google-api-python-client>=2.90.0
+Requirement already satisfied: google-auth>=2.20.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (2.48.0)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth>=2.20.0) (0.4.2)
+Requirement already satisfied: cryptography>=38.0.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth>=2.20.0) (46.0.5)
+Requirement already satisfied: rsa<5,>=3.1.4 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth>=2.20.0) (4.9.1)
+Requirement already satisfied: pyasn1>=0.1.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from rsa<5,>=3.1.4->google-auth>=2.20.0) (0.6.2)
+Requirement already satisfied: cffi>=2.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cryptography>=38.0.3->google-auth>=2.20.0) (2.0.0)
+Requirement already satisfied: pycparser in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth>=2.20.0) (3.0)
+Installed google-auth>=2.20.0
+Requirement already satisfied: google-auth-httplib2>=0.2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (0.3.0)
+Requirement already satisfied: google-auth<3.0.0,>=1.32.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth-httplib2>=0.2.0) (2.48.0)
+Requirement already satisfied: httplib2<1.0.0,>=0.19.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth-httplib2>=0.2.0) (0.31.2)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth<3.0.0,>=1.32.0->google-auth-httplib2>=0.2.0) (0.4.2)
+Requirement already satisfied: cryptography>=38.0.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth<3.0.0,>=1.32.0->google-auth-httplib2>=0.2.0) (46.0.5)
+Requirement already satisfied: rsa<5,>=3.1.4 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth<3.0.0,>=1.32.0->google-auth-httplib2>=0.2.0) (4.9.1)
+Requirement already satisfied: pyparsing<4,>=3.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from httplib2<1.0.0,>=0.19.0->google-auth-httplib2>=0.2.0) (3.3.2)
+Requirement already satisfied: pyasn1>=0.1.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from rsa<5,>=3.1.4->google-auth<3.0.0,>=1.32.0->google-auth-httplib2>=0.2.0) (0.6.2)
+Requirement already satisfied: cffi>=2.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cryptography>=38.0.3->google-auth<3.0.0,>=1.32.0->google-auth-httplib2>=0.2.0) (2.0.0)
+Requirement already satisfied: pycparser in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth<3.0.0,>=1.32.0->google-auth-httplib2>=0.2.0) (3.0)
+Installed google-auth-httplib2>=0.2.0
+Requirement already satisfied: google-auth-oauthlib>=1.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (1.3.0)
+Requirement already satisfied: google-auth!=2.43.0,!=2.44.0,!=2.45.0,<3.0.0,>=2.15.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth-oauthlib>=1.0.0) (2.48.0)
+Requirement already satisfied: requests-oauthlib>=0.7.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth-oauthlib>=1.0.0) (2.0.0)
+Requirement already satisfied: pyasn1-modules>=0.2.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth!=2.43.0,!=2.44.0,!=2.45.0,<3.0.0,>=2.15.0->google-auth-oauthlib>=1.0.0) (0.4.2)
+Requirement already satisfied: cryptography>=38.0.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth!=2.43.0,!=2.44.0,!=2.45.0,<3.0.0,>=2.15.0->google-auth-oauthlib>=1.0.0) (46.0.5)
+Requirement already satisfied: rsa<5,>=3.1.4 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from google-auth!=2.43.0,!=2.44.0,!=2.45.0,<3.0.0,>=2.15.0->google-auth-oauthlib>=1.0.0) (4.9.1)
+Requirement already satisfied: pyasn1>=0.1.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from rsa<5,>=3.1.4->google-auth!=2.43.0,!=2.44.0,!=2.45.0,<3.0.0,>=2.15.0->google-auth-oauthlib>=1.0.0) (0.6.2)
+Requirement already satisfied: cffi>=2.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cryptography>=38.0.3->google-auth!=2.43.0,!=2.44.0,!=2.45.0,<3.0.0,>=2.15.0->google-auth-oauthlib>=1.0.0) (2.0.0)
+Requirement already satisfied: pycparser in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from cffi>=2.0.0->cryptography>=38.0.3->google-auth!=2.43.0,!=2.44.0,!=2.45.0,<3.0.0,>=2.15.0->google-auth-oauthlib>=1.0.0) (3.0)
+Requirement already satisfied: oauthlib>=3.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.0.0) (3.3.1)
+Requirement already satisfied: requests>=2.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.0.0) (2.32.5)
+Requirement already satisfied: charset_normalizer<4,>=2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.0.0) (3.4.5)
+Requirement already satisfied: idna<4,>=2.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.0.0) (3.11)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.0.0) (2.6.3)
+Requirement already satisfied: certifi>=2017.4.17 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.0.0->requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.0.0) (2026.2.25)
+Installed google-auth-oauthlib>=1.0.0
+Requirement already satisfied: beautifulsoup4>=4.12.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (4.14.3)
+Requirement already satisfied: soupsieve>=1.6.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from beautifulsoup4>=4.12.0) (2.8.3)
+Requirement already satisfied: typing-extensions>=4.0.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from beautifulsoup4>=4.12.0) (4.15.0)
+Installed beautifulsoup4>=4.12.0
+Requirement already satisfied: duckduckgo-search>=2.8.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (8.1.1)
+Requirement already satisfied: click>=8.1.8 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from duckduckgo-search>=2.8.0) (8.1.8)
+Requirement already satisfied: primp>=0.15.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from duckduckgo-search>=2.8.0) (1.1.2)
+Requirement already satisfied: lxml>=5.3.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from duckduckgo-search>=2.8.0) (6.0.2)
+Installed duckduckgo-search>=2.8.0
+Requirement already satisfied: openai-whisper>=20231117 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (20250625)
+Requirement already satisfied: more-itertools in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from openai-whisper>=20231117) (10.8.0)
+Requirement already satisfied: numba in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from openai-whisper>=20231117) (0.64.0)
+Requirement already satisfied: numpy in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from openai-whisper>=20231117) (2.4.2)
+Requirement already satisfied: tiktoken in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from openai-whisper>=20231117) (0.12.0)
+Requirement already satisfied: torch in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from openai-whisper>=20231117) (2.10.0+cpu)
+Requirement already satisfied: tqdm in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from openai-whisper>=20231117) (4.67.3)
+Requirement already satisfied: triton>=2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from openai-whisper>=20231117) (3.6.0)
+Requirement already satisfied: llvmlite<0.47,>=0.46.0dev0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from numba->openai-whisper>=20231117) (0.46.0)
+Requirement already satisfied: regex>=2022.1.18 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from tiktoken->openai-whisper>=20231117) (2026.2.28)
+Requirement already satisfied: requests>=2.26.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from tiktoken->openai-whisper>=20231117) (2.32.5)
+Requirement already satisfied: charset_normalizer<4,>=2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.26.0->tiktoken->openai-whisper>=20231117) (3.4.5)
+Requirement already satisfied: idna<4,>=2.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.26.0->tiktoken->openai-whisper>=20231117) (3.11)
+Requirement already satisfied: urllib3<3,>=1.21.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.26.0->tiktoken->openai-whisper>=20231117) (2.6.3)
+Requirement already satisfied: certifi>=2017.4.17 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from requests>=2.26.0->tiktoken->openai-whisper>=20231117) (2026.2.25)
+Requirement already satisfied: filelock in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from torch->openai-whisper>=20231117) (3.25.0)
+Requirement already satisfied: typing-extensions>=4.10.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from torch->openai-whisper>=20231117) (4.15.0)
+Requirement already satisfied: sympy>=1.13.3 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from torch->openai-whisper>=20231117) (1.14.0)
+Requirement already satisfied: networkx>=2.5.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from torch->openai-whisper>=20231117) (3.6.1)
+Requirement already satisfied: jinja2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from torch->openai-whisper>=20231117) (3.1.6)
+Requirement already satisfied: fsspec>=0.8.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from torch->openai-whisper>=20231117) (2026.2.0)
+Requirement already satisfied: mpmath<1.4,>=1.1.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from sympy>=1.13.3->torch->openai-whisper>=20231117) (1.3.0)
+Requirement already satisfied: MarkupSafe>=2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from jinja2->torch->openai-whisper>=20231117) (3.0.2)
+Installed openai-whisper>=20231117
+Requirement already satisfied: SpeechRecognition>=3.10.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (3.14.5)
+Requirement already satisfied: typing-extensions in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from SpeechRecognition>=3.10.0) (4.15.0)
+Installed SpeechRecognition>=3.10.0
+Requirement already satisfied: edge-tts>=6.1.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (7.2.7)
+Requirement already satisfied: aiohttp<4.0.0,>=3.8.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from edge-tts>=6.1.0) (3.13.3)
+Requirement already satisfied: certifi>=2023.11.17 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from edge-tts>=6.1.0) (2026.2.25)
+Requirement already satisfied: tabulate<1.0.0,>=0.4.4 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from edge-tts>=6.1.0) (0.10.0)
+Requirement already satisfied: typing-extensions<5.0.0,>=4.1.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from edge-tts>=6.1.0) (4.15.0)
+Requirement already satisfied: aiohappyeyeballs>=2.5.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (2.6.1)
+Requirement already satisfied: aiosignal>=1.4.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (1.4.0)
+Requirement already satisfied: attrs>=17.3.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (25.4.0)
+Requirement already satisfied: frozenlist>=1.1.1 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (1.8.0)
+Requirement already satisfied: multidict<7.0,>=4.5 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (6.7.1)
+Requirement already satisfied: propcache>=0.2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (0.4.1)
+Requirement already satisfied: yarl<2.0,>=1.17.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (1.23.0)
+Requirement already satisfied: idna>=2.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from yarl<2.0,>=1.17.0->aiohttp<4.0.0,>=3.8.0->edge-tts>=6.1.0) (3.11)
+Installed edge-tts>=6.1.0
+Requirement already satisfied: opencv-python-headless>=4.8.0 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (4.13.0.92)
+Requirement already satisfied: numpy>=2 in /home/opc/app/bot/bot_venv/lib64/python3.11/site-packages (from opencv-python-headless>=4.8.0) (2.4.2)
+Installed opencv-python-headless>=4.8.0
+Ignoring pywin32: markers 'sys_platform == "win32"' don't match your environment
+Installed pywin32>=306; sys_platform == 'win32'
+All requirements satisfied
+[32mℹ️ 21:27:44 [INFO] discord: logging in using static token[0m
+[32mℹ️ 21:27:46 [INFO] main: ✅ Loaded cogs.start_menu[0m
+[31m❌ 21:27:46 [ERROR] db.mongo_adapters: Error getting alliance monitors from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+✓ Alliance cog loaded successfully
+[32mℹ️ 21:27:46 [INFO] main: ✅ Loaded cogs.alliance[0m
+[32mℹ️ 21:27:46 [INFO] main: ✅ Loaded cogs.alliance_member_operations[0m
+[32mℹ️ 21:27:46 [INFO] main: ✅ Loaded cogs.changes[0m
+[32mℹ️ 21:27:46 [INFO] main: ✅ Loaded cogs.web_search[0m
+[32mℹ️ 21:27:46 [INFO] cogs.welcome_channel: [WelcomeChannel] Cog initialized[0m
+[32mℹ️ 21:27:46 [INFO] main: ✅ Loaded cogs.welcome_channel[0m
+[MONITOR] Cog loaded successfully
+[32mℹ️ 21:27:46 [INFO] main: ✅ Loaded cogs.control[0m
+[32mℹ️ 21:27:47 [INFO] gift_operationsapi: [GIFTCODES] ✅ MongoDB enabled - Using mongo adapters for all operations[0m
+[32mℹ️ 21:27:47 [INFO] main: ✅ Loaded cogs.gift_operations[0m
+[32mℹ️ 21:27:47 [INFO] manage_giftcode: Gift code database tables initialized[0m
+[32mℹ️ 21:27:47 [INFO] gift_solver: Looking for ONNX model at: /home/opc/app/bot/DISCORD BOT/models/captcha_model.onnx[0m
+[32mℹ️ 21:27:47 [INFO] gift_solver: Looking for metadata at: /home/opc/app/bot/DISCORD BOT/models/captcha_model_metadata.json[0m
+[32mℹ️ 21:27:47 [INFO] gift_solver: Loading ONNX model...[0m
+[32mℹ️ 21:27:48 [INFO] gift_solver: Loading model metadata...[0m
+[32mℹ️ 21:27:48 [INFO] gift_solver: Performing test inference...[0m
+[32mℹ️ 21:27:48 [INFO] gift_solver: ONNX model test successful. Model ready for captcha solving.[0m
+[32mℹ️ 21:27:48 [INFO] manage_giftcode: CAPTCHA solver initialized successfully[0m
+[32mℹ️ 21:27:48 [INFO] manage_giftcode: ManageGiftCode: Shared aiohttp session initialized.[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.manage_giftcode[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.id_channel[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.bot_operations[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.remote_access[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.fid_commands[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.record_commands[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.bear_trap[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.bear_trap_editor[0m
+[32mℹ️ 21:27:48 [INFO] main: ✅ Loaded cogs.attendance[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.minister_schedule[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.other_features[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.support_operations[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.minister_menu[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.playerinfo[0m
+[31m❌ 21:27:49 [ERROR] reminder_storage_mongo_COMPLETE: ❌ Failed to initialize MongoDB reminder storage: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:27:49 [ERROR] cogs.reminder_system: ❌ Failed to initialize MongoDB storage, falling back to SQLite
+Traceback (most recent call last):
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/srv_resolver.py", line 108, in _resolve_uri
+    results = _resolve(
+              ^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/srv_resolver.py", line 53, in _resolve
+    return resolver.resolve(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/dns/resolver.py", line 1572, in resolve
+    return get_default_resolver().resolve(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/dns/resolver.py", line 1314, in resolve
+    (request, answer) = resolution.next_request()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/dns/resolver.py", line 758, in next_request
+    raise NXDOMAIN(qnames=self.qnames_to_try, responses=self.nxdomain_responses)
+dns.resolver.NXDOMAIN: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/opc/app/bot/DISCORD BOT/cogs/reminder_system.py", line 1110, in __init__
+    self.storage = ReminderStorageMongo()
+                   ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/DISCORD BOT/reminder_storage_mongo_COMPLETE.py", line 20, in __init__
+    self.client = get_mongo_client_sync()
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/DISCORD BOT/db/mongo_client_wrapper.py", line 35, in get_mongo_client_sync
+    _sync_client = MongoClient(uri, **kwargs)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 891, in __init__
+    self._get_topology()  # type: ignore[unused-coroutine]
+    ^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 1758, in _get_topology
+    self._resolve_srv()
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/mongo_client.py", line 910, in _resolve_srv
+    res = uri_parser._parse_srv(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/uri_parser.py", line 168, in _parse_srv
+    nodes = dns_resolver.get_hosts()
+            ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/srv_resolver.py", line 148, in get_hosts
+    _, nodes = self._get_srv_response_and_hosts(True)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/srv_resolver.py", line 122, in _get_srv_response_and_hosts
+    results = self._resolve_uri(encapsulate_errors)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/pymongo/synchronous/srv_resolver.py", line 116, in _resolve_uri
+    raise ConfigurationError(str(exc)) from exc
+pymongo.errors.ConfigurationError: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[32mℹ️ 21:27:49 [INFO] cogs.reminder_system: ✅ Reminder database initialized successfully with recurring support[0m
+[32mℹ️ 21:27:49 [INFO] cogs.reminder_system: ✅ Using SQLite for reminders storage (fallback)[0m
+[32mℹ️ 21:27:49 [INFO] cogs.reminder_system: ✅ ReminderSystem cog loaded and task started[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.reminder_system[0m
+[32mℹ️ 21:27:49 [INFO] cogs.birthday_system: 📅 Loaded 2 birthdays from JSON[0m
+[32mℹ️ 21:27:49 [INFO] cogs.birthday_system: 📋 Loaded 8 sent wish records[0m
+[32mℹ️ 21:27:49 [INFO] cogs.birthday_system: 📺 No birthday channels file found, starting fresh[0m
+[32mℹ️ 21:27:49 [INFO] cogs.birthday_system: ✅ Birthday System initialized[0m
+[32mℹ️ 21:27:49 [INFO] cogs.birthday_system: ✅ Birthday System cog loaded[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.birthday_system[0m
+[32mℹ️ 21:27:49 [INFO] cogs.events: EventsCog initialized[0m
+[32mℹ️ 21:27:49 [INFO] cogs.events: EventsCog loaded successfully[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.events[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.server_age[0m
+[32mℹ️ 21:27:49 [INFO] cogs.personalise_chat: PersonaliseChatCog initialized[0m
+[32mℹ️ 21:27:49 [INFO] main: ✅ Loaded cogs.personalise_chat[0m
+[PlaylistStorage] 📦 Playlist storage module loaded
+[MusicStateStorage] 📦 Music state storage module loaded
+[33m⚠️ 21:27:49 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:27:49 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "0.4103722574789648" seconds.[0m
+[33m⚠️ 21:27:49 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:27:49 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "7.022937765906476" seconds.[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: 🚀 === STARTUP CODE PROCESSING ===[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: Checking for unprocessed gift codes in ALL databases...[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: 📊 Fetching from MongoDB...[0m
+[31m❌ 21:27:54 [ERROR] db.mongo_adapters: Failed to get all gift codes with status: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: ✅ MongoDB: Found 0 unprocessed codes[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: 📂 Fetching from SQLite...[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: ✅ SQLite: Found 0 unique unprocessed codes (not in Mongo)[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: ✅ No unprocessed codes found in any database.[0m
+[32mℹ️ 21:27:54 [INFO] manage_giftcode: 🏁 === STARTUP CODE PROCESSING COMPLETE ===[0m
+[33m⚠️ 21:27:56 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:27:56 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "14.045875531812952" seconds.[0m
+[33m⚠️ 21:28:10 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:28:10 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "28.091751063625903" seconds.[0m
+[33m⚠️ 21:28:38 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:28:38 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "30.0" seconds.[0m
+[32mℹ️ 21:28:49 [INFO] gift_operationsapi: Starting API synchronization[0m
+[31m❌ 21:28:49 [ERROR] db.mongo_adapters: Failed to get all gift codes from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[32mℹ️ 21:28:49 [INFO] gift_operationsapi: Received 7 codes from API[0m
+[31m❌ 21:28:49 [ERROR] db.mongo_adapters: Failed to insert gift code gogoWOS: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:28:49 [ERROR] db.mongo_adapters: Failed to insert gift code HowieLovesWOS: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:28:49 [ERROR] db.mongo_adapters: Failed to insert gift code RamadanJoy2026: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:28:49 [ERROR] db.mongo_adapters: Failed to insert gift code WOS3ANNIVERSARY: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:28:49 [ERROR] db.mongo_adapters: Failed to insert gift code WOSHappyBirthday: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:28:50 [ERROR] db.mongo_adapters: Failed to insert gift code OFFICIALSTORE0306: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:28:50 [ERROR] db.mongo_adapters: Failed to insert gift code Teamwork: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[32mℹ️ 21:28:50 [INFO] gift_operationsapi: Added 7 new codes from API - validating...[0m
+[32mℹ️ 21:28:50 [INFO] gift_operationsapi: API code 'gogoWOS' validated successfully[0m
+[33m⚠️ 21:28:50 [WARNING] gift_operationsapi: API code 'HowieLovesWOS' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[32mℹ️ 21:28:50 [INFO] gift_operationsapi: API code 'RamadanJoy2026' validated successfully[0m
+[33m⚠️ 21:28:50 [WARNING] gift_operationsapi: API code 'WOS3ANNIVERSARY' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[33m⚠️ 21:28:50 [WARNING] gift_operationsapi: API code 'WOSHappyBirthday' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[33m⚠️ 21:28:50 [WARNING] gift_operationsapi: API code 'OFFICIALSTORE0306' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[33m⚠️ 21:28:50 [WARNING] gift_operationsapi: API code 'Teamwork' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[32mℹ️ 21:28:50 [INFO] gift_operationsapi: API synchronization completed successfully[0m
+[33m⚠️ 21:29:08 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:29:08 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "0.8627342163461389" seconds.[0m
+[33m⚠️ 21:29:09 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:29:09 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "6.108331652827691" seconds.[0m
+[33m⚠️ 21:29:15 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:29:15 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "14.066039285088493" seconds.[0m
+[33m⚠️ 21:29:29 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:29:29 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "23.477695912457495" seconds.[0m
+[33m⚠️ 21:29:53 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:29:53 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "25.454680385910223" seconds.[0m
+[33m⚠️ 21:30:18 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:30:18 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "1.9896659386675737" seconds.[0m
+[33m⚠️ 21:30:20 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:30:20 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "5.24454836095592" seconds.[0m
+[33m⚠️ 21:30:26 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:30:26 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "10.48909672191184" seconds.[0m
+[33m⚠️ 21:30:36 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:30:36 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "21.334189627319393" seconds.[0m
+[33m⚠️ 21:30:58 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:30:58 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "30.0" seconds.[0m
+[33m⚠️ 21:31:28 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:31:28 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "0.36791858705624403" seconds.[0m
+[33m⚠️ 21:31:28 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:31:28 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "7.2918002205550705" seconds.[0m
+[33m⚠️ 21:31:35 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:31:35 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "14.583600441110141" seconds.[0m
+[33m⚠️ 21:31:50 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:31:50 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "29.167200882220282" seconds.[0m
+[33m⚠️ 21:32:19 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:32:19 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "30.0" seconds.[0m
+[33m⚠️ 21:32:49 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:32:49 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "1.7928248121157693" seconds.[0m
+[33m⚠️ 21:32:51 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:32:51 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "3.5856496242315385" seconds.[0m
+[33m⚠️ 21:32:54 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:32:54 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "10.298625628523768" seconds.[0m
+[33m⚠️ 21:33:05 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:33:05 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "12.160024940100229" seconds.[0m
+[33m⚠️ 21:33:17 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:33:17 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "18.971877055384173" seconds.[0m
+[33m⚠️ 21:33:36 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:33:36 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "1.8132731504628874" seconds.[0m
+[33m⚠️ 21:33:38 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:33:38 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "7.051964793494566" seconds.[0m
+[33m⚠️ 21:33:45 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:33:45 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "9.487208647269375" seconds.[0m
+[33m⚠️ 21:33:54 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:33:54 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "18.97441729453875" seconds.[0m
+[33m⚠️ 21:34:13 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:34:13 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "19.16947579330604" seconds.[0m
+[33m⚠️ 21:34:32 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:34:32 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "0.7217877341834706" seconds.[0m
+[33m⚠️ 21:34:33 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:34:33 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "6.7059319727322055" seconds.[0m
+[33m⚠️ 21:34:40 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:34:40 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "11.647342073362001" seconds.[0m
+[33m⚠️ 21:34:52 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:34:52 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "23.294684146724002" seconds.[0m
+[32mℹ️ 21:35:04 [INFO] gift_operationsapi: Starting API synchronization[0m
+[31m❌ 21:35:04 [ERROR] db.mongo_adapters: Failed to get all gift codes from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[32mℹ️ 21:35:05 [INFO] gift_operationsapi: Received 7 codes from API[0m
+[31m❌ 21:35:05 [ERROR] db.mongo_adapters: Failed to insert gift code gogoWOS: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:35:05 [ERROR] db.mongo_adapters: Failed to insert gift code HowieLovesWOS: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:35:05 [ERROR] db.mongo_adapters: Failed to insert gift code RamadanJoy2026: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:35:05 [ERROR] db.mongo_adapters: Failed to insert gift code WOS3ANNIVERSARY: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:35:05 [ERROR] db.mongo_adapters: Failed to insert gift code WOSHappyBirthday: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:35:05 [ERROR] db.mongo_adapters: Failed to insert gift code OFFICIALSTORE0306: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[31m❌ 21:35:05 [ERROR] db.mongo_adapters: Failed to insert gift code Teamwork: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.[0m
+[32mℹ️ 21:35:05 [INFO] gift_operationsapi: Added 7 new codes from API - validating...[0m
+[32mℹ️ 21:35:05 [INFO] gift_operationsapi: API code 'gogoWOS' validated successfully[0m
+[33m⚠️ 21:35:05 [WARNING] gift_operationsapi: API code 'HowieLovesWOS' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[32mℹ️ 21:35:05 [INFO] gift_operationsapi: API code 'RamadanJoy2026' validated successfully[0m
+[33m⚠️ 21:35:05 [WARNING] gift_operationsapi: API code 'WOS3ANNIVERSARY' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[33m⚠️ 21:35:05 [WARNING] gift_operationsapi: API code 'WOSHappyBirthday' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[33m⚠️ 21:35:05 [WARNING] gift_operationsapi: API code 'OFFICIALSTORE0306' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[33m⚠️ 21:35:05 [WARNING] gift_operationsapi: API code 'Teamwork' validation inconclusive: Validation inconclusive (SOLVER_ERROR)[0m
+[32mℹ️ 21:35:05 [INFO] gift_operationsapi: API synchronization completed successfully[0m
+[33m⚠️ 21:35:15 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:35:15 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "30.0" seconds.[0m
+[33m⚠️ 21:35:45 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:35:45 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "0.8521011155840079" seconds.[0m
+[33m⚠️ 21:35:46 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('127.0.0.1', 2333), [Errno 111] Connect call failed ('::1', 2333, 0, 0)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:35:46 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "5.6274767018364615" seconds.[0m
+[33m⚠️ 21:35:51 [WARNING] wavelink.websocket: An unexpected error occurred while connecting Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) to Lavalink: "Cannot connect to host localhost:2333 ssl:default [Multiple exceptions: [Errno 111] Connect call failed ('::1', 2333, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 2333)]"
+If this error persists or wavelink is unable to reconnect, please see: https://github.com/PythonistaGuild/Wavelink/issues[0m
+[32mℹ️ 21:35:51 [INFO] wavelink.websocket: Node(identifier=B6ah4eGWIWlYk1EE, uri=http://localhost:2333, status=NodeStatus.CONNECTING, players=0) retrying websocket connection in "14.071613069408757" seconds.[0m

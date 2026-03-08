@@ -780,7 +780,7 @@ class TimeParser:
         # 1. RECURRING PATTERNS - Check first
         
         # Daily patterns: "daily at 9am", "daily at 21:30"
-        daily_match = re.match(r'daily\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
+        daily_match = re.match(r'daily\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*((am|pm))?', time_str)
         if daily_match:
             hour = int(daily_match.group(1))
             minute = int(daily_match.group(2)) if daily_match.group(2) else 0
@@ -806,7 +806,7 @@ class TimeParser:
             return converted_time, recurring_info
 
         # Every N days: "every 2 days at 8pm", "alternate days at 10am" 
-        every_days_match = re.match(r'(?:every\s+(\d+)\s+days?|alternate\s+days?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
+        every_days_match = re.match(r'(?:every\s+(\d+)\s+days?|alternate\s+days?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*((am|pm))?', time_str)
         if every_days_match:
             interval = int(every_days_match.group(1)) if every_days_match.group(1) else 2  # "alternate days" = every 2 days
             hour = int(every_days_match.group(2))
@@ -832,7 +832,7 @@ class TimeParser:
             return converted_time, recurring_info
 
         # Weekly patterns: "weekly at 15:30", "every week at 9am"
-        weekly_match = re.match(r'(?:weekly|every\s+week)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
+        weekly_match = re.match(r'(?:weekly|every\s+week)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*((am|pm))?', time_str)
         if weekly_match:
             hour = int(weekly_match.group(1))
             minute = int(weekly_match.group(2)) if weekly_match.group(2) else 0
@@ -861,7 +861,7 @@ class TimeParser:
             return converted_time, recurring_info
 
         # 2. TODAY AT patterns: "today at 8:50 pm", "today at 20:50", "today at 8pm"
-        today_match = re.match(r'today\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
+        today_match = re.match(r'today\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*((am|pm))?', time_str)
         if today_match:
             hour = int(today_match.group(1))
             minute = int(today_match.group(2)) if today_match.group(2) else 0
@@ -923,7 +923,7 @@ class TimeParser:
         # 4. TOMORROW patterns: "tomorrow 3pm", "tomorrow at 15:30"
         if 'tomorrow' in time_str:
             tomorrow = now + timedelta(days=1)
-            time_match = re.search(r'(?:at\s+)?([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
+            time_match = re.search(r'(?:at\s+)?([0-9]{1,2}):?([0-9]{2})?\s*((am|pm))?', time_str)
             if time_match:
                 hour = int(time_match.group(1))
                 minute = int(time_match.group(2)) if time_match.group(2) else 0
@@ -945,7 +945,7 @@ class TimeParser:
 
         # 5. SPECIFIC DATE patterns: "on 25th November 2025 at 3pm", "on Nov 25 at 15:30"
         # Match patterns like: "on [date] at [time]"
-        on_date_match = re.match(r'on\s+(.+?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*(Union[am, pm])?', time_str)
+        on_date_match = re.match(r'on\s+(.+?)\s+at\s+([0-9]{1,2}):?([0-9]{2})?\s*((am|pm))?', time_str)
         if on_date_match:
             date_part = on_date_match.group(1).strip()
             hour = int(on_date_match.group(2))

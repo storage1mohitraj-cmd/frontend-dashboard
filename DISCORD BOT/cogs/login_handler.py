@@ -234,8 +234,8 @@ class LoginHandler:
                     'stove_lv_content': str,
                     'kid': str,
                     # ... other player data
-                } | None,
-                'api_used':Union[1, 2],
+                } = None,
+                'api_used':int,
                 'error_message': Optional[str ]
             }
         """

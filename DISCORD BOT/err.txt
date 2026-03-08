@@ -1,0 +1,100 @@
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/interactions.py", line 892, in defer
+    response = await adapter.create_interaction_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/webhook/async_.py", line 226, in request
+    raise HTTPException(response, data)
+discord.errors.HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/ui/view.py", line 598, in _scheduled_task
+    await item.callback(interaction)
+  File "/home/opc/app/bot/DISCORD BOT/cogs/bot_operations.py", line 6185, in next_page
+    await interaction.response.send_message("❌ Error loading next page", ephemeral=True)
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/interactions.py", line 1085, in send_message
+    data = await adapter.create_interaction_response(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/webhook/async_.py", line 226, in request
+    raise HTTPException(response, data)
+discord.errors.HTTPException: 400 Bad Request (error code: 40060): Interaction has already been acknowledged.
+[2026-03-07 20:22:16] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command None
+discord.ext.commands.errors.CommandNotFound: Command "trigger_ice_cleanup" is not found
+[2026-03-07 20:22:44] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command None
+discord.ext.commands.errors.CommandNotFound: Command "trigger_ice_cleanup" is not found
+[2026-03-07 20:24:19] [WARNING ] discord.gateway: Shard ID None has stopped responding to the gateway. Closing and restarting.
+[2026-03-07 20:24:22] [INFO    ] discord.gateway: Shard ID None has successfully RESUMED session c9fd09fc55eb748b4edfc9a15d0d976f.
+[2026-03-07 20:24:22] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command None
+discord.ext.commands.errors.CommandNotFound: Command "trigger_ice_cleanup" is not found
+[2026-03-07 20:25:55] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command None
+discord.ext.commands.errors.CommandNotFound: Command "trigger_ice_cleanup" is not found
+[2026-03-07 20:43:33] [WARNING ] discord.gateway: Shard ID None has stopped responding to the gateway. Closing and restarting.
+[2026-03-07 20:43:41] [INFO    ] discord.gateway: Shard ID None session has been invalidated.
+[2026-03-07 20:43:47] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: c98b23da0777b0afc0108b199bf0b43f).
+[2026-03-07 20:47:37] [WARNING ] discord.gateway: Shard ID None has stopped responding to the gateway. Closing and restarting.
+[2026-03-07 20:47:41] [INFO    ] discord.gateway: Shard ID None has successfully RESUMED session c98b23da0777b0afc0108b199bf0b43f.
+[2026-03-07 20:50:18] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command None
+discord.ext.commands.errors.CommandNotFound: Command "force_ice_clean" is not found
+[2026-03-07 20:50:43] [ERROR   ] discord.ext.commands.bot: Ignoring exception in command None
+discord.ext.commands.errors.CommandNotFound: Command "force_ice_clean" is not found
+[2026-03-07 20:58:22] [WARNING ] discord.gateway: Shard ID None has stopped responding to the gateway. Closing and restarting.
+[2026-03-07 20:58:27] [INFO    ] discord.gateway: Shard ID None session has been invalidated.
+[2026-03-07 20:58:34] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 91d0c1b4913973fb135235a235695811).
+[2026-03-07 21:06:27] [WARNING ] discord.gateway: Shard ID None has stopped responding to the gateway. Closing and restarting.
+[2026-03-07 21:06:33] [ERROR   ] discord.client: Attempting a reconnect in 0.93s
+Traceback (most recent call last):
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/client.py", line 731, in connect
+    await self.ws.poll_event()
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/gateway.py", line 644, in poll_event
+    await self.received_message(msg.data)
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/gateway.py", line 549, in received_message
+    await self.send_as_json(beat)
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/gateway.py", line 681, in send_as_json
+    await self.send(utils._to_json(data))
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/discord/gateway.py", line 677, in send
+    await self.socket.send_str(data)
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/aiohttp/client_ws.py", line 245, in send_str
+    await self._writer.send_frame(
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/aiohttp/_websocket/writer.py", line 83, in send_frame
+    self._write_websocket_frame(message, opcode, 0)
+  File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/aiohttp/_websocket/writer.py", line 151, in _write_websocket_frame
+    raise ClientConnectionResetError("Cannot write to closing transport")
+aiohttp.client_exceptions.ClientConnectionResetError: Cannot write to closing transport
+[2026-03-07 21:06:38] [INFO    ] discord.gateway: Shard ID None session has been invalidated.
+[2026-03-07 21:06:44] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: b6a06ef5440d6892add705415b2a62a0).
+[2026-03-07 21:13:09] [WARNING ] discord.gateway: Shard ID None has stopped responding to the gateway. Closing and restarting.
+[2026-03-07 21:13:15] [INFO    ] discord.gateway: Shard ID None session has been invalidated.
+[2026-03-07 21:13:22] [INFO    ] discord.gateway: Shard ID None has connected to Gateway (Session ID: 1c38e9c3bbe4f2f11fe273ad681cdbd2).
+Credentials file not found: /home/opc/app/bot/DISCORD BOT/creds.json
+No API keys loaded. API calls will return placeholders.
+Failed to get giftcode state from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to get all gift codes from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 1147956569271697518: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 1133463326182080634: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 123456789: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to set giftcode state in Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.0.1)/charset_normalizer (3.4.5) doesn't match a supported version!
+  warnings.warn(
+[2026-03-07 21:15:26] [INFO    ] discord.client: logging in using static token
+Credentials file not found: /home/opc/app/bot/DISCORD BOT/creds.json
+No API keys loaded. API calls will return placeholders.
+Failed to get giftcode state from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to get all gift codes from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 1147956569271697518: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 1133463326182080634: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 123456789: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to set giftcode state in Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.0.1)/charset_normalizer (3.4.5) doesn't match a supported version!
+  warnings.warn(
+[2026-03-07 21:23:21] [INFO    ] discord.client: logging in using static token
+Credentials file not found: /home/opc/app/bot/DISCORD BOT/creds.json
+No API keys loaded. API calls will return placeholders.
+Failed to get giftcode state from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to get all gift codes from Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 1147956569271697518: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 1133463326182080634: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to mark codes sent for guild 123456789: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+Failed to set giftcode state in Mongo: The DNS query name does not exist: _mongodb._tcp.reminderbot.r6hso.mongodb.net.
+/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/requests/__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.0.1)/charset_normalizer (3.4.5) doesn't match a supported version!
+  warnings.warn(
+[2026-03-07 21:27:44] [INFO    ] discord.client: logging in using static token

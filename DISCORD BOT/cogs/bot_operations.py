@@ -1,3 +1,4 @@
+from typing import Union
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -72,7 +73,7 @@ class BotOperations(commands.Cog):
 
     @commands.command(name="sync")
     async def sync_tree(self, ctx, scope: str = "global"):
-        """Syncs the command tree. usage: !sync [global|guild]"""
+        """Syncs the command tree. usage: !sync [Union[global, guild]]"""
         # Check if user is global admin
         self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (ctx.author.id,))
         result = self.settings_cursor.fetchone()

@@ -12,8 +12,9 @@ if proj_root not in sys.path:
     sys.path.insert(0, proj_root)
 
 # Try to import the real mongo adapters from the packaged `db` package.
-# If that fails (running from a different working dir), provide safe
-# fallbacks so the application continues to work using SQLite/local files.
+# If that fails (running from a different working dir), attempt to load
+# the migration copy of the adapters (used on the VM) before falling
+# back to the lightweight shim.
 try:
     from db.mongo_adapters import *  # type: ignore
     __all__ = [
@@ -22,8 +23,27 @@ try:
         'AutoRedeemSettingsAdapter', 'AutoRedeemChannelsAdapter', 'WelcomeChannelAdapter',
         'AutoRedeemMembersAdapter', 'GiftCodeRedemptionAdapter', 'AutoRedeemedCodesAdapter', '_get_db'
     ]
-except Exception as e:
-    logging.getLogger(__name__).warning('db.mongo_adapters import failed: %s; using local fallback shim', e)
+except Exception as primary_exc:
+    # fallback: try loading the migrated adapter file directly by path
+    try:
+        import importlib.machinery, importlib.util
+        migration_path = os.path.join(proj_root, 'PROJECT_MIGRATION', 'DISCORD BOT', 'db', 'mongo_adapters.py')
+        if os.path.isfile(migration_path):
+            loader = importlib.machinery.SourceFileLoader('migration_db.mongo_adapters', migration_path)
+            spec = importlib.util.spec_from_loader(loader.name, loader)
+            mod = importlib.util.module_from_spec(spec)
+            loader.exec_module(mod)
+            # copy symbols
+            for name in getattr(mod, '__all__', [k for k in dir(mod) if not k.startswith('_')]):
+                globals()[name] = getattr(mod, name)
+            __all__ = getattr(mod, '__all__', None) or __all__
+        else:
+            raise FileNotFoundError(migration_path)
+    except Exception as secondary_exc:
+        logging.getLogger(__name__).warning(
+            'db.mongo_adapters import failed (%s); migration copy failed (%s); using local fallback shim',
+            primary_exc, secondary_exc
+        )
 
     def mongo_enabled() -> bool:
         return False

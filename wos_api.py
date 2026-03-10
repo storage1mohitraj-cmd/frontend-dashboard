@@ -25,7 +25,7 @@ async def fetch_player_info(player_id: str) -> Optional[dict ]:
     
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Origin": "https://wos-giftcode-api.centurygame.com",
+        "Referer": "https://wos-giftcode-api.centurygame.com",
     }
 
     try:

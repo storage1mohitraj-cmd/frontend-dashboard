@@ -32,22 +32,6 @@ def is_event_related_query(question: str) -> bool:
         'event', 'guide', 'rewards', 'tips', 'strategy', 'how to',
         'what is', 'explain', 'help with', 'about the'
     ]
-    return any(keyword in question.lower() for keyword in event_keywords)
-
-def is_event_related_query(question: str) -> bool:
-    """
-    Determine if a question is related to events
-    
-    Args:
-        question: User's question
-        
-    Returns:
-        bool: True if the question is about events
-    """
-    event_keywords = [
-        'event', 'guide', 'rewards', 'tips', 'strategy', 'how to',
-        'what is', 'explain', 'help with', 'about the'
-    ]
     
     question = question.lower()
     return any(keyword in question for keyword in event_keywords)

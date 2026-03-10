@@ -1,0 +1,105 @@
+[TAILING] Tailing last 50 lines for [discordbot] process (change the value with --lines option)
+/home/opc/.pm2/logs/discordbot-out.log last 50 lines:
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [INFO] Loading event_tips.py version: 2025-07-30-b5c6d7e8-1234-5678-abcd-8901234abcde (Python)
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+1|discordb | [SETUP] Skipping dependency check (SKIP_INSTALL=true)
+1|discordb | [SETUP] Bot initialization complete
+
+/home/opc/.pm2/logs/discordbot-error.log last 50 lines:
+1|discordb |   File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/bs4/__init__.py", line 65, in <module>
+1|discordb |     from .builder import (
+1|discordb |   File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/bs4/builder/__init__.py", line 24, in <module>
+1|discordb |     from bs4.element import (
+1|discordb |   File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/bs4/element.py", line 15, in <module>
+1|discordb |     from bs4.formatter import (
+1|discordb |   File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/bs4/formatter.py", line 4, in <module>
+1|discordb |     from bs4.dammit import EntitySubstitution
+1|discordb |   File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/bs4/dammit.py", line 482, in <module>
+1|discordb |     EntitySubstitution._populate_class_variables()
+1|discordb |   File "/home/opc/app/bot/bot_venv/lib64/python3.11/site-packages/bs4/dammit.py", line 255, in _populate_class_variables
+1|discordb |     cls.CHARACTER_TO_HTML_ENTITY_RE = re.compile(re_definition)
+1|discordb |                                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+1|discordb |   File "/usr/lib64/python3.11/re/__init__.py", line 227, in compile
+1|discordb |     return _compile(pattern, flags)
+1|discordb |            ^^^^^^^^^^^^^^^^^^^^^^^^
+1|discordb |   File "/usr/lib64/python3.11/re/__init__.py", line 294, in _compile
+1|discordb |     p = _compiler.compile(pattern, flags)
+1|discordb |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1|discordb |   File "/usr/lib64/python3.11/re/_compiler.py", line 749, in compile
+1|discordb |     code = _code(p, flags)
+1|discordb |            ^^^^^^^^^^^^^^^
+1|discordb |   File "/usr/lib64/python3.11/re/_compiler.py", line 579, in _code
+1|discordb |     _compile_info(code, p, flags)
+1|discordb |   File "/usr/lib64/python3.11/re/_compiler.py", line 567, in _compile_info
+1|discordb |     _compile_charset(charset, flags, code)
+1|discordb |   File "/usr/lib64/python3.11/re/_compiler.py", line 216, in _compile_charset
+1|discordb |     def _compile_charset(charset, flags, code):
+1|discordb |     
+1|discordb | KeyboardInterrupt
+1|discordb | Traceback (most recent call last):
+1|discordb |   File "/home/opc/app/bot/app.py", line 159, in <module>
+1|discordb |     from cogs.reminder_system import ReminderSystem, set_user_timezone, get_user_timezone, TimeParser, REMINDER_IMAGES
+1|discordb | ModuleNotFoundError: No module named 'cogs.reminder_system'
+1|discordb | Traceback (most recent call last):
+1|discordb |   File "/home/opc/app/bot/app.py", line 159, in <module>
+1|discordb |     from cogs.reminder_system import ReminderSystem, set_user_timezone, get_user_timezone, TimeParser, REMINDER_IMAGES
+1|discordb | ModuleNotFoundError: No module named 'cogs.reminder_system'
+1|discordb | Traceback (most recent call last):
+1|discordb |   File "/home/opc/app/bot/app.py", line 159, in <module>
+1|discordb |     from cogs.reminder_system import ReminderSystem, set_user_timezone, get_user_timezone, TimeParser, REMINDER_IMAGES
+1|discordb | ModuleNotFoundError: No module named 'cogs.reminder_system'
+1|discordb | Traceback (most recent call last):
+1|discordb |   File "/home/opc/app/bot/app.py", line 159, in <module>
+1|discordb |     from cogs.reminder_system import ReminderSystem, set_user_timezone, get_user_timezone, TimeParser, REMINDER_IMAGES
+1|discordb | ModuleNotFoundError: No module named 'cogs.reminder_system'
+1|discordb | Traceback (most recent call last):
+1|discordb |   File "/home/opc/app/bot/app.py", line 159, in <module>
+1|discordb |     from cogs.reminder_system import ReminderSystem, set_user_timezone, get_user_timezone, TimeParser, REMINDER_IMAGES
+1|discordb | ModuleNotFoundError: No module named 'cogs.reminder_system'
+

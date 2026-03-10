@@ -10,63 +10,93 @@ from .mongo_client_wrapper import get_mongo_client_sync, get_mongo_client
 logger = logging.getLogger(__name__)
 
 
-def _get_db_main():
-    uri = os.getenv('MONGO_URI')
-    if not uri:
-        raise ValueError('MONGO_URI not set')
-    client = get_mongo_client_sync(uri)
-    db_name = os.getenv('MONGO_DB_NAME', 'reminderbot')
-    return client[db_name]
+def _get_robust_db(uri_env: str, fallback_env: str, db_name_env: str, default_db: str = 'reminderbot'):
+    """Helper to get DB with failover support"""
+    primary_uri = os.getenv(uri_env)
+    fallback_uri = os.getenv(fallback_env)
+    db_name = os.getenv(db_name_env, default_db)
+    
+    if not primary_uri and not fallback_uri:
+        raise ValueError(f"Neither {uri_env} nor {fallback_env} set")
 
+    # Try Primary
+    if primary_uri:
+        try:
+            client = get_mongo_client_sync(primary_uri, serverSelectionTimeoutMS=2000)
+            # Connectivity check
+            client.admin.command('ping')
+            return client[db_name]
+        except Exception as e:
+            if fallback_uri:
+                logger.warning(f"Primary MongoDB ({uri_env}) unreachable, switching to fallback: {e}")
+            else:
+                logger.error(f"Primary MongoDB ({uri_env}) unreachable and no fallback set: {e}")
+                raise
+
+    # Try Fallback
+    if fallback_uri:
+        try:
+            client = get_mongo_client_sync(fallback_uri, serverSelectionTimeoutMS=2000)
+            client.admin.command('ping')
+            return client[db_name]
+        except Exception as e:
+            logger.error(f"Fallback MongoDB ({fallback_env}) also unreachable: {e}")
+            # If both fail, and we have a primary, return primary to let error propagate normally
+            if primary_uri:
+                return get_mongo_client_sync(primary_uri)[db_name]
+            raise
+
+async def _get_robust_db_async(uri_env: str, fallback_env: str, db_name_env: str, default_db: str = 'reminderbot'):
+    """Helper to get DB with failover support asynchronously"""
+    primary_uri = os.getenv(uri_env)
+    fallback_uri = os.getenv(fallback_env)
+    db_name = os.getenv(db_name_env, default_db)
+    
+    if not primary_uri and not fallback_uri:
+        raise ValueError(f"Neither {uri_env} nor {fallback_env} set")
+
+    # Try Primary
+    if primary_uri:
+        try:
+            client = await get_mongo_client(primary_uri, serverSelectionTimeoutMS=2000)
+            await client.admin.command('ping')
+            return client[db_name]
+        except Exception as e:
+            if fallback_uri:
+                logger.warning(f"Primary MongoDB ({uri_env}) unreachable (async), switching to fallback: {e}")
+            else:
+                raise
+
+    # Try Fallback
+    if fallback_uri:
+        try:
+            client = await get_mongo_client(fallback_uri, serverSelectionTimeoutMS=2000)
+            await client.admin.command('ping')
+            return client[db_name]
+        except Exception as e:
+            logger.error(f"Fallback MongoDB ({fallback_env}) also unreachable (async): {e}")
+            if primary_uri:
+                client = await get_mongo_client(primary_uri)
+                return client[db_name]
+            raise
+
+def _get_db_main():
+    return _get_robust_db('MONGO_URI', 'MONGO_URI_FALLBACK', 'MONGO_DB_NAME')
 
 async def _get_db_main_async():
-    uri = os.getenv('MONGO_URI')
-    if not uri:
-        raise ValueError('MONGO_URI not set')
-    client = await get_mongo_client(uri)
-    db_name = os.getenv('MONGO_DB_NAME', 'reminderbot')
-    return client[db_name]
+    return await _get_robust_db_async('MONGO_URI', 'MONGO_URI_FALLBACK', 'MONGO_DB_NAME')
 
 def _get_db_wos():
-    uri = os.getenv('MONGO_URI_FALLBACK') or os.getenv('MONGO_URI')
-    if not uri:
-        raise ValueError('MONGO_URI not set')
-    client = get_mongo_client_sync(uri)
-    db_name = os.getenv('MONGO_DB_WOS', 'reminderbot')
-    return client[db_name]
-
-def _get_db_reminders():
-    uri = os.getenv('MONGO_URI')
-    if not uri:
-        raise ValueError('MONGO_URI not set')
-    client = get_mongo_client_sync(uri)
-    db_name = os.getenv('MONGO_DB_REMINDERS', 'reminderbot')
-    return client[db_name]
-
-
-async def _get_db_main_async():
-    uri = os.getenv('MONGO_URI')
-    if not uri:
-        raise ValueError('MONGO_URI not set')
-    client = await get_mongo_client(uri)
-    db_name = os.getenv('MONGO_DB_NAME', 'reminderbot')
-    return client[db_name]
+    return _get_robust_db('MONGO_URI', 'MONGO_URI_FALLBACK', 'MONGO_DB_WOS')
 
 async def _get_db_wos_async():
-    uri = os.getenv('MONGO_URI_FALLBACK') or os.getenv('MONGO_URI')
-    if not uri:
-        raise ValueError('MONGO_URI not set')
-    client = await get_mongo_client(uri)
-    db_name = os.getenv('MONGO_DB_WOS', 'reminderbot')
-    return client[db_name]
+    return await _get_robust_db_async('MONGO_URI', 'MONGO_URI_FALLBACK', 'MONGO_DB_WOS')
+
+def _get_db_reminders():
+    return _get_robust_db('MONGO_URI', 'MONGO_URI_FALLBACK', 'MONGO_DB_REMINDERS')
 
 async def _get_db_reminders_async():
-    uri = os.getenv('MONGO_URI')
-    if not uri:
-        raise ValueError('MONGO_URI not set')
-    client = await get_mongo_client(uri)
-    db_name = os.getenv('MONGO_DB_REMINDERS', 'reminderbot')
-    return client[db_name]
+    return await _get_robust_db_async('MONGO_URI', 'MONGO_URI_FALLBACK', 'MONGO_DB_REMINDERS')
 
 
 def mongo_enabled() -> bool:

@@ -811,6 +811,44 @@ class GiftCodesAdapter:
             logger.error(f'Failed to mark code (async) {code} as processed: {e}')
             return False
 
+    @staticmethod
+    def mark_code_invalid(code: str) -> bool:
+        """Mark a gift code as invalid/expired"""
+        try:
+            db = _get_db_wos()
+            db[GiftCodesAdapter.COLL].update_one(
+                {'_id': code},
+                {
+                    '$set': {
+                        'validation_status': 'invalid',
+                        'updated_at': datetime.utcnow().isoformat()
+                    }
+                }
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to mark code {code} as invalid: {e}')
+            return False
+
+    @staticmethod
+    async def mark_code_invalid_async(code: str) -> bool:
+        """Mark a gift code as invalid/expired asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            await db[GiftCodesAdapter.COLL].update_one(
+                {'_id': code},
+                {
+                    '$set': {
+                        'validation_status': 'invalid',
+                        'updated_at': datetime.utcnow().isoformat()
+                    }
+                }
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to mark code (async) {code} as invalid: {e}')
+            return False
+
 
 class SentGiftCodesAdapter:
     """Adapter for tracking gift codes sent to specific guilds in MongoDB"""

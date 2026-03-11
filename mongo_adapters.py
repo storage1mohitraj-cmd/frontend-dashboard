@@ -118,6 +118,22 @@ except Exception as primary_exc:
         def delete(code: str) -> bool:
             return False
 
+        @staticmethod
+        def mark_code_processed(code: str) -> bool:
+            return False
+
+        @staticmethod
+        async def mark_code_processed_async(code: str) -> bool:
+            return False
+
+        @staticmethod
+        def mark_code_invalid(code: str) -> bool:
+            return False
+
+        @staticmethod
+        async def mark_code_invalid_async(code: str) -> bool:
+            return False
+
     class AllianceMembersAdapter(_FallbackAdapter):
         @staticmethod
         def load_all():

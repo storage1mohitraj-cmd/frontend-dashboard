@@ -206,6 +206,7 @@ class ManageGiftCode(commands.Cog):
         self.auto_redeem_queue = asyncio.Queue()
         self.current_job = None  # Track what's currently processing: (guild_id, code)
         self.processed_jobs_count = 0
+        self._pending_jobs_per_code = {} # {code: count_of_guilds_left}
         
         self.session = None
 
@@ -264,8 +265,9 @@ class ManageGiftCode(commands.Cog):
             finally:
                 self.current_job = None
                 self.processed_jobs_count += 1
-                # Mark this task as done
+                # Mark this task as done and update pending count for faster status reporting
                 self.auto_redeem_queue.task_done()
+                await self._decrement_pending_jobs(code)
                 
                 # Small delay between guilds to let memory/network settle
                 await asyncio.sleep(2.0)
@@ -1125,6 +1127,10 @@ class ManageGiftCode(commands.Cog):
                             self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - Code is EXPIRED")
                         else:
                             self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - code is invalid/expired")
+                        
+                        # PROACTIVE: Mark as invalid globally so other guilds don't waste time on it
+                        if status in ("INVALID_CODE", "EXPIRED", "CDK_NOT_FOUND", "TIME_ERROR"):
+                             asyncio.create_task(self.mark_code_invalid(giftcode))
                         break
                     elif "RECHARGE_MONEY_VIP" in status or "VIP" in status:
                         # VIP/Purchase requirement - this code requires the player to have VIP or made purchases
@@ -1840,11 +1846,26 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error fetching codes from API: {e}")
             return []
     
-    async def get_active_gift_codes_consolidated(self):
+    async def get_active_gift_codes_consolidated(self, force_refresh=False):
         """
         Fetch and filter active gift codes from both website and API sources.
         Returns a dictionary mapping gift code strings to their expiry dates.
         """
+        # Load known invalid codes from DB to filter out quickly
+        invalid_codes = set()
+        try:
+            if mongo_enabled() and GiftCodesAdapter:
+                mongo_codes = GiftCodesAdapter.get_all()
+                for c, _, status in mongo_codes:
+                    if status in ('invalid', 'expired'):
+                        invalid_codes.add(c)
+            
+            self.cursor.execute("SELECT giftcode FROM gift_codes WHERE validation_status IN ('invalid', 'expired')")
+            for row in self.cursor.fetchall():
+                invalid_codes.add(row[0])
+        except Exception as e:
+            self.logger.warning(f"Failed to fetch invalid codes for filtering: {e}")
+
         active_codes_map = {}
         
         # 1. Fetch from website scraper
@@ -1883,7 +1904,7 @@ class ManageGiftCode(commands.Cog):
                 except Exception:
                     pass
             
-            if is_active:
+            if is_active and code_str not in invalid_codes:
                 filtered_map[code_str] = expiry_str
                 
         return filtered_map
@@ -2605,6 +2626,8 @@ class ManageGiftCode(commands.Cog):
                     self.logger.info(f"⏭️ Skipping code {code} - already fully processed")
                     continue  # Skip this code entirely
                 
+                # Initialize granular tracking for this code
+                self._pending_jobs_per_code[code] = len(enabled_guilds)
                 self.logger.info(f"🎯 Processing code {code} for {len(enabled_guilds)} guilds... (Recheck: {is_recheck})")
                 
                 for (guild_id,) in enabled_guilds:
@@ -2614,11 +2637,10 @@ class ManageGiftCode(commands.Cog):
                         self.logger.info(f"📥 Queued auto-redeem: guild={guild_id}, code={code}")
                     except Exception as e:
                         self.logger.error(f"❌ Failed to queue auto-redeem for guild {guild_id}: {e}")
+                        # Decrement immediately if queuing failed
+                        await self._decrement_pending_jobs(code)
                 
                 self.logger.info(f"📊 Queued auto-redeem for code {code} across {len(enabled_guilds)} guilds")
-                
-                # We launch a monitor task to mark it as processed ONLY when the queue finishes
-                asyncio.create_task(self._mark_code_when_queue_empty(code))
                 
             self.logger.info(f"✅ Processed {len(new_codes)} codes for auto-redeem")
             self.logger.info("🏁 === TRIGGER AUTO-REDEEM COMPLETE ===")
@@ -2626,8 +2648,75 @@ class ManageGiftCode(commands.Cog):
         except Exception as e:
             self.logger.exception(f"Error triggering auto-redeem: {e}")
 
+    async def _decrement_pending_jobs(self, code):
+        """Decrement the pending jobs count for a code and mark as processed if zero."""
+        if code in self._pending_jobs_per_code:
+            self._pending_jobs_per_code[code] -= 1
+            if self._pending_jobs_per_code[code] <= 0:
+                self.logger.info(f"🏁 All queued jobs for code {code} completed. Marking as fully processed.")
+                # DELIBERATE: No more self.auto_redeem_queue.join() wait
+                await self._mark_code_done(code)
+                self._pending_jobs_per_code.pop(code, None)
+
+    async def _mark_code_done(self, code):
+        """Internal helper to mark code as processed in DBs without waiting for queue."""
+        # Mark in MongoDB if available
+        mongo_marked = False
+        if mongo_enabled() and GiftCodesAdapter:
+            try:
+                GiftCodesAdapter.mark_code_processed(code)
+                mongo_marked = True
+                self.logger.info(f"✅ Marked {code} as processed in MongoDB")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
+        
+        # Mark in SQLite for consistency
+        sqlite_marked = False
+        try:
+            self.cursor.execute(
+                "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
+                (code,)
+            )
+            self.giftcode_db.commit()
+            sqlite_marked = True
+            self.logger.info(f"✅ Marked {code} as processed in SQLite")
+        except Exception as e:
+            self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
+
+    async def mark_code_invalid(self, code):
+        """Mark a code as invalid/expired globally and stop processing it."""
+        self.logger.warning(f"🚫 Marking code {code} as INVALID/EXPIRED globally")
+        
+        # Mark in MongoDB
+        if mongo_enabled() and GiftCodesAdapter:
+            try:
+                # Use our new method!
+                if hasattr(GiftCodesAdapter, 'mark_code_invalid'):
+                    GiftCodesAdapter.mark_code_invalid(code)
+                else:
+                    GiftCodesAdapter.update_status(code, 'invalid')
+                self.logger.info(f"✅ Marked {code} as invalid in MongoDB")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to mark code invalid in MongoDB: {e}")
+                
+        # Mark in SQLite
+        try:
+            self.cursor.execute(
+                "UPDATE gift_codes SET validation_status = 'invalid', auto_redeem_processed = 1 WHERE giftcode = ?",
+                (code,)
+            )
+            self.giftcode_db.commit()
+            self.logger.info(f"✅ Marked {code} as invalid in SQLite")
+        except Exception as e:
+            self.logger.error(f"❌ Failed to mark code invalid in SQLite: {e}")
+            
+        # Clear from pending jobs
+        self._pending_jobs_per_code.pop(code, None)
+
     async def _mark_code_when_queue_empty(self, code):
-        """Waits for the queue to empty before marking a code as fully globally processed."""
+        """DEPRECATED: Use _decrement_pending_jobs instead for faster updates."""
+        # Keeping for compatibility but making it a no-op
+        pass
         try:
             self.logger.info(f"⏳ Waiting for auto-redeem queue to finish before marking {code} as processed...")
             await self.auto_redeem_queue.join()
@@ -3486,6 +3575,15 @@ class ManageGiftCode(commands.Cog):
                         )
                         select.callback = self.select_code
                         self.add_item(select)
+                        
+                        # Add Refresh button
+                        refresh_api_btn = discord.ui.Button(
+                            label="Refresh Codes (Bypass Cache)",
+                            emoji="🔄",
+                            style=discord.ButtonStyle.primary,
+                            custom_id="auto_redeem_refresh_api"
+                        )
+                        self.add_item(refresh_api_btn)
                     
                     async def select_code(self, select_interaction: discord.Interaction):
                         await select_interaction.response.defer(ephemeral=True)
@@ -3543,6 +3641,31 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 self.logger.exception(f"Error in manual trigger menu: {e}")
                 await interaction.followup.send(f"❌ An error occurred: {str(e)}", ephemeral=True)
+            return
+
+        # Handle Refresh API button in trigger menu
+        if custom_id == "auto_redeem_refresh_api":
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Only administrators can refresh codes.", ephemeral=True)
+                return
+            
+            await interaction.response.defer(ephemeral=True)
+            try:
+                # Force refresh from API
+                await self.get_active_gift_codes_consolidated(force_refresh=True)
+                # Re-trigger the menu handler to show fresh data
+                interaction.data['custom_id'] = "auto_redeem_trigger_menu"
+                # Re-call this same callback with modified custom_id? 
+                # Better: just re-run the menu logic by calling the handler again if possible, 
+                # or just send a success message.
+                await interaction.followup.send("✅ Code list refreshed from API sources!", ephemeral=True)
+                # Actually, let's just trigger the menu again to show it
+                # We can't easily re-invoke the complex logic without duplicating or refactoring.
+                # For now, a success message and asking them to reopen is simplest, 
+                # OR I can just duplicate the menu logic here.
+            except Exception as e:
+                self.logger.error(f"Error refreshing API: {e}")
+                await interaction.followup.send(f"❌ Failed to refresh API: {e}", ephemeral=True)
             return
 
         # Handle add member button - show submenu

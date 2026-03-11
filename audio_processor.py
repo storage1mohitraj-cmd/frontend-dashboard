@@ -35,22 +35,32 @@ class AudioProcessor:
                        - small: ~950MB, better accuracy, ~90%
         """
         self.model_size = model_size
-        self.whisper_model = None
+        self._whisper_model = None
         self.temp_dir = Path(tempfile.gettempdir()) / "discord_voice_chat"
         self.temp_dir.mkdir(exist_ok=True)
         
-        print(f"🎙️ AudioProcessor initialized with Whisper model: {model_size}")
+        print(f"🎙️ AudioProcessor initialized (Whisper model: {model_size} - will load on first use)")
+    
+    @property
+    def whisper_model(self):
+        """Lazy loader for Whisper model"""
+        if self._whisper_model is None:
+            print(f"📥 Loading Whisper {self.model_size} model (Sync fallback if async not used)...")
+            self._whisper_model = whisper.load_model(self.model_size)
+        return self._whisper_model
+
+    @whisper_model.setter
+    def whisper_model(self, value):
+        self._whisper_model = value
     
     async def load_whisper_model(self):
         """Load Whisper model asynchronously (downloads on first use)"""
-        if self.whisper_model is None:
+        if self._whisper_model is None:
             print(f"📥 Loading Whisper {self.model_size} model (this may take a moment)...")
             # Run in executor to avoid blocking
             loop = asyncio.get_event_loop()
-            self.whisper_model = await loop.run_in_executor(
-                None, 
-                whisper.load_model, 
-                self.model_size
+            self._whisper_model = await loop.run_in_executor(
+                None, lambda: whisper.load_model(self.model_size)
             )
             print(f"✅ Whisper {self.model_size} model loaded successfully")
         return self.whisper_model

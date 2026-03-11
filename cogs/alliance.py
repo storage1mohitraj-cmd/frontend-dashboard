@@ -585,11 +585,18 @@ class Alliance(commands.Cog):
                 row=3
             ))
             view.add_item(discord.ui.Button(
+                label="System Status",
+                emoji="📊",
+                style=discord.ButtonStyle.secondary,
+                custom_id=f"system_status:{user_id}",
+                row=3
+            ))
+            view.add_item(discord.ui.Button(
                 label="Lock Bot",
                 emoji="🔒",
                 style=discord.ButtonStyle.danger,
                 custom_id=f"lock_bot:{user_id}",
-                row=3
+                row=4
             ))
 
             # Add logo to embed
@@ -1422,6 +1429,9 @@ class Alliance(commands.Cog):
                                 ephemeral=True
                             )
 
+                elif custom_id == "system_status":
+                    await self.handle_system_status(interaction)
+
                 elif custom_id == "other_features":
                     try:
                         other_features_cog = interaction.client.get_cog("OtherFeatures")
@@ -1460,6 +1470,94 @@ class Alliance(commands.Cog):
                         "An error occurred while processing your request. Please try again.",
                         ephemeral=True
                     )
+
+    async def handle_system_status(self, interaction: discord.Interaction):
+        """Displays the system status dashboard"""
+        try:
+            status = self._get_system_status()
+            
+            embed = discord.Embed(
+                title="📊 System Performance Dashboard",
+                description=(
+                    "**Technical Metrics & Bot Health**\n"
+                    "╔═══════════════════════════════════╗\n"
+                    "║  **🚀 Bot Status**                ║\n"
+                    "╚═══════════════════════════════════╝\n\n"
+                    f"⚡ **CPU Usage:** `{status['cpu']}%`\n"
+                    f"🧠 **RAM Usage:** `{status['ram_used']:.2f}GB / {status['ram_total']:.2f}GB` ({status['ram_percent']}%)\n"
+                    f"💾 **Disk Usage:** `{status['disk_used']:.2f}GB / {status['disk_total']:.2f}GB` ({status['disk_percent']}%)\n\n"
+                    "╔═══════════════════════════════════╗\n"
+                    "║  **⏱️ Performance**               ║\n"
+                    "╚═══════════════════════════════════╝\n\n"
+                    f"🕒 **Uptime:** `{status['uptime']}`\n"
+                    f"📡 **Latency:** `{round(self.bot.latency * 1000)}ms`\n"
+                    f"🖥️ **OS:** `{status['os']}`\n\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                ),
+                color=0x06B6D4,
+                timestamp=datetime.now()
+            )
+            
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(
+                label="Refresh", 
+                emoji="🔄",
+                style=discord.ButtonStyle.primary,
+                custom_id=f"system_status:{interaction.user.id}"
+            ))
+            view.add_item(discord.ui.Button(
+                label="Main Menu",
+                emoji="🏠",
+                style=discord.ButtonStyle.secondary,
+                custom_id=f"main_menu:{interaction.user.id}"
+            ))
+            
+            if interaction.response.is_done():
+                await interaction.edit_original_response(embed=embed, view=view)
+            else:
+                await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            print(f"Error showing system status: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message("❌ Error fetching system metrics.", ephemeral=True)
+            else:
+                await interaction.followup.send("❌ Error fetching system metrics.", ephemeral=True)
+
+    def _get_system_status(self):
+        """Helper to fetch system metrics using psutil"""
+        import psutil
+        import platform
+        
+        # CPU
+        cpu = psutil.cpu_percent(interval=None)
+        
+        # RAM
+        mem = psutil.virtual_memory()
+        ram_used = mem.used / (1024 ** 3)
+        ram_total = mem.total / (1024 ** 3)
+        ram_percent = mem.percent
+        
+        # Disk
+        disk = psutil.disk_usage('/')
+        disk_used = disk.used / (1024 ** 3)
+        disk_total = disk.total / (1024 ** 3)
+        disk_percent = disk.percent
+        
+        # Uptime
+        boot_time = datetime.fromtimestamp(psutil.boot_time())
+        uptime = datetime.now() - boot_time
+        
+        return {
+            "cpu": cpu,
+            "ram_used": ram_used,
+            "ram_total": ram_total,
+            "ram_percent": ram_percent,
+            "disk_used": disk_used,
+            "disk_total": disk_total,
+            "disk_percent": disk_percent,
+            "uptime": str(uptime).split('.')[0],
+            "os": platform.system()
+        }
 
     async def add_alliance(self, interaction: discord.Interaction):
         if interaction.guild is None:

@@ -29,15 +29,23 @@ class AdvancedOCR:
                 "paddleocr is not installed. "
                 "Install it with: pip install paddleocr"
             )
-        # Using 'ch' (Chinese) handles both English and Chinese characters perfectly
-        # It handles names like 'saleh' and Special Symbols/Characters well.
-        try:
-            # Note: Removed show_log and use_angle_cls here as they cause errors 
-            # in some PaddleOCR versions. Basic init is most stable.
-            self.ocr = PaddleOCR(lang='ch')
-        except Exception as e:
-            print(f"DEBUG: PaddleOCR Init Error: {e}")
-            self.ocr = PaddleOCR(lang='en')
+        self._ocr = None
+    
+    @property
+    def ocr(self):
+        """Lazy loader for PaddleOCR"""
+        if self._ocr is None:
+            # Using 'ch' (Chinese) handles both English and Chinese characters perfectly
+            # It handles names like 'saleh' and Special Symbols/Characters well.
+            try:
+                # Note: Removed show_log and use_angle_cls here as they cause errors 
+                # in some PaddleOCR versions. Basic init is most stable.
+                print("📥 Loading PaddleOCR models (Lazy Loading)...")
+                self._ocr = PaddleOCR(lang='ch')
+            except Exception as e:
+                print(f"DEBUG: PaddleOCR Init Error: {e}")
+                self._ocr = PaddleOCR(lang='en')
+        return self._ocr
     
     def detect_blue_cards(self, image: np.ndarray) -> List[Tuple[int, int, int, int]]:
         """
@@ -195,6 +203,7 @@ class AdvancedOCR:
             
         # Fallback: Check for "Online" text if color is ambiguous
         try:
+            # OCR the card - using self.ocr property for lazy loading
             res = self.ocr.ocr(status_img)
             def has_online(obj):
                 if isinstance(obj, str) and "online" in obj.lower(): return True

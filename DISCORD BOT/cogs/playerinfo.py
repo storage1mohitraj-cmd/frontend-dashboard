@@ -156,7 +156,7 @@ class PlayerInfoCog(commands.Cog):
             ssl_context.verify_mode = ssl.CERT_NONE
             headers = {
                 "Content-Type": "application/x-www-form-urlencoded",
-                "Origin": "https://wos-giftcode-api.centurygame.com",
+                "Referer": "https://wos-giftcode-api.centurygame.com",
             }
 
             async with self._sem:
@@ -369,7 +369,7 @@ class PlayerInfoCog(commands.Cog):
         ssl_context.verify_mode = ssl.CERT_NONE
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "https://wos-giftcode-api.centurygame.com",
+            "Referer": "https://wos-giftcode-api.centurygame.com",
         }
 
         # URL validator used by the embed builder
@@ -561,7 +561,7 @@ class PlayerInfoCog(commands.Cog):
         ssl_context.verify_mode = ssl.CERT_NONE
         headers = {
             "Content-Type": "application/x-www-form-urlencoded",
-            "Origin": "https://wos-giftcode-api.centurygame.com",
+            "Referer": "https://wos-giftcode-api.centurygame.com",
         }
 
         js = None

@@ -110,7 +110,7 @@ class LoginHandler:
                 form = f"sign={sign}&{form}"
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                    'Referer': 'https://wos-giftcode-api.centurygame.com'
                 }
                 
                 async with session.post(self.api1_url, headers=headers, data=form, timeout=5) as response:
@@ -129,7 +129,7 @@ class LoginHandler:
                 form = f"sign={sign}&{form}"
                 headers = {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'Origin': 'https://wos-giftcode-api.centurygame.com'
+                    'Referer': 'https://wos-giftcode-api.centurygame.com'
                 }
                 
                 async with session.post(self.api2_url, headers=headers, data=form, timeout=5) as response:
@@ -263,7 +263,7 @@ class LoginHandler:
         form = f"sign={sign}&{form}"
         headers = {
             'Content-Type': 'application/x-www-form-urlencoded',
-            'Origin': 'https://wos-giftcode-api.centurygame.com'
+            'Referer': 'https://wos-giftcode-api.centurygame.com'
         }
         
         try:
@@ -274,59 +274,69 @@ class LoginHandler:
             else:
                 connector = aiohttp.TCPConnector(ssl=self.ssl_context)
             
-            async with aiohttp.ClientSession(connector=connector) as session:
-                async with session.post(api_url, headers=headers, data=form) as response:
-                    # Record the API request
-                    self._record_api_request(api_num)
-                    
-                    if response.status == 200:
-                        data = await response.json()
+            timeout = aiohttp.ClientTimeout(total=20)
+            async with aiohttp.ClientSession(connector=connector, timeout=timeout) as session:
+                try:
+                    async with session.post(api_url, headers=headers, data=form) as response:
+                        # Record the API request
+                        self._record_api_request(api_num)
                         
-                        # Check if we have valid data
-                        if data.get('data'):
+                        if response.status == 200:
+                            data = await response.json()
+                            
+                            # Check if we have valid data
+                            if data.get('data'):
+                                return {
+                                    'status': 'success',
+                                    'data': data['data'],
+                                    'api_used': api_num,
+                                    'error_message': None
+                                }
+                            
+                            # Check if this is specifically error 40004 (role not exist)
+                            elif data.get('err_code') == 40004:
+                                return {
+                                    'status': 'not_found',
+                                    'data': None,
+                                    'api_used': api_num,
+                                    'error_message': 'Player does not exist (role not exist)',
+                                    'err_code': 40004
+                                }
+                            
+                            # Other cases where data is empty but not error 40004
+                            else:
+                                err_code = data.get('err_code', 'unknown')
+                                err_msg = data.get('msg', 'Unknown error')
+                                return {
+                                    'status': 'error',
+                                    'data': None,
+                                    'api_used': api_num,
+                                    'error_message': f'API Error {err_code}: {err_msg}',
+                                    'err_code': err_code
+                                }
+                        elif response.status == 429:
+                            # This shouldn't happen with our rate limiting, but handle it
                             return {
-                                'status': 'success',
-                                'data': data['data'],
-                                'api_used': api_num,
-                                'error_message': None
-                            }
-                        
-                        # Check if this is specifically error 40004 (role not exist)
-                        elif data.get('err_code') == 40004:
-                            return {
-                                'status': 'not_found',
+                                'status': 'rate_limited',
                                 'data': None,
                                 'api_used': api_num,
-                                'error_message': 'Player does not exist (role not exist)',
-                                'err_code': 40004
+                                'error_message': 'Unexpected rate limit'
                             }
-                        
-                        # Other cases where data is empty but not error 40004
                         else:
-                            err_code = data.get('err_code', 'unknown')
-                            err_msg = data.get('msg', 'Unknown error')
                             return {
                                 'status': 'error',
                                 'data': None,
                                 'api_used': api_num,
-                                'error_message': f'API Error {err_code}: {err_msg}',
-                                'err_code': err_code
+                                'error_message': f'HTTP {response.status}'
                             }
-                    elif response.status == 429:
-                        # This shouldn't happen with our rate limiting, but handle it
-                        return {
-                            'status': 'rate_limited',
-                            'data': None,
-                            'api_used': api_num,
-                            'error_message': 'Unexpected rate limit'
-                        }
-                    else:
-                        return {
-                            'status': 'error',
-                            'data': None,
-                            'api_used': api_num,
-                            'error_message': f'HTTP {response.status}'
-                        }
+                except asyncio.TimeoutError:
+                    self.log_message(f"Timeout fetching player data for FID {fid}")
+                    return {
+                        'status': 'error',
+                        'data': None,
+                        'api_used': api_num,
+                        'error_message': 'API Request Timed Out (20s)'
+                    }
                         
         except Exception as e:
             self.log_message(f"Error fetching player data for FID {fid}: {str(e)}")

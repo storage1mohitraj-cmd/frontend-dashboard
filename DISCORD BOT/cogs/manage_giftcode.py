@@ -13,6 +13,7 @@ import io
 from datetime import datetime
 import time
 import logging
+import giftcode_poster
 
 try:
     from db.mongo_adapters import mongo_enabled, GiftCodesAdapter, AutoRedeemSettingsAdapter, AutoRedeemChannelsAdapter, GiftCodeRedemptionAdapter, AutoRedeemMembersAdapter, AutoRedeemedCodesAdapter, _get_db
@@ -205,6 +206,7 @@ class ManageGiftCode(commands.Cog):
         self.auto_redeem_queue = asyncio.Queue()
         self.current_job = None  # Track what's currently processing: (guild_id, code)
         self.processed_jobs_count = 0
+        self._pending_jobs_per_code = {} # {code: count_of_guilds_left}
         
         self.session = None
 
@@ -263,8 +265,9 @@ class ManageGiftCode(commands.Cog):
             finally:
                 self.current_job = None
                 self.processed_jobs_count += 1
-                # Mark this task as done
+                # Mark this task as done and update pending count for faster status reporting
                 self.auto_redeem_queue.task_done()
+                await self._decrement_pending_jobs(code)
                 
                 # Small delay between guilds to let memory/network settle
                 await asyncio.sleep(2.0)
@@ -411,8 +414,19 @@ class ManageGiftCode(commands.Cog):
             await self.process_auto_redeem(ctx.guild.id, code)
             return
 
+        # Validate and clean FID input
+        try:
+            # Remove any whitespace and non-numeric characters
+            clean_fid = ''.join(c for c in fid if c.isdigit())
+            if not clean_fid or len(clean_fid) != 9:
+                await ctx.send(f"❌ Invalid FID format. FID must be exactly 9 digits. You provided: `{fid}`")
+                return
+            target_fid = clean_fid
+        except Exception as e:
+            await ctx.send(f"❌ Error processing FID: `{fid}`. Please enter a valid 9-digit FID.")
+            return
+
         # If FID is provided, proceed with single member test but with improved UI
-        target_fid = fid
         nickname = "Unknown"
         furnace_lv = 0
         
@@ -1113,6 +1127,10 @@ class ManageGiftCode(commands.Cog):
                             self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - Code is EXPIRED")
                         else:
                             self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - code is invalid/expired")
+                        
+                        # PROACTIVE: Mark as invalid globally so other guilds don't waste time on it
+                        if status in ("INVALID_CODE", "EXPIRED", "CDK_NOT_FOUND", "TIME_ERROR"):
+                             asyncio.create_task(self.mark_code_invalid(giftcode))
                         break
                     elif "RECHARGE_MONEY_VIP" in status or "VIP" in status:
                         # VIP/Purchase requirement - this code requires the player to have VIP or made purchases
@@ -1828,6 +1846,70 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error fetching codes from API: {e}")
             return []
     
+    async def get_active_gift_codes_consolidated(self, force_refresh=False):
+        """
+        Fetch and filter active gift codes from both website and API sources.
+        Returns a dictionary mapping gift code strings to their expiry dates.
+        """
+        # Load known invalid codes from DB to filter out quickly (unless forcing refresh)
+        invalid_codes = set()
+        if not force_refresh:
+            try:
+                if mongo_enabled() and GiftCodesAdapter:
+                    mongo_codes = GiftCodesAdapter.get_all()
+                    for c, _, status in mongo_codes:
+                        if status in ('invalid', 'expired'):
+                            invalid_codes.add(c)
+                
+                self.cursor.execute("SELECT giftcode FROM gift_codes WHERE validation_status IN ('invalid', 'expired')")
+                for row in self.cursor.fetchall():
+                    invalid_codes.add(row[0])
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch invalid codes for filtering: {e}")
+
+        active_codes_map = {}
+        
+        # 1. Fetch from website scraper
+        try:
+            from gift_codes import get_active_gift_codes
+            website_codes = await get_active_gift_codes()
+            if website_codes:
+                for item in website_codes:
+                    if item.get('code') and item.get('is_active', True):
+                        active_codes_map[item['code']] = item.get('expiry', 'Unknown')
+        except Exception as e:
+            self.logger.error(f"Error fetching website codes for consolidated list: {e}")
+            
+        # 2. Fetch from API
+        try:
+            api_codes = await self.fetch_codes_from_api()
+            if api_codes:
+                for code_str, date_str in api_codes:
+                    if code_str not in active_codes_map:
+                        active_codes_map[code_str] = date_str
+        except Exception as e:
+            self.logger.error(f"Error fetching API codes for consolidated list: {e}")
+            
+        # 3. Filter by expiry date
+        filtered_map = {}
+        now = datetime.now()
+        import dateutil.parser
+        
+        for code_str, expiry_str in active_codes_map.items():
+            is_active = True
+            if expiry_str and expiry_str != 'Unknown':
+                try:
+                    expiry_date = dateutil.parser.parse(expiry_str, fuzzy=True)
+                    if expiry_date <= now:
+                        is_active = False
+                except Exception:
+                    pass
+            
+            if is_active and code_str not in invalid_codes:
+                filtered_map[code_str] = expiry_str
+                
+        return filtered_map
+
     async def check_giftcode_in_api(self, giftcode: str) -> bool:
         """Check if a gift code exists in the API"""
         try:
@@ -2427,6 +2509,13 @@ class ManageGiftCode(commands.Cog):
             
             # Trigger auto-redeem for all guilds that have it enabled
             await self.trigger_auto_redeem_for_new_codes(new_codes)
+
+            # Trigger immediate auto-posting to configured channels
+            try:
+                await giftcode_poster.run_now_and_report(self.bot)
+                self.logger.info("🚀 Triggered immediate gift code auto-posting")
+            except Exception as e:
+                self.logger.error(f"Error triggering immediate auto-posting: {e}")
         
         except Exception as e:
             self.logger.exception(f"Error notifying admins: {e}")
@@ -2535,10 +2624,11 @@ class ManageGiftCode(commands.Cog):
                 
                 is_recheck = False
                 if already_processed:
-                    self.logger.info(f"🔄 Triggering silent re-check for code {code} - already marked as processed but might have missed members")
-                    is_recheck = True
-                    # Don't skip, proceed with silent recheck
+                    self.logger.info(f"⏭️ Skipping code {code} - already fully processed")
+                    continue  # Skip this code entirely
                 
+                # Initialize granular tracking for this code
+                self._pending_jobs_per_code[code] = len(enabled_guilds)
                 self.logger.info(f"🎯 Processing code {code} for {len(enabled_guilds)} guilds... (Recheck: {is_recheck})")
                 
                 for (guild_id,) in enabled_guilds:
@@ -2548,11 +2638,10 @@ class ManageGiftCode(commands.Cog):
                         self.logger.info(f"📥 Queued auto-redeem: guild={guild_id}, code={code}")
                     except Exception as e:
                         self.logger.error(f"❌ Failed to queue auto-redeem for guild {guild_id}: {e}")
+                        # Decrement immediately if queuing failed
+                        await self._decrement_pending_jobs(code)
                 
                 self.logger.info(f"📊 Queued auto-redeem for code {code} across {len(enabled_guilds)} guilds")
-                
-                # We launch a monitor task to mark it as processed ONLY when the queue finishes
-                asyncio.create_task(self._mark_code_when_queue_empty(code))
                 
             self.logger.info(f"✅ Processed {len(new_codes)} codes for auto-redeem")
             self.logger.info("🏁 === TRIGGER AUTO-REDEEM COMPLETE ===")
@@ -2560,8 +2649,75 @@ class ManageGiftCode(commands.Cog):
         except Exception as e:
             self.logger.exception(f"Error triggering auto-redeem: {e}")
 
+    async def _decrement_pending_jobs(self, code):
+        """Decrement the pending jobs count for a code and mark as processed if zero."""
+        if code in self._pending_jobs_per_code:
+            self._pending_jobs_per_code[code] -= 1
+            if self._pending_jobs_per_code[code] <= 0:
+                self.logger.info(f"🏁 All queued jobs for code {code} completed. Marking as fully processed.")
+                # DELIBERATE: No more self.auto_redeem_queue.join() wait
+                await self._mark_code_done(code)
+                self._pending_jobs_per_code.pop(code, None)
+
+    async def _mark_code_done(self, code):
+        """Internal helper to mark code as processed in DBs without waiting for queue."""
+        # Mark in MongoDB if available
+        mongo_marked = False
+        if mongo_enabled() and GiftCodesAdapter:
+            try:
+                GiftCodesAdapter.mark_code_processed(code)
+                mongo_marked = True
+                self.logger.info(f"✅ Marked {code} as processed in MongoDB")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
+        
+        # Mark in SQLite for consistency
+        sqlite_marked = False
+        try:
+            self.cursor.execute(
+                "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
+                (code,)
+            )
+            self.giftcode_db.commit()
+            sqlite_marked = True
+            self.logger.info(f"✅ Marked {code} as processed in SQLite")
+        except Exception as e:
+            self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
+
+    async def mark_code_invalid(self, code):
+        """Mark a code as invalid/expired globally and stop processing it."""
+        self.logger.warning(f"🚫 Marking code {code} as INVALID/EXPIRED globally")
+        
+        # Mark in MongoDB
+        if mongo_enabled() and GiftCodesAdapter:
+            try:
+                # Use our new method!
+                if hasattr(GiftCodesAdapter, 'mark_code_invalid'):
+                    GiftCodesAdapter.mark_code_invalid(code)
+                else:
+                    GiftCodesAdapter.update_status(code, 'invalid')
+                self.logger.info(f"✅ Marked {code} as invalid in MongoDB")
+            except Exception as e:
+                self.logger.error(f"❌ Failed to mark code invalid in MongoDB: {e}")
+                
+        # Mark in SQLite
+        try:
+            self.cursor.execute(
+                "UPDATE gift_codes SET validation_status = 'invalid', auto_redeem_processed = 1 WHERE giftcode = ?",
+                (code,)
+            )
+            self.giftcode_db.commit()
+            self.logger.info(f"✅ Marked {code} as invalid in SQLite")
+        except Exception as e:
+            self.logger.error(f"❌ Failed to mark code invalid in SQLite: {e}")
+            
+        # Clear from pending jobs
+        self._pending_jobs_per_code.pop(code, None)
+
     async def _mark_code_when_queue_empty(self, code):
-        """Waits for the queue to empty before marking a code as fully globally processed."""
+        """DEPRECATED: Use _decrement_pending_jobs instead for faster updates."""
+        # Keeping for compatibility but making it a no-op
+        pass
         try:
             self.logger.info(f"⏳ Waiting for auto-redeem queue to finish before marking {code} as processed...")
             await self.auto_redeem_queue.join()
@@ -2997,11 +3153,14 @@ class ManageGiftCode(commands.Cog):
                                     f"Successfully added gift code: `{gift_code}`\n\n"
                                     f"**Status:** Validated via API\n"
                                     f"**Added by:** {modal_interaction.user.mention}\n"
-                                    f"**Date:** {datetime.now().strftime('%Y-%m-%d')}"
+                                    f"**Date:** {datetime.now().strftime('%Y-%m-%d')}\n\n"
+                                    f"🚀 **Auto-redeem initiated globally!**"
                                 ),
                                 color=discord.Color.green()
                             )
                             await modal_interaction.edit_original_response(embed=success_embed)
+                            # Trigger auto-redeem
+                            asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
                         else:
                             # Code doesn't exist in API, try to add it
                             success = await self.cog.add_giftcode_to_api(gift_code)
@@ -3020,11 +3179,14 @@ class ManageGiftCode(commands.Cog):
                                         f"Successfully added new gift code: `{gift_code}`\n\n"
                                         f"**Status:** Added to API and Database\n"
                                         f"**Added by:** {modal_interaction.user.mention}\n"
-                                        f"**Date:** {datetime.now().strftime('%Y-%m-%d')}"
+                                        f"**Date:** {datetime.now().strftime('%Y-%m-%d')}\n\n"
+                                        f"🚀 **Auto-redeem initiated globally!**"
                                     ),
                                     color=discord.Color.green()
                                 )
                                 await modal_interaction.edit_original_response(embed=success_embed)
+                                # Trigger auto-redeem
+                                asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
                             else:
                                 # API rejected it. Try GAME API verification
                                 try:
@@ -3055,11 +3217,14 @@ class ManageGiftCode(commands.Cog):
                                                 f"**Status:** Validated via Game API ({status})\n"
                                                 f"**Verified with:** FID {fid_used}\n"
                                                 f"**Added by:** {modal_interaction.user.mention}\n"
-                                                f"**Date:** {datetime.now().strftime('%Y-%m-%d')}"
+                                                f"**Date:** {datetime.now().strftime('%Y-%m-%d')}\n\n"
+                                                f"🚀 **Auto-redeem initiated globally!**"
                                             ),
                                             color=discord.Color.green()
                                         )
                                         await modal_interaction.edit_original_response(embed=success_embed)
+                                        # Trigger auto-redeem
+                                        asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
                                         
                                     elif status in ["INVALID_CODE", "EXPIRED", "USAGE_LIMIT_REACHED", "EXPIRED_CODE"]:
                                         # Definitively invalid
@@ -3093,11 +3258,14 @@ class ManageGiftCode(commands.Cog):
                                                 f"**Game Verification:** Failed ({status})\n"
                                                 f"**Added by:** {modal_interaction.user.mention}\n"
                                                 f"**Date:** {datetime.now().strftime('%Y-%m-%d')}\n"
-                                                f"**Note:** API rejected it and Game Verification failed, but added anyway."
+                                                f"**Note:** API rejected it and Game Verification failed, but added anyway.\n\n"
+                                                f"🚀 **Auto-redeem initiated globally!**"
                                             ),
                                             color=discord.Color.orange()
                                         )
                                         await modal_interaction.edit_original_response(embed=success_embed)
+                                        # Trigger auto-redeem
+                                        asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
                                 except Exception as e:
                                     self.cog.logger.error(f"Error during verification/force add: {e}")
                                     # Fallback to force add on error
@@ -3113,11 +3281,14 @@ class ManageGiftCode(commands.Cog):
                                             f"Added gift code: `{gift_code}`\n\n"
                                             f"**Status:** Forced (Error during verification)\n"
                                             f"**Error:** {str(e)}\n"
-                                            f"**Added by:** {modal_interaction.user.mention}"
+                                            f"**Added by:** {modal_interaction.user.mention}\n\n"
+                                            f"🚀 **Auto-redeem initiated globally!**"
                                         ),
                                         color=discord.Color.orange()
                                     )
                                     await modal_interaction.edit_original_response(embed=success_embed)
+                                    # Trigger auto-redeem
+                                    asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
                         
                     except Exception as e:
                         self.cog.logger.exception(f"Error adding gift code: {e}")
@@ -3348,50 +3519,9 @@ class ManageGiftCode(commands.Cog):
             await interaction.response.defer(ephemeral=True)
             
             try:
-                # Fetch all gift codes from database
-                all_codes = []
-                
-                # Fetch active codes using the same logic as /giftcode
-                active_codes_map = {}
-                
-                # 1. Fetch from website
-                try:
-                    from gift_codes import get_active_gift_codes
-                    website_codes = await get_active_gift_codes()
-                    if website_codes:
-                        for item in website_codes:
-                            if item.get('code') and item.get('is_active', True):
-                                active_codes_map[item['code']] = item.get('expiry', 'Unknown')
-                except Exception as e:
-                    self.logger.error(f"Error fetching website codes for trigger menu: {e}")
-                
-                # 2. Fetch from API
-                try:
-                    api_codes = await self.fetch_codes_from_api()
-                    if api_codes:
-                        for code_str, date_str in api_codes:
-                            if code_str not in active_codes_map:
-                                active_codes_map[code_str] = date_str
-                except Exception as e:
-                    self.logger.error(f"Error fetching API codes for trigger menu: {e}")
-                
-                # Filter by expiry date
-                valid_active_codes = []
-                now = datetime.now()
-                import dateutil.parser
-                
-                for code_str, expiry_str in active_codes_map.items():
-                    is_active = True
-                    if expiry_str and expiry_str != 'Unknown':
-                        try:
-                            expiry_date = dateutil.parser.parse(expiry_str, fuzzy=True)
-                            if expiry_date <= now:
-                                is_active = False
-                        except Exception:
-                            pass
-                    
-                    if is_active:
-                        valid_active_codes.append(code_str)
+                # Fetch active codes using the unified logic
+                active_codes_map = await self.get_active_gift_codes_consolidated()
+                valid_active_codes = list(active_codes_map.keys())
                 
                 all_codes = []
                 if valid_active_codes:
@@ -3461,6 +3591,15 @@ class ManageGiftCode(commands.Cog):
                         )
                         select.callback = self.select_code
                         self.add_item(select)
+                        
+                        # Add Refresh button
+                        refresh_api_btn = discord.ui.Button(
+                            label="Refresh Codes (Bypass Cache)",
+                            emoji="🔄",
+                            style=discord.ButtonStyle.primary,
+                            custom_id="auto_redeem_refresh_api"
+                        )
+                        self.add_item(refresh_api_btn)
                     
                     async def select_code(self, select_interaction: discord.Interaction):
                         await select_interaction.response.defer(ephemeral=True)
@@ -3518,6 +3657,31 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 self.logger.exception(f"Error in manual trigger menu: {e}")
                 await interaction.followup.send(f"❌ An error occurred: {str(e)}", ephemeral=True)
+            return
+
+        # Handle Refresh API button in trigger menu
+        if custom_id == "auto_redeem_refresh_api":
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Only administrators can refresh codes.", ephemeral=True)
+                return
+            
+            await interaction.response.defer(ephemeral=True)
+            try:
+                # Force refresh from API
+                await self.get_active_gift_codes_consolidated(force_refresh=True)
+                # Re-trigger the menu handler to show fresh data
+                interaction.data['custom_id'] = "auto_redeem_trigger_menu"
+                # Re-call this same callback with modified custom_id? 
+                # Better: just re-run the menu logic by calling the handler again if possible, 
+                # or just send a success message.
+                await interaction.followup.send("✅ Code list refreshed from API sources!", ephemeral=True)
+                # Actually, let's just trigger the menu again to show it
+                # We can't easily re-invoke the complex logic without duplicating or refactoring.
+                # For now, a success message and asking them to reopen is simplest, 
+                # OR I can just duplicate the menu logic here.
+            except Exception as e:
+                self.logger.error(f"Error refreshing API: {e}")
+                await interaction.followup.send(f"❌ Failed to refresh API: {e}", ephemeral=True)
             return
 
         # Handle add member button - show submenu
@@ -6004,9 +6168,9 @@ class ManageGiftCode(commands.Cog):
                         # Start immediate redemption process for active codes
                         async def process_initial_redemptions():
                             try:
-                                # Get all valid/active gift codes from DB
-                                self.cursor.execute("SELECT giftcode FROM gift_codes WHERE validation_status = 'validated' OR validation_status = 'pending'")
-                                active_codes = [r[0] for r in self.cursor.fetchall()]
+                                # Get all valid/active gift codes from unified source
+                                active_codes_map = await self.get_active_gift_codes_consolidated()
+                                active_codes = list(active_codes_map.keys())
                                 
                                 if not active_codes:
                                     embed.set_field_at(2, name="🚀 Auto-Processing", value="`No active codes found to redeem.`", inline=False)

@@ -157,24 +157,13 @@ class AllianceMemberOperations(commands.Cog):
             if mongo_enabled() and AllianceMembersAdapter is not None:
                 docs = AllianceMembersAdapter.get_all_members() or []
                 count = sum(1 for d in docs if int(d.get('alliance') or d.get('alliance_id') or 0) == int(alliance_id))
-                # Only return MongoDB result if it found members
-                if count > 0:
-                    return count
+                return count
         except Exception:
             pass
-
-        # Fallback to SQLite (always try if MongoDB returned 0 or failed)
-        try:
-            with get_db_connection('users.sqlite') as users_db:
-                cursor = users_db.cursor()
-                cursor.execute("SELECT COUNT(*) FROM users WHERE alliance = ?", (alliance_id,))
-                return int(cursor.fetchone()[0])
-        except Exception:
-            return 0
+        return 0
 
     def _get_members_by_alliance(self, alliance_id: int) -> list:
         """Return list of tuples (fid, nickname, furnace_lv) for given alliance."""
-        members = []
         try:
             if mongo_enabled() and AllianceMembersAdapter is not None:
                 docs = AllianceMembersAdapter.get_all_members() or []
@@ -191,20 +180,10 @@ class AllianceMemberOperations(commands.Cog):
                         continue
                 # Order by furnace_lv desc, nickname
                 res.sort(key=lambda x: (-x[2], x[1] or ''))
-                # Only return MongoDB result if it found members
-                if res:
-                    return res
+                return res
         except Exception:
             pass
-
-        # SQLite fallback (always try if MongoDB returned empty or failed)
-        try:
-            with get_db_connection('users.sqlite') as users_db:
-                cursor = users_db.cursor()
-                cursor.execute("SELECT fid, nickname, furnace_lv FROM users WHERE alliance = ? ORDER BY furnace_lv DESC, nickname", (alliance_id,))
-                return cursor.fetchall()
-        except Exception:
-            return []
+        return []
 
     def _get_member_nickname(self, fid: str) -> Optional[str ]:
         try:
@@ -214,19 +193,11 @@ class AllianceMemberOperations(commands.Cog):
                     return doc.get('nickname') or doc.get('name')
         except Exception:
             pass
-
-        try:
-            with get_db_connection('users.sqlite') as users_db:
-                cursor = users_db.cursor()
-                cursor.execute("SELECT nickname FROM users WHERE fid = ?", (fid,))
-                r = cursor.fetchone()
-                return r[0] if r else None
-        except Exception:
-            return None
+        return None
 
     def _get_member_by_fid(self, fid: str) -> Optional[tuple ]:
         """Return (fid, nickname, furnace_lv, alliance_id) or None"""
-        # Try Mongo first
+        # Try Mongo
         try:
             if mongo_enabled() and AllianceMembersAdapter is not None:
                 doc = AllianceMembersAdapter.get_member(str(fid))
@@ -239,35 +210,15 @@ class AllianceMemberOperations(commands.Cog):
                     )
         except Exception:
             pass
-
-        # Try SQLite
-        try:
-            with get_db_connection('users.sqlite') as users_db:
-                cursor = users_db.cursor()
-                cursor.execute("SELECT fid, nickname, furnace_lv, alliance FROM users WHERE fid = ?", (fid,))
-                return cursor.fetchone()
-        except Exception:
-            return None
+        return None
 
     def _delete_member_by_fid(self, fid: str) -> bool:
-        mongo_success = False
         try:
             if mongo_enabled() and AllianceMembersAdapter is not None:
-                mongo_success = AllianceMembersAdapter.delete_member(str(fid))
+                return AllianceMembersAdapter.delete_member(str(fid))
         except Exception:
             pass
-
-        sqlite_success = False
-        try:
-            with get_db_connection('users.sqlite') as users_db:
-                cursor = users_db.cursor()
-                cursor.execute("DELETE FROM users WHERE fid = ?", (fid,))
-                users_db.commit()
-                sqlite_success = cursor.rowcount > 0
-        except Exception:
-            pass
-            
-        return mongo_success or sqlite_success
+        return False
 
     def _delete_members_by_alliance(self, alliance_id: int) -> list:
         """Delete all members for alliance_id. Return list of removed (fid, nickname)."""
@@ -288,18 +239,7 @@ class AllianceMemberOperations(commands.Cog):
                 return removed
         except Exception:
             pass
-
-        # SQLite fallback
-        try:
-            with get_db_connection('users.sqlite') as users_db:
-                cursor = users_db.cursor()
-                cursor.execute("SELECT fid, nickname FROM users WHERE alliance = ?", (alliance_id,))
-                removed = cursor.fetchall()
-                cursor.execute("DELETE FROM users WHERE alliance = ?", (alliance_id,))
-                users_db.commit()
-                return removed
-        except Exception:
-            return []
+        return []
 
     def _update_member_alliance(self, fid: str, new_alliance: int) -> bool:
         try:
@@ -310,15 +250,7 @@ class AllianceMemberOperations(commands.Cog):
                 return AllianceMembersAdapter.upsert_member(str(fid), doc)
         except Exception:
             pass
-
-        try:
-            with get_db_connection('users.sqlite') as users_db:
-                cursor = users_db.cursor()
-                cursor.execute("UPDATE users SET alliance = ? WHERE fid = ?", (new_alliance, fid))
-                users_db.commit()
-                return cursor.rowcount > 0
-        except Exception:
-            return False
+        return False
 
     async def handle_member_operations(self, interaction: discord.Interaction):
         embed = discord.Embed(

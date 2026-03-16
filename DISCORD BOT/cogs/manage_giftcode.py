@@ -699,60 +699,127 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 cog_instance.logger.error(f"Unexpected error getting auto-redeem members for guild {guild_id}: {e}", exc_info=True)
                 return []
+
+        @staticmethod
+        async def get_members_async(cog_instance, guild_id):
+            """Get all auto-redeem members for a guild (filters out invalid FIDs) asynchronously
+            Priority: MongoDB (if available and has data) > SQLite (fallback and sync source)
+            """
+            try:
+                guild_id = int(guild_id)  # Ensure guild_id is int
+                members = []
+                from_source = "none"
+                
+                # Step 1: Try MongoDB first (if enabled)
+                if mongo_enabled() and AutoRedeemMembersAdapter:
+                    try:
+                        members = await AutoRedeemMembersAdapter.get_members_async(guild_id)
+                        if members:
+                            from_source = "MongoDB"
+                            cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from MongoDB (async) for guild {guild_id}")
+                    except Exception as e:
+                        cog_instance.logger.warning(f"⚠️ MongoDB get_members_async failed for guild {guild_id}: {e}. Falling back to SQLite.")
+                        members = []
+                
+                # Step 2: Fallback to SQLite if MongoDB is empty or failed
+                if not members:
+                    try:
+                        def fetch_sqlite():
+                            cog_instance.cursor.execute("""
+                                SELECT fid, nickname, furnace_lv, avatar_image, added_by, added_at
+                                FROM auto_redeem_members
+                                WHERE guild_id = ?
+                                ORDER BY furnace_lv DESC
+                            """, (guild_id,))
+                            return cog_instance.cursor.fetchall()
+                        
+                        rows = await asyncio.to_thread(fetch_sqlite)
+                        members = [
+                            {
+                                'fid': row[0],
+                                'nickname': row[1],
+                                'furnace_lv': row[2] or 0,
+                                'avatar_image': row[3] or '',
+                                'added_by': row[4],
+                                'added_at': row[5]
+                            }
+                            for row in rows
+                        ]
+                        from_source = "SQLite"
+                        if rows:
+                            cog_instance.logger.info(f"✅ Fetched {len(members)} auto-redeem members from SQLite (async) for guild {guild_id}")
+                    except Exception as e:
+                        cog_instance.logger.error(f"❌ SQLite get_members_async failed for guild {guild_id}: {e}")
+                
+                # Step 3: Filter out members with null/empty/None FIDs
+                valid_members = [
+                    member for member in members
+                    if member.get('fid') and str(member.get('fid', '')).strip() and str(member.get('fid', '')).lower() != 'none'
+                ]
+                
+                return valid_members
+            except Exception as e:
+                cog_instance.logger.error(f"Unexpected error getting auto-redeem members for guild {guild_id} (async): {e}", exc_info=True)
+                return []
         
         @staticmethod
-        def cleanup_null_members(cog_instance, guild_id=None):
-            """Remove all members with null/empty FIDs from database"""
+        async def cleanup_null_members_async(cog_instance, guild_id=None):
+            """Remove all members with null/empty FIDs from database asynchronously"""
             try:
                 removed_count = 0
                 
-                # Remove from SQLite
-                if guild_id:
-                    cog_instance.cursor.execute("""
-                        DELETE FROM auto_redeem_members 
-                        WHERE guild_id = ? AND (fid IS NULL OR fid = '' OR fid = 'None')
-                    """, (guild_id,))
-                else:
-                    cog_instance.cursor.execute("""
-                        DELETE FROM auto_redeem_members 
-                        WHERE fid IS NULL OR fid = '' OR fid = 'None'
-                    """)
-                removed_count = cog_instance.cursor.rowcount
-                cog_instance.giftcode_db.commit()
+                # Remove from SQLite in thread
+                def delete_sqlite():
+                    if guild_id:
+                        cog_instance.cursor.execute("""
+                            DELETE FROM auto_redeem_members 
+                            WHERE guild_id = ? AND (fid IS NULL OR fid = '' OR fid = 'None')
+                        """, (guild_id,))
+                    else:
+                        cog_instance.cursor.execute("""
+                            DELETE FROM auto_redeem_members 
+                            WHERE fid IS NULL OR fid = '' OR fid = 'None'
+                        """)
+                    count = cog_instance.cursor.rowcount
+                    cog_instance.giftcode_db.commit()
+                    return count
                 
-                # Remove from MongoDB
+                removed_count = await asyncio.to_thread(delete_sqlite)
+                
+                # Remove from MongoDB (async)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
                         from db.mongo_adapters import _get_db
                         db = _get_db()
                         if db:
-                            if guild_id:
-                                result = db[AutoRedeemMembersAdapter.COLL].delete_many({
-                                    'guild_id': int(guild_id),
-                                    '$or': [
-                                        {'fid': None},
-                                        {'fid': ''},
-                                        {'fid': 'None'}
-                                    ]
-                                })
-                            else:
-                                result = db[AutoRedeemMembersAdapter.COLL].delete_many({
-                                    '$or': [
-                                        {'fid': None},
-                                        {'fid': ''},
-                                        {'fid': 'None'}
-                                    ]
-                                })
-                            removed_count += result.deleted_count
+                            # Use async delete if possible or thread it if using pymongo directly
+                            # Since AutoRedeemMembersAdapter might have its own async delete_many, check it.
+                            # For consistency with other methods, let's use the adapter if it has it.
+                            
+                            # If we use _get_db() directly, we should know if it's motor or pymongo.
+                            # Usually we thread pymongo calls.
+                            def delete_mongo():
+                                if guild_id:
+                                    result = db[AutoRedeemMembersAdapter.COLL].delete_many({
+                                        'guild_id': int(guild_id),
+                                        '$or': [{'fid': None}, {'fid': ''}, {'fid': 'None'}]
+                                    })
+                                else:
+                                    result = db[AutoRedeemMembersAdapter.COLL].delete_many({
+                                        '$or': [{'fid': None}, {'fid': ''}, {'fid': 'None'}]
+                                    })
+                                return result.deleted_count
+                            
+                            removed_count += await asyncio.to_thread(delete_mongo)
                     except Exception as e:
-                        cog_instance.logger.error(f"Error cleaning up null members from MongoDB: {e}")
+                        cog_instance.logger.error(f"Error cleaning up null members from MongoDB (async): {e}")
                 
                 if removed_count > 0:
-                    cog_instance.logger.info(f"🧹 Cleaned up {removed_count} members with null/empty FIDs")
+                    cog_instance.logger.info(f"🧹 Cleaned up {removed_count} members with null/empty FIDs (async)")
                 
                 return removed_count
             except Exception as e:
-                cog_instance.logger.error(f"Error cleaning up null members: {e}")
+                cog_instance.logger.error(f"Error cleaning up null members (async): {e}")
                 return 0
         
         @staticmethod
@@ -804,6 +871,59 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 cog_instance.logger.error(f"Unexpected error adding auto-redeem member {fid}: {e}", exc_info=True)
                 return False
+
+        @staticmethod
+        async def add_member_async(cog_instance, guild_id, fid, member_data):
+            """Add a member to auto-redeem list (writes to both MongoDB and SQLite for consistency) asynchronously"""
+            try:
+                # Validate FID
+                if not fid or not str(fid).strip() or str(fid).strip().lower() == 'none':
+                    cog_instance.logger.warning(f"Rejected adding member with invalid FID (async): {fid}")
+                    return False
+                
+                # Ensure fid is a clean string and guild_id is int
+                fid = str(fid).strip()
+                guild_id = int(guild_id)
+                
+                member_data['fid'] = fid
+                member_data['added_at'] = datetime.now()
+                
+                # Primary write: SQLite (run in thread to avoid blocking loop)
+                sqlite_success = False
+                try:
+                    def write_sqlite():
+                        cog_instance.cursor.execute("""
+                            INSERT OR REPLACE INTO auto_redeem_members 
+                            (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                        """, (guild_id, fid, member_data.get('nickname', 'Unknown'),
+                              int(member_data.get('furnace_lv', 0)), member_data.get('avatar_image', ''),
+                              int(member_data.get('added_by', 0)), member_data['added_at']))
+                        cog_instance.giftcode_db.commit()
+                        return cog_instance.cursor.rowcount > 0
+                    
+                    sqlite_success = await asyncio.to_thread(write_sqlite)
+                    if sqlite_success:
+                        cog_instance.logger.debug(f"✅ Added member {fid} to SQLite (async) for guild {guild_id}")
+                except Exception as sqlite_e:
+                    cog_instance.logger.error(f"Failed to add member {fid} to SQLite (async): {sqlite_e}")
+                    return False
+                
+                # Secondary write: MongoDB (if enabled)
+                if mongo_enabled() and AutoRedeemMembersAdapter:
+                    try:
+                        mongo_success = await AutoRedeemMembersAdapter.add_member_async(guild_id, fid, member_data)
+                        if mongo_success:
+                            cog_instance.logger.debug(f"✅ Added member {fid} to MongoDB (async) for guild {guild_id}")
+                        else:
+                            cog_instance.logger.warning(f"MongoDB add_member_async returned False for {fid}, but SQLite succeeded")
+                    except Exception as mongo_e:
+                        cog_instance.logger.warning(f"Failed to add member {fid} to MongoDB (async): {mongo_e}")
+                
+                return sqlite_success
+            except Exception as e:
+                cog_instance.logger.error(f"Unexpected error adding auto-redeem member {fid} (async): {e}", exc_info=True)
+                return False
         
         @staticmethod
         def remove_member(cog_instance, guild_id, fid):
@@ -830,22 +950,72 @@ class ManageGiftCode(commands.Cog):
                     "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
                     (guild_id, fid)
                 )
-                cog_instance.giftcode_db.commit()
                 return cog_instance.cursor.rowcount > 0
             except Exception as e:
-                cog_instance.logger.error(f"Error removing auto-redeem member: {e}")
+                cog_instance.logger.error(f"Error in remove_member: {e}")
                 return False
-        
+
         @staticmethod
-        def member_exists(cog_instance, guild_id, fid):
-            """Check if member exists in auto-redeem list"""
+        async def remove_member_async(cog_instance, guild_id, fid):
+            """Remove a member from auto-redeem list asynchronously"""
             try:
                 # Try MongoDB first
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        return AutoRedeemMembersAdapter.member_exists(guild_id, fid)
+                        success = await AutoRedeemMembersAdapter.remove_member_async(guild_id, fid)
+                        if success:
+                            # Also remove from SQLite in thread
+                            def delete_sqlite():
+                                cog_instance.cursor.execute(
+                                    "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
+                                    (guild_id, fid)
+                                )
+                                cog_instance.giftcode_db.commit()
+                                return True
+                            await asyncio.to_thread(delete_sqlite)
+                            return True
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB member_exists failed, using SQLite: {e}")
+                        cog_instance.logger.warning(f"MongoDB remove_member_async failed, falling back to SQLite: {e}")
+                
+                # Fallback to SQLite (in thread)
+                def delete_sqlite_only():
+                    cog_instance.cursor.execute(
+                        "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
+                        (guild_id, fid)
+                    )
+                    cog_instance.giftcode_db.commit()
+                    return cog_instance.cursor.rowcount > 0
+                
+                return await asyncio.to_thread(delete_sqlite_only)
+            except Exception as e:
+                cog_instance.logger.error(f"Error in remove_member_async: {e}")
+                return False
+                cog_instance.logger.error(f"Error removing auto-redeem member: {e}")
+                return False
+        
+        @staticmethod
+        async def member_exists_async(cog_instance, guild_id, fid):
+            """Check if member exists in auto-redeem list asynchronously"""
+            try:
+                # Try MongoDB first (async)
+                if mongo_enabled() and AutoRedeemMembersAdapter:
+                    try:
+                        return await AutoRedeemMembersAdapter.member_exists_async(guild_id, fid)
+                    except Exception as e:
+                        cog_instance.logger.warning(f"MongoDB member_exists_async failed, using SQLite: {e}")
+                
+                # Fallback to SQLite (async)
+                def check_sqlite():
+                    cog_instance.cursor.execute(
+                        "SELECT 1 FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
+                        (guild_id, fid)
+                    )
+                    return cog_instance.cursor.fetchone() is not None
+                
+                return await asyncio.to_thread(check_sqlite)
+            except Exception as e:
+                cog_instance.logger.error(f"Error in member_exists_async: {e}")
+                return False
                 
                 # Fallback to SQLite
                 cog_instance.cursor.execute(
@@ -1178,7 +1348,7 @@ class ManageGiftCode(commands.Cog):
                         else:
                             tracking_status = "failed"
                         
-                        GiftCodeRedemptionAdapter.track_redemption(
+                        await GiftCodeRedemptionAdapter.track_redemption_async(
                             guild_id=guild_id,
                             code=giftcode,
                             fid=str(fid),
@@ -1191,7 +1361,7 @@ class ManageGiftCode(commands.Cog):
                     if mongo_enabled() and AutoRedeemedCodesAdapter:
                         if redemption_successful or final_status == "ALREADY_RECEIVED":
                             # Mark this specific member as having redeemed this code
-                            AutoRedeemedCodesAdapter.mark_code_redeemed_for_member(
+                            await AutoRedeemedCodesAdapter.mark_code_redeemed_for_member_async(
                                 guild_id=guild_id,
                                 code=giftcode,
                                 fid=str(fid),
@@ -1251,7 +1421,7 @@ class ManageGiftCode(commands.Cog):
             enabled = False
             if mongo_enabled() and AutoRedeemSettingsAdapter:
                 try:
-                    settings = AutoRedeemSettingsAdapter.get_settings(guild_id)
+                    settings = await AutoRedeemSettingsAdapter.get_settings_async(guild_id)
                     if settings:
                         enabled = settings.get('enabled', False)
                 except Exception as e:
@@ -1274,7 +1444,7 @@ class ManageGiftCode(commands.Cog):
             channel_id = None
             if mongo_enabled() and AutoRedeemChannelsAdapter:
                 try:
-                    channel_config = AutoRedeemChannelsAdapter.get_channel(guild_id)
+                    channel_config = await AutoRedeemChannelsAdapter.get_channel_async(guild_id)
                     if channel_config:
                         channel_id = channel_config.get('channel_id')
                 except Exception as e:
@@ -1300,7 +1470,7 @@ class ManageGiftCode(commands.Cog):
                 return
             
             # Get all auto-redeem members using MongoDB-first helper
-            members_data = self.AutoRedeemDB.get_members(self, guild_id)
+            members_data = await self.AutoRedeemDB.get_members(self, guild_id)
             
             if not members_data:
                 self.logger.info(f"No auto-redeem members for guild {guild_id}")
@@ -1321,8 +1491,7 @@ class ManageGiftCode(commands.Cog):
                     all_fids = [member['fid'] for member in members_data]
                     
                     # Run batch check in thread pool to avoid blocking event loop
-                    redeemed_status = await asyncio.to_thread(
-                        AutoRedeemedCodesAdapter.batch_check_members,
+                    redeemed_status = await AutoRedeemedCodesAdapter.batch_check_members_async(
                         guild_id,
                         giftcode,
                         all_fids
@@ -2194,7 +2363,7 @@ class ManageGiftCode(commands.Cog):
                 self.logger.info("ℹ️ No enabled guilds in SQLite to sync")
                 # Also check MongoDB for existing settings
                 try:
-                    mongo_settings = AutoRedeemSettingsAdapter.get_all_settings()
+                    mongo_settings = await AutoRedeemSettingsAdapter.get_all_settings_async()
                     if mongo_settings:
                         enabled_count = sum(1 for s in mongo_settings if s.get('enabled', False))
                         self.logger.info(f"✅ MongoDB already has {enabled_count} enabled guilds (out of {len(mongo_settings)} total)")
@@ -4001,7 +4170,7 @@ class ManageGiftCode(commands.Cog):
                         
                         for fid in fids:
                             # Get member data
-                            members = self.cog.AutoRedeemDB.get_members(self.cog, modal_interaction.guild.id)
+                            members = await self.cog.AutoRedeemDB.get_members_async(self.cog, modal_interaction.guild.id)
                             member = next((m for m in members if m.get('fid') == fid), None)
                             
                             if not member:
@@ -4009,7 +4178,7 @@ class ManageGiftCode(commands.Cog):
                                 fail_count += 1
                                 continue
                                 
-                            success = self.cog.AutoRedeemDB.remove_member(
+                            success = await self.cog.AutoRedeemDB.remove_member_async(
                                 self.cog,
                                 modal_interaction.guild.id,
                                 fid
@@ -4055,7 +4224,7 @@ class ManageGiftCode(commands.Cog):
                 return
             
             # Get all auto-redeem members for this guild
-            members = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+            members = await self.AutoRedeemDB.get_members_async(self, interaction.guild.id)
             
             if not members:
                 await interaction.response.send_message(
@@ -4170,7 +4339,7 @@ class ManageGiftCode(commands.Cog):
             
             if use_mongo:
                 try:
-                    mongo_settings = AutoRedeemSettingsAdapter.get_settings(interaction.guild.id)
+                    mongo_settings = await AutoRedeemSettingsAdapter.get_settings_async(interaction.guild.id)
                     if mongo_settings:
                         enabled = 1 if mongo_settings.get('enabled', False) else 0
                     else:
@@ -4206,7 +4375,7 @@ class ManageGiftCode(commands.Cog):
                     enabled = settings[0]
             
             # Get member count
-            members = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+            members = await self.AutoRedeemDB.get_members_async(self, interaction.guild.id)
             member_count = len(members)
             
             # Get configured channel for FID monitoring - MongoDB first, SQLite fallback
@@ -4221,7 +4390,7 @@ class ManageGiftCode(commands.Cog):
             
             if use_mongo:
                 try:
-                    mongo_channel = AutoRedeemChannelsAdapter.get_channel(interaction.guild.id)
+                    mongo_channel = await AutoRedeemChannelsAdapter.get_channel_async(interaction.guild.id)
                     if mongo_channel:
                         channel_id = mongo_channel.get('channel_id')
                     else:
@@ -4345,7 +4514,6 @@ class ManageGiftCode(commands.Cog):
             await self._safe_edit_message(interaction, embed=embed, view=view)
             return
 
-
         # Handle bulk remove button
         if custom_id == "auto_redeem_bulk_remove":
             if not await self.check_admin_permission(interaction.user.id):
@@ -4359,7 +4527,7 @@ class ManageGiftCode(commands.Cog):
             
             try:
                 # Get all members
-                members = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+                members = await self.AutoRedeemDB.get_members_async(self, interaction.guild.id)
                 
                 if not members:
                     await interaction.followup.send(
@@ -4378,12 +4546,12 @@ class ManageGiftCode(commands.Cog):
                         self.selected_fids = set()
                         self.current_page = 0
                         self.members_per_page = 20
-                        self.update_components()
+                        # update_components() removed from init as it's now async
                     
                     def get_total_pages(self):
                         return (len(self.members) - 1) // self.members_per_page + 1
                     
-                    def update_components(self):
+                    async def update_components(self):
                         self.clear_items()
                         
                         # Get members for current page
@@ -4404,7 +4572,6 @@ class ManageGiftCode(commands.Cog):
                                 discord.SelectOption(
                                     label=f"{safe_nick} (FC {formatted_fc})",
                                     description=f"FID: {fid}",
-
                                     value=fid,
                                     emoji="✅" if fid in self.selected_fids else "🗑️",
                                     default=(fid in self.selected_fids)
@@ -4472,7 +4639,7 @@ class ManageGiftCode(commands.Cog):
                         # Remove deselected from current page
                         self.selected_fids = (self.selected_fids - page_fids) | selected_values
                         
-                        self.update_components()
+                        await self.update_components()
                         await select_interaction.response.edit_message(
                             content=f"**Selected {len(self.selected_fids)} member(s)** - Choose more or click 'Remove Selected'",
                             view=self
@@ -4481,13 +4648,13 @@ class ManageGiftCode(commands.Cog):
                     async def previous_page(self, btn_interaction: discord.Interaction):
                         if self.current_page > 0:
                             self.current_page -= 1
-                            self.update_components()
+                            await self.update_components()
                             await btn_interaction.response.edit_message(view=self)
                     
                     async def next_page(self, btn_interaction: discord.Interaction):
                         if self.current_page < self.get_total_pages() - 1:
                             self.current_page += 1
-                            self.update_components()
+                            await self.update_components()
                             await btn_interaction.response.edit_message(view=self)
                     
                     async def select_all_callback(self, btn_interaction: discord.Interaction):
@@ -4497,7 +4664,7 @@ class ManageGiftCode(commands.Cog):
                             if fid:
                                 self.selected_fids.add(fid)
                         
-                        self.update_components()
+                        await self.update_components()
                         await btn_interaction.response.edit_message(
                             content=f"**✅ Selected all {len(self.selected_fids)} member(s)** - Click 'Remove Selected' to remove them",
                             view=self
@@ -4506,7 +4673,7 @@ class ManageGiftCode(commands.Cog):
                     async def deselect_all_callback(self, btn_interaction: discord.Interaction):
                         """Deselect all members"""
                         self.selected_fids.clear()
-                        self.update_components()
+                        await self.update_components()
                         await btn_interaction.response.edit_message(
                             content=f"**Deselected all members** - Select members to remove from auto-redeem list",
                             view=self
@@ -4533,7 +4700,7 @@ class ManageGiftCode(commands.Cog):
                             member = next((m for m in self.members if m.get('fid') == fid), None)
                             nickname = member.get('nickname', 'Unknown') if member else "Unknown"
                             
-                            success = self.cog.AutoRedeemDB.remove_member(
+                            success = await self.cog.AutoRedeemDB.remove_member_async(
                                 self.cog,
                                 self.guild_id,
                                 fid
@@ -4563,6 +4730,7 @@ class ManageGiftCode(commands.Cog):
                         await remove_interaction.edit_original_response(embed=result_embed)
 
                 view = BulkRemoveSelectView(members, self, interaction.guild.id)
+                await view.update_components()
                 await interaction.followup.send(
                     f"**Select members to remove from auto-redeem list:**\n\nTotal members: {len(members)}",
                     view=view,
@@ -4587,7 +4755,7 @@ class ManageGiftCode(commands.Cog):
                 return
             
             # Get all members using MongoDB-first helper
-            members_data = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+            members_data = await self.AutoRedeemDB.get_members_async(self, interaction.guild.id)
             
             # Convert to tuple format for compatibility with existing view code
             members = [
@@ -4701,7 +4869,7 @@ class ManageGiftCode(commands.Cog):
                 from db.mongo_adapters import AllianceMembersAdapter, ServerAllianceAdapter
                 
                 # Get server's assigned alliance
-                alliance_id = ServerAllianceAdapter.get_alliance(interaction.guild.id)
+                alliance_id = await asyncio.to_thread(ServerAllianceAdapter.get_alliance, interaction.guild.id)
                 
                 if not alliance_id:
                     await interaction.followup.send(
@@ -4711,7 +4879,7 @@ class ManageGiftCode(commands.Cog):
                     return
                 
                 # Get all members and filter by assigned alliance
-                all_members = AllianceMembersAdapter.get_all_members()
+                all_members = await AllianceMembersAdapter.get_all_members_async()
                 members = [m for m in all_members if int(m.get('alliance', 0) or m.get('alliance_id', 0)) == alliance_id]
                 
                 if not members:
@@ -4731,7 +4899,7 @@ class ManageGiftCode(commands.Cog):
                         self.selected_fids = set()
                         self.current_page = 0
                         self.members_per_page = 20
-                        self.update_components()
+                        # update_components() removed as it is now async
                     
                     async def on_timeout(self):
                         """Handle view timeout"""
@@ -4745,7 +4913,7 @@ class ManageGiftCode(commands.Cog):
                     def get_total_pages(self):
                         return (len(self.members) - 1) // self.members_per_page + 1
                     
-                    def update_components(self):
+                    async def update_components(self):
                         self.clear_items()
                         
                         # Get members for current page
@@ -4756,7 +4924,7 @@ class ManageGiftCode(commands.Cog):
                         # BATCH CHECK: Get all FIDs and check existence in one query
                         from db.mongo_adapters import AutoRedeemMembersAdapter
                         all_fids = [m.get('fid') for m in self.members if m.get('fid')]
-                        existing_fids_map = AutoRedeemMembersAdapter.batch_member_exists(self.guild_id, all_fids)
+                        existing_fids_map = await AutoRedeemMembersAdapter.batch_member_exists_async(self.guild_id, all_fids)
                         
                         # Create select menu
                         options = []
@@ -4845,7 +5013,7 @@ class ManageGiftCode(commands.Cog):
                             # Remove deselected from current page
                             self.selected_fids = (self.selected_fids - page_fids) | selected_values
                             
-                            self.update_components()
+                            await self.update_components()
                             await select_interaction.response.edit_message(
                                 content=f"**Selected {len(self.selected_fids)} member(s)** - Choose more or click 'Add Selected'",
                                 view=self
@@ -4864,7 +5032,7 @@ class ManageGiftCode(commands.Cog):
                         try:
                             if self.current_page > 0:
                                 self.current_page -= 1
-                                self.update_components()
+                                await self.update_components()
                                 await btn_interaction.response.edit_message(
                                     content=f"**Selected {len(self.selected_fids)} member(s)** - Choose more or click 'Add Selected'",
                                     view=self
@@ -4876,7 +5044,7 @@ class ManageGiftCode(commands.Cog):
                         try:
                             if self.current_page < self.get_total_pages() - 1:
                                 self.current_page += 1
-                                self.update_components()
+                                await self.update_components()
                                 await btn_interaction.response.edit_message(
                                     content=f"**Selected {len(self.selected_fids)} member(s)** - Choose more or click 'Add Selected'",
                                     view=self
@@ -4893,7 +5061,7 @@ class ManageGiftCode(commands.Cog):
                                 if fid:  # Only add if FID is not None/empty
                                     self.selected_fids.add(fid)
                             
-                            self.update_components()
+                            await self.update_components()
                             await btn_interaction.response.edit_message(
                                 content=f"**✅ Selected all {len(self.selected_fids)} member(s)** - Click 'Add Selected' to import (existing members will be skipped)",
                                 view=self
@@ -4905,7 +5073,7 @@ class ManageGiftCode(commands.Cog):
                         """Deselect all members"""
                         try:
                             self.selected_fids.clear()
-                            self.update_components()
+                            await self.update_components()
                             await btn_interaction.response.edit_message(
                                 content=f"**Deselected all members** - Select members to add to auto-redeem list",
                                 view=self
@@ -4942,7 +5110,7 @@ class ManageGiftCode(commands.Cog):
                                         'added_by': add_interaction.user.id
                                     }
                                     
-                                    success = self.cog.AutoRedeemDB.add_member(
+                                    success = await self.cog.AutoRedeemDB.add_member_async(
                                         self.cog,
                                         self.guild_id,
                                         fid,
@@ -5047,6 +5215,7 @@ class ManageGiftCode(commands.Cog):
                 
                 # Show member selection
                 member_view = AllianceMemberSelectView(members, self, interaction.guild.id)
+                await member_view.update_components()
                 await interaction.followup.send(
                     f"**Select members to add to auto-redeem list:**\n\nTotal alliance members: {len(members)}",
                     view=member_view,

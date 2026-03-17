@@ -215,20 +215,22 @@ class ManageGiftCode(commands.Cog):
         self.session = aiohttp.ClientSession()
         self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
         
+        # Sync MongoDB members/settings to SQLite so they survive restarts
+        # Wait for this to finish BEFORE checking codes to prevent race condition
+        await self._sync_mongo_to_sqlite_on_startup()
+        
         # Start background workers
-        self._auto_redeem_worker.start()
+        self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
         self.api_check_task.start()
         
         # Trigger startup check for existing codes
         asyncio.create_task(self.process_existing_codes_on_startup())
-        
-        # Sync MongoDB members/settings to SQLite so they survive restarts
-        asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
 
     async def cog_unload(self):
         """Called when the cog is unloaded. Performs cleanup."""
         # Stop background workers
-        self._auto_redeem_worker.cancel()
+        if hasattr(self, 'worker_task') and self.worker_task:
+            self.worker_task.cancel()
         self.api_check_task.cancel()
         
         # Close sessions
@@ -246,41 +248,42 @@ class ManageGiftCode(commands.Cog):
         except Exception as e:
             self.logger.error(f"Error closing databases in cog_unload: {e}")
         
-    @tasks.loop(seconds=1)
-    async def _auto_redeem_worker(self):
+    async def _auto_redeem_worker_loop(self):
         """Background worker that processes auto-redeems sequentially to prevent global memory spikes."""
-        try:
-            # Wait for a job
-            job = await self.auto_redeem_queue.get()
-            guild_id, code, is_recheck = job
-            self.current_job = (guild_id, code)
-            
-            self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code}")
-            
-            try:
-                # Await the actual process (runs sequentially for this worker)
-                await self.process_auto_redeem(guild_id, code, silent_on_skip=is_recheck)
-            except Exception as e:
-                self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code}: {e}")
-            finally:
-                self.current_job = None
-                self.processed_jobs_count += 1
-                # Mark this task as done and update pending count for faster status reporting
-                self.auto_redeem_queue.task_done()
-                await self._decrement_pending_jobs(code)
-                
-                # Small delay between guilds to let memory/network settle
-                await asyncio.sleep(2.0)
-                
-        except Exception as e:
-            self.current_job = None
-            self.logger.error(f"❌ [WORKER] Critical error in queue loop: {e}")
-            await asyncio.sleep(5.0)
-
-    @_auto_redeem_worker.before_loop
-    async def before_auto_redeem_worker(self):
         await self.bot.wait_until_ready()
         self.logger.info("👷 Auto-redeem queue worker started")
+        
+        while True:
+            try:
+                # Wait for a job
+                job = await self.auto_redeem_queue.get()
+                guild_id, code, is_recheck = job
+                self.current_job = (guild_id, code)
+                
+                self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code}")
+                
+                try:
+                    # Await the actual process (runs sequentially for this worker)
+                    await self.process_auto_redeem(guild_id, code, silent_on_skip=is_recheck)
+                except Exception as e:
+                    self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code}: {e}")
+                finally:
+                    self.current_job = None
+                    self.processed_jobs_count += 1
+                    # Mark this task as done and update pending count for faster status reporting
+                    self.auto_redeem_queue.task_done()
+                    await self._decrement_pending_jobs(code)
+                    
+                    # Small delay between guilds to let memory/network settle
+                    await asyncio.sleep(2.0)
+                    
+            except asyncio.CancelledError:
+                self.logger.info("🛑 Auto-redeem worker stopped.")
+                break
+            except Exception as e:
+                self.current_job = None
+                self.logger.error(f"❌ [WORKER] Critical error in queue loop: {e}")
+                await asyncio.sleep(5.0)
 
     async def _safe_edit_message(self, interaction: discord.Interaction, **kwargs):
         """Safely edit an interaction message, falling back to followup if already acknowledged."""

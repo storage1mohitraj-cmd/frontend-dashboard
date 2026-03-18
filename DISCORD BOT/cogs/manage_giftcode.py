@@ -2236,9 +2236,9 @@ class ManageGiftCode(commands.Cog):
             
             self.logger.info(f"Successfully fetched {len(api_codes)} codes from API")
             
-            # Get existing codes from database
+            # Get existing codes from database and keep uppercase for case-insensitive matching
             self.cursor.execute("SELECT giftcode FROM gift_codes")
-            db_codes = {row[0] for row in self.cursor.fetchall()}
+            db_codes = {str(row[0]).upper() for row in self.cursor.fetchall()}
             
             # Also fetch from MongoDB if enabled
             if mongo_enabled() and GiftCodesAdapter:
@@ -2247,7 +2247,7 @@ class ManageGiftCode(commands.Cog):
                     mongo_codes = GiftCodesAdapter.get_all()
                     for c in mongo_codes:
                         if c and c[0]:
-                             db_codes.add(c[0])
+                             db_codes.add(str(c[0]).upper())
                 except Exception as e:
                     self.logger.error(f"Failed to fetch codes from Mongo: {e}")
 
@@ -2256,7 +2256,7 @@ class ManageGiftCode(commands.Cog):
             # Find new codes
             new_codes = []
             for code, date in api_codes:
-                if code not in db_codes:
+                if str(code).upper() not in db_codes:
                     new_codes.append((code, date))
             
             if not new_codes:

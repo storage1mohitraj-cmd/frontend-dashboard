@@ -604,6 +604,16 @@ class ManageGiftCode(commands.Cog):
                 )
             """)
             
+            # Auto redeem completed guilds table - track per-guild code processing to prevent restart loops
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS auto_redeem_completed_guilds (
+                    guild_id INTEGER,
+                    giftcode TEXT,
+                    completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (guild_id, giftcode)
+                )
+            """)
+            
             self.giftcode_db.commit()
             self.logger.info("Gift code database tables initialized")
         except Exception as e:
@@ -1669,6 +1679,17 @@ class ManageGiftCode(commands.Cog):
                 await animation_message.edit(embed=final_embed)
             
             self.logger.info(f"Auto-redeem completed for guild {guild_id}: {success_count} success, {already_redeemed_count} already redeemed, {failed_count} failed")
+            
+            # --- NEW: Save completion state per-guild to survive bot restarts ---
+            try:
+                self.cursor.execute(
+                    "INSERT OR IGNORE INTO auto_redeem_completed_guilds (guild_id, giftcode) VALUES (?, ?)",
+                    (guild_id, giftcode)
+                )
+                self.giftcode_db.commit()
+                self.logger.info(f"✅ Recorded completion for guild {guild_id} and code {giftcode} in SQLite")
+            except Exception as sql_e:
+                self.logger.error(f"Failed to record guild completion in SQLite: {sql_e}")
             
         except Exception as e:
             self.logger.exception(f"Error in process_auto_redeem: {e}")
@@ -2799,11 +2820,30 @@ class ManageGiftCode(commands.Cog):
                     self.logger.info(f"⏭️ Skipping code {code} - already fully processed")
                     continue  # Skip this code entirely
                 
-                # Initialize granular tracking for this code
-                self._pending_jobs_per_code[code] = len(enabled_guilds)
-                self.logger.info(f"🎯 Processing code {code} for {len(enabled_guilds)} guilds... (Recheck: {is_recheck})")
+                # --- NEW: Filter out guilds that have already completed this code ---
+                try:
+                    self.cursor.execute(
+                        "SELECT guild_id FROM auto_redeem_completed_guilds WHERE giftcode = ?",
+                        (code,)
+                    )
+                    completed_guilds = {row[0] for row in self.cursor.fetchall()}
+                except Exception as e:
+                    self.logger.error(f"Failed to fetch completed guilds for code {code}: {e}")
+                    completed_guilds = set()
                 
-                for (guild_id,) in enabled_guilds:
+                pending_guilds = [(g_id,) for (g_id,) in enabled_guilds if g_id not in completed_guilds]
+                
+                if not pending_guilds:
+                    self.logger.info(f"⏭️ Skipping code {code} - already processed by all {len(enabled_guilds)} enabled guilds!")
+                    # Just in case the global flag missed it
+                    await self._mark_code_done(code)
+                    continue
+                
+                # Initialize granular tracking for this code
+                self._pending_jobs_per_code[code] = len(pending_guilds)
+                self.logger.info(f"🎯 Processing code {code} for {len(pending_guilds)} guilds... (Skipped {len(completed_guilds)}) (Recheck: {is_recheck})")
+                
+                for (guild_id,) in pending_guilds:
                     try:
                         # Queue the auto-redeem to prevent memory/ratelimit spikes
                         self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
@@ -2813,7 +2853,7 @@ class ManageGiftCode(commands.Cog):
                         # Decrement immediately if queuing failed
                         await self._decrement_pending_jobs(code)
                 
-                self.logger.info(f"📊 Queued auto-redeem for code {code} across {len(enabled_guilds)} guilds")
+                self.logger.info(f"📊 Queued auto-redeem for code {code} across {len(pending_guilds)} guilds")
                 
             self.logger.info(f"✅ Processed {len(new_codes)} codes for auto-redeem")
             self.logger.info("🏁 === TRIGGER AUTO-REDEEM COMPLETE ===")

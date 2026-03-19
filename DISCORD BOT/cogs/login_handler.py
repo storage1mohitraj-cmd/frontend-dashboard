@@ -63,6 +63,17 @@ class LoginHandler:
             os.makedirs(self.log_directory)
         self.log_file = os.path.join(self.log_directory, 'login_handler.txt')
         
+        # Setup modern logging with rotation
+        import logging
+        from logging.handlers import RotatingFileHandler
+        self.logger = logging.getLogger("LoginHandler")
+        self.logger.setLevel(logging.INFO)
+        # Clear existing handlers to avoid duplicates on reload
+        self.logger.handlers = []
+        handler = RotatingFileHandler(self.log_file, maxBytes=2*1024*1024, backupCount=2, encoding='utf-8')
+        handler.setFormatter(logging.Formatter('[%(asctime)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S'))
+        self.logger.addHandler(handler)
+        
         # Mark as initialized
         self._initialized = True
     
@@ -74,12 +85,13 @@ class LoginHandler:
         return ssl_context
     
     def log_message(self, message: str):
-        """Log a message with timestamp"""
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        log_entry = f"[{timestamp}] {message}\n"
-        
-        with open(self.log_file, 'a', encoding='utf-8') as f:
-            f.write(log_entry)
+        """Log a message with timestamp using the rotating logger"""
+        if hasattr(self, 'logger'):
+            self.logger.info(message)
+        else:
+            # Fallback if logger not initialized
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            print(f"[{timestamp}] {message}")
     
     def get_alliance_lock(self, alliance_id: str) -> asyncio.Lock:
         """Get or create alliance-specific lock"""

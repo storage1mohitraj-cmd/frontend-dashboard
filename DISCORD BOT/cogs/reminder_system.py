@@ -1100,8 +1100,13 @@ class ReminderSystem(commands.Cog):
     
     def __init__(self, bot):
         self.bot = bot
-        # Track when the cog was initialized to prevent sending old reminders on restart
-        self.startup_time = get_accurate_utc_time()
+        # Track when the cog was initialized to prevent sending old reminders on restart.
+        # Store as naive UTC datetime for consistent comparison with reminder_time values.
+        self.startup_time = get_accurate_utc_time()  # Always naive UTC
+        # Maximum age of a reminder we will still send (minutes).
+        # If a reminder is older than this (e.g. bot had a network hiccup and check_reminders
+        # failed for a while), we silently skip it instead of blasting all missed reminders at once.
+        self.max_staleness_minutes = 5
         # Prefer MongoDB-backed storage if MONGO_URI is provided; otherwise fall back to SQLite
         try:
             if os.getenv('MONGO_URI'):
@@ -1134,19 +1139,45 @@ class ReminderSystem(commands.Cog):
             # Get all due reminders
             due_reminders = self.storage.get_due_reminders()
             
+            now = get_accurate_utc_time()  # naive UTC
+            # Earliest time we will still send a reminder (older ones are considered stale).
+            # This prevents a flood of old reminders after a network hiccup or connectivity drop
+            # where check_reminders failed silently for a while.
+            stale_cutoff = now - timedelta(minutes=self.max_staleness_minutes)
+
+            def _to_naive_utc(dt: datetime) -> datetime:
+                """Normalize a datetime to naive UTC for safe comparison."""
+                if dt is None:
+                    return dt
+                if dt.tzinfo is not None:
+                    # Convert timezone-aware datetime to naive UTC
+                    import pytz as _pytz
+                    return dt.astimezone(_pytz.UTC).replace(tzinfo=None)
+                return dt
+
+            # Normalize startup_time once (it should already be naive UTC)
+            startup_naive = _to_naive_utc(self.startup_time)
+
             # Split reminders into those to send and those to skip (silently process)
             to_send = []
             to_skip = []
             
             for r in due_reminders:
-                if r['reminder_time'] >= self.startup_time:
-                    to_send.append(r)
-                else:
+                rt = _to_naive_utc(r.get('reminder_time'))
+                if rt is None:
+                    continue
+                if rt < startup_naive:
+                    # Due before this bot instance started — always skip
                     to_skip.append(r)
+                elif rt < stale_cutoff:
+                    # Due after startup but too old (bot had a hiccup) — skip silently
+                    to_skip.append(r)
+                else:
+                    to_send.append(r)
             
             # 1. Silently process missed reminders to avoid stalling recurring ones
             if to_skip:
-                logger.info(f"🚫 Silently processing {len(to_skip)} missed reminder(s) from before startup")
+                logger.info(f"🚫 Silently processing {len(to_skip)} missed/stale reminder(s)")
                 for reminder in to_skip:
                     try:
                         # Mark as sent so it doesn't show up in due_reminders again

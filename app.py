@@ -894,7 +894,7 @@ async def setup_hook():
         "cogs.message_extractor",  # Message extraction for global admins
         "cogs.tictactoe",  # Tic-Tac-Toe game
         "cogs.alliance_monitor",  # Alliance online status monitoring
-        "cogs.start_menu",  # Main menu command (/start)
+        # NOTE: cogs.start_menu removed from here — it was duplicated (also at top of list)
         "cogs.debug_mongo_cog",  # Temporary debug cog for MongoDB
     ]
     
@@ -906,9 +906,15 @@ async def setup_hook():
             await bot.load_extension(cog_name)
             logger.info(f"✅ Loaded {cog_name}")
             loaded_count += 1
+        except commands.ExtensionAlreadyLoaded:
+            # Already loaded (e.g. PM2 overlap restart or duplicate list entry)
+            # Silently skip — the cog is already running
+            logger.debug(f"⏭️  Skipped {cog_name} (already loaded)")
+            loaded_count += 1  # Count it as successfully loaded
         except Exception as e:
             logger.error(f"❌ Failed to load {cog_name}: {e}", exc_info=True)
             failed_count += 1
+
     
     logger.info(f"📦 Cog loading complete: {loaded_count} loaded, {failed_count} failed")
     

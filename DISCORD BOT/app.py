@@ -920,6 +920,11 @@ async def setup_hook():
             await bot.load_extension(cog_name)
             logger.info(f"✅ Loaded {cog_name}")
             loaded_count += 1
+        except commands.ExtensionAlreadyLoaded:
+            # Already loaded by a previous setup_hook call (e.g. PM2 overlap restart)
+            # Silently skip — the cog is already running, no action needed
+            logger.debug(f"⏭️  Skipped {cog_name} (already loaded)")
+            loaded_count += 1  # Count it as successfully loaded
         except Exception as e:
             logger.error(f"❌ Failed to load {cog_name}: {e}", exc_info=True)
             failed_count += 1
@@ -1335,11 +1340,11 @@ async def on_message(message: discord.Message):
             if message.content.strip() == '!trigger_ice_cleanup' and message.author.guild_permissions.administrator:
                 await message.channel.send("Processing ICE alliance cleanup directly from core handler... Please wait.")
                 try:
-                    from db.mongo_adapters import _get_db, AutoRedeemMembersAdapter
+                    from db.mongo_adapters import _get_db_main_async, AutoRedeemMembersAdapter
                     from datetime import datetime
                     
-                    db_main = _get_db()
-                    alliance = db_main['alliance__alliance_list'].find_one({'name': 'ICE'})
+                    db_main = await _get_db_main_async()
+                    alliance = await db_main['alliance__alliance_list'].find_one({'name': 'ICE'})
                     if not alliance:
                         await message.channel.send('ERROR: ICE alliance not found')
                         return
@@ -1354,9 +1359,10 @@ async def on_message(message: discord.Message):
                     docs_to_delete = []
                     total_found = 0
                     
-                    for db in AutoRedeemMembersAdapter._get_target_dbs():
+                    for db in await AutoRedeemMembersAdapter._get_target_dbs_async():
                         coll = db['auto_redeem_members']
-                        docs = list(coll.find({'guild_id': {'$in': search_gid}}))
+                        cursor = coll.find({'guild_id': {'$in': search_gid}})
+                        docs = await cursor.to_list(length=None)
                         total_found += len(docs)
                         
                         for doc in docs:
@@ -1390,9 +1396,9 @@ async def on_message(message: discord.Message):
                     if docs_to_delete:
                         deleted = 0
                         for db_name, doc_id in docs_to_delete:
-                            for d in AutoRedeemMembersAdapter._get_target_dbs():
+                            for d in await AutoRedeemMembersAdapter._get_target_dbs_async():
                                 if d.name == db_name:
-                                    res = d['auto_redeem_members'].delete_one({'_id': doc_id})
+                                    res = await d['auto_redeem_members'].delete_one({'_id': doc_id})
                                     deleted += res.deleted_count
                                     break
                         msg += f'Deleted {deleted} duplicate/legacy docs.\n'
@@ -1401,12 +1407,12 @@ async def on_message(message: discord.Message):
                         upserted = 0
                         for fid, data in unique_members_data.items():
                             data.pop('_id', None)
-                            res = main_coll.update_one(
+                            res = await main_coll.update_one(
                                 {'guild_id': int(guild_id), 'fid': str(fid)},
                                 {'$set': data},
                                 upsert=True
                             )
-                            if res.upserted_id or res.modified_count > 0:
+                            if getattr(res, 'upserted_id', None) or getattr(res, 'modified_count', 0) > 0:
                                 upserted += 1
                         msg += f'Upserted {upserted} unique members.\n'
                     

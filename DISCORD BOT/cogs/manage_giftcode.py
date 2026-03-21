@@ -940,30 +940,38 @@ class ManageGiftCode(commands.Cog):
         
         @staticmethod
         def remove_member(cog_instance, guild_id, fid):
-            """Remove a member from auto-redeem list"""
+            """Remove a member from auto-redeem list (removes from both MongoDB and SQLite)"""
             try:
-                # Try MongoDB first
+                fid = str(fid).strip()
+                guild_id = int(guild_id)
+                mongo_removed = False
+
+                # Attempt MongoDB removal (best-effort, don't fail if it fails)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        success = AutoRedeemMembersAdapter.remove_member(guild_id, fid)
-                        if success:
-                            # Also remove from SQLite
-                            cog_instance.cursor.execute(
-                                "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
-                                (guild_id, fid)
-                            )
-                            cog_instance.giftcode_db.commit()
-                            return True
-                        return False
+                        mongo_removed = AutoRedeemMembersAdapter.remove_member(guild_id, fid)
+                        if mongo_removed:
+                            cog_instance.logger.debug(f"✅ Removed member {fid} from MongoDB for guild {guild_id}")
+                        else:
+                            cog_instance.logger.debug(f"ℹ️ Member {fid} not found in MongoDB for guild {guild_id}, will remove from SQLite anyway")
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB remove_member failed, using SQLite: {e}")
-                
-                # Fallback to SQLite
+                        cog_instance.logger.warning(f"MongoDB remove_member failed (will still remove from SQLite): {e}")
+
+                # Always remove from SQLite (SQLite is source of truth for local success)
                 cog_instance.cursor.execute(
                     "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
                     (guild_id, fid)
                 )
-                return cog_instance.cursor.rowcount > 0
+                cog_instance.giftcode_db.commit()
+                sqlite_removed = cog_instance.cursor.rowcount > 0
+
+                if sqlite_removed:
+                    cog_instance.logger.debug(f"✅ Removed member {fid} from SQLite for guild {guild_id}")
+                elif not mongo_removed:
+                    cog_instance.logger.warning(f"⚠️ Member {fid} not found in either MongoDB or SQLite for guild {guild_id}")
+
+                # Success if removed from either backend
+                return sqlite_removed or mongo_removed
             except Exception as e:
                 cog_instance.logger.error(f"Error in remove_member: {e}")
                 return False

@@ -225,6 +225,43 @@ class BirthdaysAdapter:
             logger.error(f'Failed to remove birthday for {user_id}: {e}')
             return False
 
+    @staticmethod
+    async def get_async(user_id: str):
+        try:
+            db = await _get_db_main_async()
+            d = await db[BirthdaysAdapter.COLL].find_one({'_id': str(user_id)})
+            if not d:
+                return None
+            return {'day': int(d['day']), 'month': int(d['month'])}
+        except Exception as e:
+            logger.error(f'Failed to get birthday (async) for {user_id}: {e}')
+            return None
+
+    @staticmethod
+    async def set_async(user_id: str, day: int, month: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            await db[BirthdaysAdapter.COLL].update_one(
+                {'_id': str(user_id)},
+                {'$set': {'day': int(day), 'month': int(month), 'updated_at': datetime.utcnow().isoformat()},
+                 '$setOnInsert': {'created_at': datetime.utcnow().isoformat()}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set birthday (async) for {user_id}: {e}')
+            return False
+
+    @staticmethod
+    async def remove_async(user_id: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            res = await db[BirthdaysAdapter.COLL].delete_one({'_id': str(user_id)})
+            return res.deleted_count > 0
+        except Exception as e:
+            logger.error(f'Failed to remove birthday (async) for {user_id}: {e}')
+            return False
+
 
 class UserProfilesAdapter:
     COLL = 'user_profiles'
@@ -273,6 +310,33 @@ class UserProfilesAdapter:
             logger.error(f'Failed to set profile for {user_id}: {e}')
             return False
 
+    @staticmethod
+    async def get_async(user_id: str) -> Optional[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            d = await db[UserProfilesAdapter.COLL].find_one({'_id': str(user_id)})
+            if not d:
+                return None
+            d.pop('_id', None)
+            return d
+        except Exception as e:
+            logger.error(f'Failed to get profile (async) for {user_id}: {e}')
+            return None
+
+    @staticmethod
+    async def set_async(user_id: str, data: Dict[str, Any]) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            payload = data.copy()
+            payload.pop('created_at', None)
+            payload['updated_at'] = now
+            await db[UserProfilesAdapter.COLL].update_one({'_id': str(user_id)}, {'$set': payload, '$setOnInsert': {'created_at': now}}, upsert=True)
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set profile (async) for {user_id}: {e}')
+            return False
+
 
 class GiftcodeStateAdapter:
     COLL = 'giftcode_state'
@@ -303,6 +367,33 @@ class GiftcodeStateAdapter:
             return True
         except Exception as e:
             logger.error(f'Failed to set giftcode state in Mongo: {e}')
+            return False
+
+    @staticmethod
+    async def get_state_async() -> Dict[str, Any]:
+        try:
+            db = await _get_db_main_async()
+            d = await db[GiftcodeStateAdapter.COLL].find_one({'_id': 'giftcode_state'})
+            if not d:
+                return {}
+            d.pop('_id', None)
+            return d
+        except Exception as e:
+            logger.error(f'Failed to get giftcode state (async) from Mongo: {e}')
+            return {}
+
+    @staticmethod
+    async def set_state_async(state: Dict[str, Any]) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            payload = state.copy()
+            payload.pop('created_at', None)
+            payload['updated_at'] = now
+            await db[GiftcodeStateAdapter.COLL].update_one({'_id': 'giftcode_state'}, {'$set': payload, '$setOnInsert': {'created_at': now}}, upsert=True)
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set giftcode state (async) in Mongo: {e}')
             return False
 
 
@@ -351,6 +442,42 @@ class RemindersAdapter:
             return reminder_id
         except Exception as e:
             logger.error(f'Failed to add reminder to Mongo: {e}')
+            return -1
+
+    @staticmethod
+    async def add_reminder_async(data: Dict[str, Any]) -> str:
+        """Add a new reminder asynchronously"""
+        try:
+            db = await _get_db_reminders_async()
+            now = datetime.utcnow().isoformat()
+            data['created_at'] = data.get('created_at', now)
+            data['is_active'] = 1
+            data['is_sent'] = 0
+            
+            existing = await db[RemindersAdapter.COLL].find_one({
+                'user_id': data['user_id'],
+                'channel_id': data['channel_id'],
+                'reminder_time': data['reminder_time'],
+                'message': data['message'],
+                'is_active': 1,
+                'is_sent': 0
+            })
+            
+            if existing:
+                updates = {k: v for k, v in data.items() if v is not None and k not in ['_id', 'user_id', 'channel_id', 'reminder_time', 'message', 'created_at']}
+                if updates:
+                    await db[RemindersAdapter.COLL].update_one({'_id': existing['_id']}, {'$set': updates})
+                return str(existing['_id'])
+            
+            import time
+            import random
+            reminder_id = int(time.time() * 1000) + random.randint(0, 999)
+            data['_id'] = reminder_id
+            
+            await db[RemindersAdapter.COLL].insert_one(data)
+            return reminder_id
+        except Exception as e:
+            logger.error(f'Failed to add reminder (async) to Mongo: {e}')
             return -1
 
     @staticmethod
@@ -607,6 +734,29 @@ class AllianceMembersAdapter:
             logger.error(f'Failed to clear alliance members from Mongo: {e}')
             return False
 
+    @staticmethod
+    async def delete_member_async(fid: str) -> bool:
+        """Delete a single alliance member asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            result = await db[AllianceMembersAdapter.COLL].delete_one({'_id': str(fid)})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f'Failed to delete alliance member (async) {fid} from Mongo: {e}')
+            return False
+
+    @staticmethod
+    async def clear_all_async() -> bool:
+        """Clear all alliance members asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            await db[AllianceMembersAdapter.COLL].delete_many({})
+            logger.info('[Mongo] Cleared all alliance members (async)')
+            return True
+        except Exception as e:
+            logger.error(f'Failed to clear alliance members (async) from Mongo: {e}')
+            return False
+
 
 class AllianceMetadataAdapter:
     """Stores alliance metadata (settings, config, etc.)"""
@@ -680,6 +830,23 @@ class GiftCodesAdapter:
             return []
 
     @staticmethod
+    async def get_all_async():
+        """Get all gift codes asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            cursor = db[GiftCodesAdapter.COLL].find({})
+            docs = await cursor.to_list(length=None)
+            results = []
+            for d in docs:
+                _id = d.get('_id')
+                if _id:
+                    results.append((str(_id), d.get('date'), d.get('validation_status')))
+            return results
+        except Exception as e:
+            logger.error(f'Failed to get all gift codes (async) from Mongo: {e}')
+            return []
+
+    @staticmethod
     def insert(code: str, date: str, validation_status: str = 'pending') -> bool:
         """Insert a new gift code (ignores if already exists)"""
         try:
@@ -731,6 +898,57 @@ class GiftCodesAdapter:
             return False
 
     @staticmethod
+    async def insert_async(code: str, date: str, validation_status: str = 'pending') -> bool:
+        """Insert a new gift code asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            await db[GiftCodesAdapter.COLL].update_one(
+                {'_id': code},
+                {'$set': {'date': date, 'validation_status': validation_status, 'created_at': datetime.utcnow().isoformat()}},
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to insert gift code (async) {code}: {e}')
+            return False
+
+    @staticmethod
+    async def update_status_async(code: str, validation_status: str) -> bool:
+        """Update validation status of a gift code asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            await db[GiftCodesAdapter.COLL].update_one(
+                {'_id': code},
+                {'$set': {'validation_status': validation_status, 'updated_at': datetime.utcnow().isoformat()}}
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to update status (async) for {code}: {e}')
+            return False
+
+    @staticmethod
+    async def delete_async(code: str) -> bool:
+        """Delete a gift code asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            result = await db[GiftCodesAdapter.COLL].delete_one({'_id': code})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f'Failed to delete gift code (async) {code}: {e}')
+            return False
+
+    @staticmethod
+    async def clear_all_async() -> bool:
+        """Clear all gift codes asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            await db[GiftCodesAdapter.COLL].delete_many({})
+            return True
+        except Exception as e:
+            logger.error(f'Failed to clear all gift codes (async): {e}')
+            return False
+
+    @staticmethod
     def get_code(code: str) -> Optional[Dict[str, Any]]:
         """Get a single gift code with all its fields"""
         try:
@@ -771,6 +989,50 @@ class GiftCodesAdapter:
             return results
         except Exception as e:
             logger.error(f'Failed to get all gift codes with status: {e}')
+            return []
+
+    @staticmethod
+    async def get_code_async(code: str) -> Optional[Dict[str, Any]]:
+        """Get a single gift code asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            doc = await db[GiftCodesAdapter.COLL].find_one({'_id': code})
+            if doc:
+                return {
+                    'giftcode': doc.get('_id'),
+                    'date': doc.get('date'),
+                    'validation_status': doc.get('validation_status'),
+                    'auto_redeem_processed': doc.get('auto_redeem_processed', False),
+                    'created_at': doc.get('created_at'),
+                    'updated_at': doc.get('updated_at')
+                }
+            return None
+        except Exception as e:
+            logger.error(f'Failed to get gift code (async) {code}: {e}')
+            return None
+
+    @staticmethod
+    async def get_all_with_status_async() -> List[Dict[str, Any]]:
+        """Get all gift codes with their auto_redeem_processed status asynchronously"""
+        try:
+            db = await _get_db_wos_async()
+            cursor = db[GiftCodesAdapter.COLL].find({})
+            docs = await cursor.to_list(length=None)
+            results = []
+            for d in docs:
+                _id = d.get('_id')
+                if _id:
+                    results.append({
+                        'giftcode': str(_id),
+                        'date': d.get('date'),
+                        'validation_status': d.get('validation_status'),
+                        'auto_redeem_processed': d.get('auto_redeem_processed', False),
+                        'created_at': d.get('created_at'),
+                        'updated_at': d.get('updated_at')
+                    })
+            return results
+        except Exception as e:
+            logger.error(f'Failed to get all gift codes with status (async): {e}')
             return []
 
     @staticmethod
@@ -907,6 +1169,57 @@ class SentGiftCodesAdapter:
         except Exception:
             return False
 
+    @staticmethod
+    async def get_sent_codes_async(guild_id: int) -> set:
+        """Get set of gift codes already sent to a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[SentGiftCodesAdapter.COLL].find_one({'_id': str(guild_id)})
+            if doc:
+                return set(doc.get('codes', []))
+            return set()
+        except Exception as e:
+            logger.error(f'Failed to get sent codes (async) for guild {guild_id}: {e}')
+            return set()
+
+    @staticmethod
+    async def mark_codes_sent_async(guild_id: int, codes: List[str], source: str = 'auto') -> bool:
+        """Mark gift codes as sent for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[SentGiftCodesAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$addToSet': {'codes': {'$each': [str(c).strip().upper() for c in codes if c]}},
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'last_sent_at': now,
+                        'updated_at': now,
+                        'source': source
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to mark codes sent (async) for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def is_code_sent_async(guild_id: int, code: str) -> bool:
+        """Check if a specific code was already sent to a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            count = await db[SentGiftCodesAdapter.COLL].count_documents({
+                '_id': str(guild_id),
+                'codes': str(code).strip().upper()
+            })
+            return count > 0
+        except Exception:
+            return False
+
 
 class AutoRedeemSettingsAdapter:
     """Adapter for managing auto redeem settings in MongoDB"""
@@ -972,6 +1285,68 @@ class AutoRedeemSettingsAdapter:
             ]
         except Exception as e:
             logger.error(f'Failed to get all auto redeem settings: {e}')
+            return []
+
+    @staticmethod
+    async def get_settings_async(guild_id: int) -> Optional[Dict[str, Any]]:
+        """Get auto redeem settings for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[AutoRedeemSettingsAdapter.COLL].find_one({'_id': str(guild_id)})
+            if not doc:
+                return None
+            return {
+                'enabled': bool(doc.get('enabled', False)),
+                'updated_by': int(doc.get('updated_by', 0)),
+                'updated_at': doc.get('updated_at')
+            }
+        except Exception as e:
+            logger.error(f'Failed to get auto redeem settings (async) for guild {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def set_enabled_async(guild_id: int, enabled: bool, updated_by: int) -> bool:
+        """Set auto redeem enabled/disabled state for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AutoRedeemSettingsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'enabled': bool(enabled),
+                        'updated_by': int(updated_by),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set auto redeem settings (async) for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def get_all_settings_async() -> List[Dict[str, Any]]:
+        """Get all auto redeem settings for all guilds asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            cursor = db[AutoRedeemSettingsAdapter.COLL].find({})
+            docs = await cursor.to_list(length=None)
+            return [
+                {
+                    'guild_id': int(d.get('guild_id', d.get('_id'))),
+                    'enabled': bool(d.get('enabled', False)),
+                    'updated_by': int(d.get('updated_by', 0)),
+                    'updated_at': d.get('updated_at'),
+                    'created_at': d.get('created_at')
+                }
+                for d in docs
+            ]
+        except Exception as e:
+            logger.error(f'Failed to get all auto redeem settings (async): {e}')
             return []
 
 
@@ -1132,95 +1507,270 @@ class AutoRedeemMembersAdapter:
             return False
 
     @staticmethod
+    async def add_member_async(guild_id: int, fid: str, member_data: Dict[str, Any]) -> bool:
+        """Add a member to auto-redeem list asynchronously"""
+        try:
+            if not fid or not str(fid).strip() or str(fid).strip().lower() == 'none':
+                return False
+            fid = str(fid).strip()
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AutoRedeemMembersAdapter.COLL].update_one(
+                {'guild_id': int(guild_id), 'fid': str(fid)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'fid': str(fid),
+                        'nickname': member_data.get('nickname', ''),
+                        'furnace_lv': int(member_data.get('furnace_lv', 0)),
+                        'avatar_image': member_data.get('avatar_image', ''),
+                        'added_by': int(member_data.get('added_by', 0)),
+                        'added_at': member_data.get('added_at', now),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to add auto-redeem member (async) {fid} for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    def _get_target_dbs() -> List[Any]:
+        """Helper to get all relevant databases to search or modify"""
+        db_list = []
+        clients_seen = set()
+        
+        def add_db(db):
+            if db:
+                key = (db.client.address, db.name)
+                if key not in clients_seen:
+                    db_list.append(db)
+                    clients_seen.add(key)
+                    
+                    # Also check 'discord_bot' on same cluster as fallback
+                    try:
+                        if 'discord_bot' in db.client.list_database_names() and db.name != 'discord_bot':
+                            db_key = (db.client.address, 'discord_bot')
+                            if db_key not in clients_seen:
+                                db_list.append(db.client['discord_bot'])
+                                clients_seen.add(db_key)
+                    except Exception:
+                        pass
+        try:
+            add_db(_get_db_main())
+        except Exception:
+            pass
+        try:
+            add_db(_get_db_wos())
+        except Exception:
+            pass
+        return db_list
+
+    @staticmethod
+    async def _get_target_dbs_async() -> List[Any]:
+        """Helper to get all relevant databases asynchronously"""
+        db_list = []
+        clients_seen = set()
+        
+        async def add_db_async(db):
+            if db:
+                key = (db.client.address, db.name)
+                if key not in clients_seen:
+                    db_list.append(db)
+                    clients_seen.add(key)
+                    try:
+                        db_names = await db.client.list_database_names()
+                        if 'discord_bot' in db_names and db.name != 'discord_bot':
+                            db_key = (db.client.address, 'discord_bot')
+                            if db_key not in clients_seen:
+                                db_list.append(db.client['discord_bot'])
+                                clients_seen.add(db_key)
+                    except Exception:
+                        pass
+
+        try:
+            db_main = await _get_db_main_async()
+            await add_db_async(db_main)
+        except Exception:
+            pass
+            
+        try:
+            db_wos = await _get_db_wos_async()
+            await add_db_async(db_wos)
+        except Exception:
+            pass
+            
+        return db_list
+
+    @staticmethod
+    async def get_members_async(guild_id: int) -> List[Dict[str, Any]]:
+        """Get all auto-redeem members for a guild asynchronously"""
+        try:
+            members = []
+            seen_fids = set()
+            search_gid = [int(guild_id), str(guild_id)]
+            
+            db_list = await AutoRedeemMembersAdapter._get_target_dbs_async()
+
+            for target_db in db_list:
+                cursor = target_db[AutoRedeemMembersAdapter.COLL].find({'guild_id': {'$in': search_gid}})
+                docs = await cursor.to_list(length=None)
+                
+                for doc in docs:
+                    fid = doc.get('fid')
+                    if fid and str(fid).lower() != 'none':
+                        fid_str = str(fid).strip()
+                        if fid_str not in seen_fids:
+                            raw_nick = doc.get('nickname', 'Unknown')
+                            if isinstance(raw_nick, dict):
+                                raw_nick = raw_nick.get('nickname', 'Unknown')
+                            members.append({
+                                'fid': fid_str,
+                                'nickname': str(raw_nick) if raw_nick else 'Unknown',
+                                'furnace_lv': int(doc.get('furnace_lv', 0) or 0),
+                                'avatar_image': doc.get('avatar_image', ''),
+                                'added_by': int(doc.get('added_by', 0)),
+                                'added_at': doc.get('added_at')
+                            })
+                            seen_fids.add(fid_str)
+                    
+                    if 'members' in doc and isinstance(doc['members'], list):
+                        for m in doc['members']:
+                            mfid = m.get('fid')
+                            if mfid and str(mfid).lower() != 'none':
+                                mfid_str = str(mfid).strip()
+                                if mfid_str not in seen_fids:
+                                    raw_nick = m.get('nickname', 'Unknown')
+                                    if isinstance(raw_nick, dict):
+                                        raw_nick = raw_nick.get('nickname', 'Unknown')
+                                    members.append({
+                                        'fid': mfid_str,
+                                        'nickname': str(raw_nick) if raw_nick else 'Unknown',
+                                        'furnace_lv': int(m.get('furnace_lv', 0) or 0),
+                                        'avatar_image': m.get('avatar_image', ''),
+                                        'added_by': int(m.get('added_by', 0)),
+                                        'added_at': m.get('added_at')
+                                    })
+                                    seen_fids.add(mfid_str)
+            return members
+        except Exception as e:
+            logger.error(f'Failed to get auto-redeem members (async) for guild {guild_id}: {e}')
+            return []
+
+    @staticmethod
     def remove_member(guild_id: int, fid: str) -> bool:
-        """Remove a member from auto-redeem list (True if removed from any DB)"""
+        """Remove a member from auto-redeem list (synchronous)"""
         try:
             fid_str = str(fid).strip()
             search_gid = [int(guild_id), str(guild_id)]
             removed = False
-            
-            for db in AutoRedeemMembersAdapter._get_target_dbs():
-                # 1. Try removing from V2 (flat)
+
+            db_list = AutoRedeemMembersAdapter._get_target_dbs()
+            for db in db_list:
+                # V2: flat doc where each member is a separate document
                 res_v2 = db[AutoRedeemMembersAdapter.COLL].delete_many({
                     'guild_id': {'$in': search_gid},
                     'fid': fid_str
                 })
                 if res_v2.deleted_count > 0:
                     removed = True
-                
-                # 2. Also try pulling from V1 (grouped)
+
+                # V1: legacy grouped doc where members are embedded in an array
                 res_v1 = db[AutoRedeemMembersAdapter.COLL].update_many(
                     {'guild_id': {'$in': search_gid}, 'members.fid': fid_str},
                     {'$pull': {'members': {'fid': fid_str}}}
                 )
                 if res_v1.modified_count > 0:
                     removed = True
-            
+
             return removed
         except Exception as e:
             logger.error(f'Failed to remove auto-redeem member {fid} for guild {guild_id}: {e}')
             return False
 
     @staticmethod
-    def member_exists(guild_id: int, fid: str) -> bool:
-        """Check if member exists in any database or schema"""
+    async def remove_member_async(guild_id: int, fid: str) -> bool:
+
+        """Remove a member from auto-redeem list asynchronously"""
         try:
             fid_str = str(fid).strip()
             search_gid = [int(guild_id), str(guild_id)]
+            removed = False
             
-            for db in AutoRedeemMembersAdapter._get_target_dbs():
-                # Check V2 (flat)
-                doc = db[AutoRedeemMembersAdapter.COLL].find_one({
+            db_list = await AutoRedeemMembersAdapter._get_target_dbs_async()
+            for db in db_list:
+                res_v2 = await db[AutoRedeemMembersAdapter.COLL].delete_many({
                     'guild_id': {'$in': search_gid},
                     'fid': fid_str
                 })
-                if doc:
-                    return True
+                if res_v2.deleted_count > 0:
+                    removed = True
                 
-                # check V1 (grouped)
-                doc = db[AutoRedeemMembersAdapter.COLL].find_one({
-                    'guild_id': {'$in': search_gid},
-                    'members.fid': fid_str
-                })
-                if doc:
-                    return True
-            return False
+                res_v1 = await db[AutoRedeemMembersAdapter.COLL].update_many(
+                    {'guild_id': {'$in': search_gid}, 'members.fid': fid_str},
+                    {'$pull': {'members': {'fid': fid_str}}}
+                )
+                if res_v1.modified_count > 0:
+                    removed = True
+            return removed
         except Exception as e:
-            logger.error(f'Failed to check if member {fid} exists for guild {guild_id}: {e}')
+            logger.error(f'Failed to remove auto-redeem member (async) {fid} for guild {guild_id}: {e}')
             return False
 
     @staticmethod
-    def batch_member_exists(guild_id: int, fids: List[str]) -> Dict[str, bool]:
-        """Batch check if multiple members exist in auto-redeem list across all DBs"""
+    async def member_exists_async(guild_id: int, fid: str) -> bool:
+        """Check if member exists asynchronously"""
+        try:
+            fid_str = str(fid).strip()
+            search_gid = [int(guild_id), str(guild_id)]
+            db_list = await AutoRedeemMembersAdapter._get_target_dbs_async()
+            for db in db_list:
+                doc = await db[AutoRedeemMembersAdapter.COLL].find_one({
+                    'guild_id': {'$in': search_gid},
+                    'fid': fid_str
+                })
+                if doc: return True
+                doc = await db[AutoRedeemMembersAdapter.COLL].find_one({
+                    'guild_id': {'$in': search_gid},
+                    'members.fid': fid_str
+                })
+                if doc: return True
+            return False
+        except Exception:
+            return False
+
+    @staticmethod
+    async def batch_member_exists_async(guild_id: int, fids: List[str]) -> Dict[str, bool]:
+        """Batch check if multiple members exist asynchronously"""
         try:
             results = {str(fid): False for fid in fids}
             fid_strs = [str(fid).strip() for fid in fids]
             search_gid = [int(guild_id), str(guild_id)]
-            
-            for db in AutoRedeemMembersAdapter._get_target_dbs():
-                # Check V2
-                docs = db[AutoRedeemMembersAdapter.COLL].find({
+            db_list = await AutoRedeemMembersAdapter._get_target_dbs_async()
+            for db in db_list:
+                cursor = db[AutoRedeemMembersAdapter.COLL].find({
                     'guild_id': {'$in': search_gid},
                     'fid': {'$in': fid_strs}
                 })
-                for d in docs:
-                    results[str(d.get('fid'))] = True
+                docs = await cursor.to_list(length=None)
+                for d in docs: results[str(d.get('fid'))] = True
                 
-                # Check V1 (expensive, but necessary if not all found)
                 if not all(results.values()):
-                    docs_v1 = db[AutoRedeemMembersAdapter.COLL].find({
+                    cursor_v1 = db[AutoRedeemMembersAdapter.COLL].find({
                         'guild_id': {'$in': search_gid},
                         'members.fid': {'$in': fid_strs}
                     })
+                    docs_v1 = await cursor_v1.to_list(length=None)
                     for doc in docs_v1:
                         if 'members' in doc:
                             for m in doc['members']:
                                 mfid = str(m.get('fid'))
-                                if mfid in results:
-                                    results[mfid] = True
+                                if mfid in results: results[mfid] = True
             return results
-        except Exception as e:
-            logger.error(f'Failed to batch check members for guild {guild_id}: {e}')
+        except Exception:
             return {str(fid): False for fid in fids}
 
 
@@ -1269,6 +1819,47 @@ class AutoRedeemChannelsAdapter:
             return True
         except Exception as e:
             logger.error(f'Failed to set auto redeem channel for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def get_channel_async(guild_id: int) -> Optional[Dict[str, Any]]:
+        """Get auto redeem channel configuration for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[AutoRedeemChannelsAdapter.COLL].find_one({'_id': str(guild_id)})
+            if not doc: return None
+            return {
+                'channel_id': int(doc.get('channel_id')),
+                'added_by': int(doc.get('added_by', 0)),
+                'added_at': doc.get('added_at')
+            }
+        except Exception as e:
+            logger.error(f'Failed to get auto redeem channel (async) for guild {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def set_channel_async(guild_id: int, channel_id: int, added_by: int) -> bool:
+        """Set auto redeem channel for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AutoRedeemChannelsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'channel_id': int(channel_id),
+                        'added_by': int(added_by),
+                        'added_at': now,
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set auto redeem channel (async) for guild {guild_id}: {e}')
             return False
 
 
@@ -1367,6 +1958,95 @@ class WelcomeChannelAdapter:
             logger.error(f'Failed to get all welcome channels: {e}')
             return []
 
+    @staticmethod
+    async def get_async(guild_id: int) -> Optional[Dict[str, Any]]:
+        """Get welcome channel settings for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[WelcomeChannelAdapter.COLL].find_one({'_id': str(guild_id)})
+            if not doc: return None
+            channel_id_raw = doc.get('channel_id')
+            return {
+                'channel_id': int(channel_id_raw) if channel_id_raw is not None else None,
+                'enabled': bool(doc.get('enabled', True)),
+                'bg_image_url': doc.get('bg_image_url')
+            }
+        except Exception as e:
+            logger.error(f'Failed to get welcome channel (async) for guild {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def set_async(guild_id: int, channel_id: int, enabled: bool = True) -> bool:
+        """Set/update welcome channel for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[WelcomeChannelAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'channel_id': int(channel_id),
+                        'enabled': bool(enabled),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set welcome channel (async) for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def set_bg_image_async(guild_id: int, bg_image_url: str) -> bool:
+        """Set/update background image URL for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[WelcomeChannelAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'bg_image_url': str(bg_image_url),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set background image (async) for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def delete_async(guild_id: int) -> bool:
+        """Delete welcome channel configuration for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            result = await db[WelcomeChannelAdapter.COLL].delete_one({'_id': str(guild_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f'Failed to delete welcome channel (async) for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def get_all_async() -> list:
+        """Get all configured welcome channels asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            cursor = db[WelcomeChannelAdapter.COLL].find({'enabled': True})
+            docs = await cursor.to_list(length=None)
+            return [{
+                'guild_id': int(d.get('_id')),
+                'channel_id': int(d.get('channel_id')),
+                'enabled': bool(d.get('enabled', True))
+            } for d in docs]
+        except Exception as e:
+            logger.error(f'Failed to get all welcome channels (async): {e}')
+            return []
+
 class AdminsAdapter:
     COLL = 'admins'
 
@@ -1410,6 +2090,47 @@ class AdminsAdapter:
         except Exception:
             return []
 
+    @staticmethod
+    async def count_async() -> int:
+        try:
+            db = await _get_db_main_async()
+            return await db[AdminsAdapter.COLL].count_documents({})
+        except Exception:
+            return 0
+
+    @staticmethod
+    async def get_async(user_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            d = await db[AdminsAdapter.COLL].find_one({'_id': str(user_id)})
+            return d
+        except Exception:
+            return None
+
+    @staticmethod
+    async def upsert_async(user_id: int, is_initial: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AdminsAdapter.COLL].update_one(
+                {'_id': str(user_id)},
+                {'$set': {'is_initial': int(is_initial), 'updated_at': now}, '$setOnInsert': {'created_at': now}},
+                upsert=True
+            )
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    async def get_initial_admins_async() -> List[int]:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[AdminsAdapter.COLL].find({'is_initial': 1})
+            docs = await cursor.to_list(length=None)
+            return [int(d['_id']) for d in docs]
+        except Exception:
+            return []
+
 class AlliancesAdapter:
     COLL = 'alliance__alliance_list'
 
@@ -1438,6 +2159,24 @@ class AlliancesAdapter:
         try:
             db = _get_db_main()
             res = db[AlliancesAdapter.COLL].delete_one({'_id': str(alliance_id)})
+            return res.deleted_count > 0
+        except Exception:
+            return False
+
+    @staticmethod
+    async def find_by_name_async(name: str) -> Optional[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            d = await db[AlliancesAdapter.COLL].find_one({'name': name})
+            return d
+        except Exception:
+            return None
+
+    @staticmethod
+    async def delete_async(alliance_id: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            res = await db[AlliancesAdapter.COLL].delete_one({'_id': str(alliance_id)})
             return res.deleted_count > 0
         except Exception:
             return False
@@ -1526,6 +2265,63 @@ class AllianceSettingsAdapter:
         except Exception:
             return []
 
+    @staticmethod
+    async def get_async(alliance_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            d = await db[AllianceSettingsAdapter.COLL].find_one({'alliance_id': int(alliance_id)})
+            return d
+        except Exception:
+            return None
+
+    @staticmethod
+    async def get_all_async() -> list:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[AllianceSettingsAdapter.COLL].find({})
+            docs = await cursor.to_list(length=None)
+            return [{'alliance_id': int(d.get('alliance_id')), 'channel_id': int(d.get('channel_id') or 0), 'interval': int(d.get('interval') or 0)} for d in docs]
+        except Exception:
+            return []
+
+    @staticmethod
+    async def upsert_async(alliance_id: int, channel_id: int, interval: int, giftcodecontrol: Optional[int] = None, giftcode_channel: Optional[int] = None) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            payload = {'channel_id': int(channel_id), 'interval': int(interval)}
+            if giftcodecontrol is not None:
+                payload['giftcodecontrol'] = int(giftcodecontrol)
+            if giftcode_channel is not None:
+                payload['giftcode_channel'] = int(giftcode_channel)
+            await db[AllianceSettingsAdapter.COLL].update_one(
+                {'_id': str(alliance_id)},
+                {'$set': {**payload, 'updated_at': now}, '$setOnInsert': {'created_at': now}},
+                upsert=True
+            )
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    async def delete_async(alliance_id: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            res = await db[AllianceSettingsAdapter.COLL].delete_one({'_id': str(alliance_id)})
+            return res.deleted_count > 0
+        except Exception:
+            return False
+
+    @staticmethod
+    async def get_auto_redeem_alliances_async() -> List[int]:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[AllianceSettingsAdapter.COLL].find({'giftcodecontrol': 1})
+            docs = await cursor.to_list(length=None)
+            return [int(d['_id']) for d in docs]
+        except Exception:
+            return []
+
 
 class FurnaceHistoryAdapter:
     COLLECTION = 'furnace_history'
@@ -1564,9 +2360,9 @@ class FurnaceHistoryAdapter:
             return False
 
     @staticmethod
-    def get_recent_changes(days: int = 7, alliance_id: Optional[int] = None) -> list:
+    async def get_recent_changes_async(days: int = 7, alliance_id: Optional[int] = None) -> list:
         try:
-            db = _get_db_wos()
+            db = await _get_db_wos_async()
             if db is None:
                 return []
             
@@ -1600,9 +2396,10 @@ class FurnaceHistoryAdapter:
                 }
             ]
             
-            return list(db[FurnaceHistoryAdapter.COLLECTION].aggregate(pipeline))
+            cursor = db[FurnaceHistoryAdapter.COLLECTION].aggregate(pipeline)
+            return await cursor.to_list(length=None)
         except Exception as e:
-            logging.error(f"Error fetching furnace history: {e}")
+            logging.error(f"Error fetching furnace history (async): {e}")
             return []
 
 
@@ -1677,6 +2474,41 @@ class AllianceMonitoringAdapter:
             logger.error(f"Error deleting alliance monitor: {e}")
             return False
 
+    @staticmethod
+    async def upsert_monitor_async(guild_id: int, alliance_id: int, channel_id: int, enabled: int = 1, check_interval: int = 240) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AllianceMonitoringAdapter.COLL].update_one(
+                {'guild_id': int(guild_id), 'alliance_id': int(alliance_id)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'alliance_id': int(alliance_id),
+                        'channel_id': int(channel_id),
+                        'enabled': int(enabled),
+                        'check_interval': int(check_interval),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Error upserting alliance monitor (async): {e}")
+            return False
+
+    @staticmethod
+    async def delete_monitor_async(guild_id: int, alliance_id: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            res = await db[AllianceMonitoringAdapter.COLL].delete_one({'guild_id': int(guild_id), 'alliance_id': int(alliance_id)})
+            return res.deleted_count > 0
+        except Exception as e:
+            logger.error(f"Error deleting alliance monitor (async): {e}")
+            return False
+
 
 class ServerAllianceAdapter:
     """Adapter for managing server-alliance assignments in MongoDB"""
@@ -1730,6 +2562,29 @@ class ServerAllianceAdapter:
             return None
         except Exception as e:
             logger.error(f'Failed to get alliance for server {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def get_alliance_async(guild_id: int) -> Optional[int]:
+        """Get the assigned alliance ID for a Discord server asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            # Try finding by _id first (modern) or id (legacy)
+            doc = await db[ServerAllianceAdapter.COLL].find_one({'_id': str(guild_id)})
+            if not doc:
+                doc = await db[ServerAllianceAdapter.COLL].find_one({'_id': int(guild_id)})
+            if not doc:
+                 # Fallback for documents that might have auto-generated _id
+                 doc = await db[ServerAllianceAdapter.COLL].find_one({'id': str(guild_id)})
+            if not doc:
+                 doc = await db[ServerAllianceAdapter.COLL].find_one({'id': int(guild_id)})
+
+            if doc:
+                # Legacy field is 'alliances_id', modern might be 'alliance_id'
+                return int(doc.get('alliances_id') or doc.get('alliance_id'))
+            return None
+        except Exception as e:
+            logger.error(f'Failed to get alliance (async) for server {guild_id}: {e}')
             return None
 
     @staticmethod
@@ -1793,6 +2648,97 @@ class ServerAllianceAdapter:
             return False
 
     @staticmethod
+    async def set_alliance_async(guild_id: int, alliance_id: int, assigned_by: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[ServerAllianceAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'id': int(guild_id),
+                        'alliances_id': int(alliance_id),
+                        'assigned_by': int(assigned_by),
+                        'assigned_at': now,
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to assign alliance (async) to server {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def get_alliance_async(guild_id: int) -> Optional[int]:
+        try:
+            db = await _get_db_main_async()
+            doc = await db[ServerAllianceAdapter.COLL].find_one({'_id': str(guild_id)})
+            if not doc: doc = await db[ServerAllianceAdapter.COLL].find_one({'_id': int(guild_id)})
+            if not doc: doc = await db[ServerAllianceAdapter.COLL].find_one({'id': str(guild_id)})
+            if not doc: doc = await db[ServerAllianceAdapter.COLL].find_one({'id': int(guild_id)})
+            if doc: return int(doc.get('alliances_id') or doc.get('alliance_id'))
+            return None
+        except Exception as e:
+            logger.error(f'Failed to get alliance (async) for server {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def remove_alliance_async(guild_id: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            result = await db[ServerAllianceAdapter.COLL].delete_one({'_id': str(guild_id)})
+            return result.deleted_count > 0
+        except Exception as e:
+            logger.error(f'Failed to remove alliance (async) from server {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def get_all_async() -> list:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[ServerAllianceAdapter.COLL].find({})
+            docs = await cursor.to_list(length=None)
+            return [{
+                'guild_id': int(d.get('guild_id') or d.get('id') or d.get('_id')),
+                'alliance_id': int(d.get('alliances_id') or d.get('alliance_id')),
+                'assigned_by': int(d.get('assigned_by')),
+                'assigned_at': d.get('assigned_at')
+            } for d in docs]
+        except Exception as e:
+            logger.error(f'Failed to get all server-alliance mappings (async): {e}')
+            return []
+
+    @staticmethod
+    async def set_password_async(guild_id: int, password: str, set_by: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[ServerAllianceAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'member_list_password': str(password),
+                        'password_set_by': int(set_by),
+                        'password_set_at': now,
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now, 'guild_id': int(guild_id)}
+                },
+                upsert=True
+            )
+            try:
+                from db.mongo_adapters import AuthSessionsAdapter
+                await AuthSessionsAdapter.invalidate_all_sessions_async(guild_id)
+            except Exception: pass
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set password (async) for server {guild_id}: {e}')
+            return False
+
+    @staticmethod
     def get_password(guild_id: int) -> Optional[str]:
         """Get member list password for a Discord server"""
         try:
@@ -1828,6 +2774,18 @@ class ServerAllianceAdapter:
             return str(password) == str(stored_password)
         except Exception as e:
             logger.error(f'Failed to verify password for server {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def verify_password_async(guild_id: int, password: str) -> bool:
+        """Verify member list password for a Discord server asynchronously"""
+        try:
+            stored_password = await ServerAllianceAdapter.get_password_async(guild_id)
+            if stored_password is None:
+                return False
+            return str(password) == str(stored_password)
+        except Exception as e:
+            logger.error(f'Failed to verify password (async) for server {guild_id}: {e}')
             return False
 
 
@@ -1927,6 +2885,72 @@ class AuthSessionsAdapter:
             return result.deleted_count
         except Exception as e:
             logger.error(f'Failed to cleanup expired auth sessions: {e}')
+            return 0
+
+    @staticmethod
+    async def create_session_async(guild_id: int, user_id: int, password_hash: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow()
+            expires_at = now + timedelta(days=AuthSessionsAdapter.SESSION_DURATION_DAYS)
+            await db[AuthSessionsAdapter.COLL].update_one(
+                {'_id': f"{guild_id}:{user_id}"},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'user_id': int(user_id),
+                        'password_hash': str(password_hash),
+                        'created_at': now.isoformat(),
+                        'expires_at': expires_at.isoformat(),
+                        'updated_at': now.isoformat()
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to create auth session (async) for user {user_id} in guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def get_session_async(guild_id: int, user_id: int) -> Optional[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            doc = await db[AuthSessionsAdapter.COLL].find_one({'_id': f"{guild_id}:{user_id}"})
+            if doc: doc.pop('_id', None)
+            return doc
+        except Exception:
+            return None
+
+    @staticmethod
+    async def is_session_valid_async(guild_id: int, user_id: int, current_password: str) -> bool:
+        try:
+            session = await AuthSessionsAdapter.get_session_async(guild_id, user_id)
+            if not session: return False
+            expires_at = datetime.fromisoformat(session.get('expires_at'))
+            if datetime.utcnow() > expires_at: return False
+            if str(current_password) != str(session.get('password_hash')): return False
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    async def invalidate_all_sessions_async(guild_id: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            await db[AuthSessionsAdapter.COLL].delete_many({'guild_id': int(guild_id)})
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
+    async def cleanup_expired_sessions_async() -> int:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            result = await db[AuthSessionsAdapter.COLL].delete_many({'expires_at': {'$lt': now}})
+            return result.deleted_count
+        except Exception:
             return 0
 
 
@@ -2100,6 +3124,69 @@ class RecordsAdapter:
         except Exception as e:
             logger.error(f'Failed to get members for record {record_name}: {e}')
             return []
+
+    @staticmethod
+    async def create_record_async(guild_id: int, record_name: str, created_by: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            existing = await db[RecordsAdapter.COLL].find_one({'_id': f"{guild_id}:{record_name}"})
+            if existing: return False
+            await db[RecordsAdapter.COLL].insert_one({
+                '_id': f"{guild_id}:{record_name}", 'guild_id': int(guild_id), 'record_name': str(record_name),
+                'created_by': int(created_by), 'created_at': now, 'updated_at': now, 'members': []
+            })
+            return True
+        except Exception: return False
+
+    @staticmethod
+    async def delete_record_async(guild_id: int, record_name: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            res = await db[RecordsAdapter.COLL].delete_one({'_id': f"{guild_id}:{record_name}"})
+            return res.deleted_count > 0
+        except Exception: return False
+
+    @staticmethod
+    async def get_record_async(guild_id: int, record_name: str) -> Optional[dict]:
+        try:
+            db = await _get_db_main_async()
+            return await db[RecordsAdapter.COLL].find_one({'_id': f"{guild_id}:{record_name}"})
+        except Exception: return None
+
+    @staticmethod
+    async def get_all_records_async(guild_id: int) -> list:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[RecordsAdapter.COLL].find({'guild_id': int(guild_id)})
+            docs = await cursor.to_list(length=None)
+            return [{'record_name': d.get('record_name'), 'created_by': d.get('created_by'), 'created_at': d.get('created_at'), 'member_count': len(d.get('members', []))} for d in docs]
+        except Exception: return []
+
+    @staticmethod
+    async def add_member_to_record_async(guild_id: int, record_name: str, fid: str, member_data: dict) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            record = await db[RecordsAdapter.COLL].find_one({'_id': f"{guild_id}:{record_name}"})
+            if not record: return False
+            members = [m for m in record.get('members', []) if m.get('fid') != str(fid)]
+            members.append({'fid': str(fid), 'nickname': member_data.get('nickname', 'Unknown'), 'furnace_lv': int(member_data.get('furnace_lv', 0)), 'avatar_image': member_data.get('avatar_image', ''), 'added_at': now, 'added_by': member_data.get('added_by', 0)})
+            await db[RecordsAdapter.COLL].update_one({'_id': f"{guild_id}:{record_name}"}, {'$set': {'members': members, 'updated_at': now}})
+            return True
+        except Exception: return False
+
+    @staticmethod
+    async def remove_member_from_record_async(guild_id: int, record_name: str, fid: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            record = await db[RecordsAdapter.COLL].find_one({'_id': f"{guild_id}:{record_name}"})
+            if not record: return False
+            members = [m for m in record.get('members', []) if m.get('fid') != str(fid)]
+            await db[RecordsAdapter.COLL].update_one({'_id': f"{guild_id}:{record_name}"}, {'$set': {'members': members, 'updated_at': now}})
+            return True
+        except Exception: return False
 
     @staticmethod
     def rename_record(guild_id: int, old_name: str, new_name: str) -> bool:
@@ -2284,6 +3371,53 @@ class GiftCodeRedemptionAdapter:
             logger.error(f'Failed to get top codes for guild {guild_id}: {e}')
             return []
 
+    @staticmethod
+    async def track_redemption_async(guild_id: int, code: str, fid: str, status: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            doc_id = f"{guild_id}:{code}"
+            await db[GiftCodeRedemptionAdapter.COLL].update_one(
+                {'_id': doc_id},
+                {
+                    '$push': {'redemptions': {'fid': str(fid), 'redeemed_at': now, 'status': status}},
+                    '$inc': {f'stats.{status}': 1, 'stats.total_attempts': 1},
+                    '$set': {'guild_id': int(guild_id), 'code': str(code), 'last_redeemed_at': now, 'updated_at': now},
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception: return False
+
+    @staticmethod
+    async def get_code_stats_async(guild_id: int, code: str) -> Optional[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            doc = await db[GiftCodeRedemptionAdapter.COLL].find_one({'_id': f"{guild_id}:{code}"})
+            if not doc: return None
+            redemptions = doc.get('redemptions', [])
+            unique_fids = set(r['fid'] for r in redemptions if r.get('status') == 'success')
+            stats = doc.get('stats', {})
+            return {'total_attempts': stats.get('total_attempts', 0), 'success': stats.get('success', 0), 'failed': stats.get('failed', 0), 'unique_users': len(unique_fids), 'last_redeemed_at': doc.get('last_redeemed_at')}
+        except Exception: return None
+
+    @staticmethod
+    async def get_all_stats_async(guild_id: int) -> list:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[GiftCodeRedemptionAdapter.COLL].find({'guild_id': int(guild_id)})
+            docs = await cursor.to_list(length=None)
+            results = []
+            for doc in docs:
+                redemptions = doc.get('redemptions', [])
+                unique_fids = set(r['fid'] for r in redemptions if r.get('status') == 'success')
+                stats = doc.get('stats', {})
+                results.append({'code': doc.get('code'), 'total_attempts': stats.get('total_attempts', 0), 'success': stats.get('success', 0), 'failed': stats.get('failed', 0), 'unique_users': len(unique_fids), 'last_redeemed_at': doc.get('last_redeemed_at')})
+            results.sort(key=lambda x: x['unique_users'], reverse=True)
+            return results
+        except Exception: return []
+
 class PersistentViewsAdapter:
     """Adapter for managing persistent views in MongoDB"""
     COLL = 'persistent_views'
@@ -2354,6 +3488,36 @@ class PersistentViewsAdapter:
             logger.error(f'Failed to check view existence {message_id}: {e}')
             return False
 
+    @staticmethod
+    async def register_view_async(guild_id: int, channel_id: int, message_id: int, view_type: str, metadata: Dict[str, Any] = None) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            if metadata is None: metadata = {}
+            data = {'guild_id': int(guild_id), 'channel_id': int(channel_id), 'message_id': int(message_id), 'view_type': view_type, 'metadata': metadata, 'updated_at': now}
+            await db[PersistentViewsAdapter.COLL].update_one({'_id': str(message_id)}, {'$set': data, '$setOnInsert': {'created_at': now}}, upsert=True)
+            return True
+        except Exception: return False
+
+    @staticmethod
+    async def get_all_views_async() -> list:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[PersistentViewsAdapter.COLL].find({})
+            docs = await cursor.to_list(length=None)
+            for doc in docs:
+                if '_id' in doc: doc['_id'] = str(doc['_id'])
+            return docs
+        except Exception: return []
+
+    @staticmethod
+    async def remove_view_async(message_id: int) -> bool:
+        try:
+            db = await _get_db_main_async()
+            result = await db[PersistentViewsAdapter.COLL].delete_one({'_id': str(message_id)})
+            return result.deleted_count > 0
+        except Exception: return False
+
 
 
 class AutoRedeemedCodesAdapter:
@@ -2404,6 +3568,49 @@ class AutoRedeemedCodesAdapter:
             return {str(fid): str(fid) in redeemed_fids for fid in fids}
         except Exception as e:
             logger.error(f'Failed to batch check redemptions for {giftcode}: {e}')
+            return {str(fid): False for fid in fids}
+
+    @staticmethod
+    async def mark_code_redeemed_for_member_async(guild_id: int, code: str, fid: str, status: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AutoRedeemedCodesAdapter.COLL].update_one(
+                {'guild_id': int(guild_id), 'code': code, 'fid': str(fid)},
+                {
+                    '$set': {'status': status, 'updated_at': now},
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to mark code (async) {code} redeemed for {fid}: {e}')
+            return False
+
+    @staticmethod
+    async def is_redeemed_async(guild_id: int, code: str, fid: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            count = await db[AutoRedeemedCodesAdapter.COLL].count_documents({'guild_id': int(guild_id), 'code': code, 'fid': str(fid)})
+            return count > 0
+        except Exception:
+            return False
+
+    @staticmethod
+    async def batch_check_members_async(guild_id: int, giftcode: str, fids: List[str]) -> Dict[str, bool]:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[AutoRedeemedCodesAdapter.COLL].find({
+                'guild_id': int(guild_id),
+                'code': giftcode,
+                'fid': {'$in': [str(fid) for fid in fids]}
+            })
+            docs = await cursor.to_list(length=None)
+            redeemed_fids = {d.get('fid') for d in docs}
+            return {str(fid): str(fid) in redeemed_fids for fid in fids}
+        except Exception as e:
+            logger.error(f'Failed to batch check redemptions (async) for {giftcode}: {e}')
             return {str(fid): False for fid in fids}
 
 
@@ -2533,6 +3740,87 @@ class AutoTranslateAdapter:
         except Exception as e:
             logger.error(f"Failed to toggle auto-translate config {config_id}: {e}")
             return False
+
+    @staticmethod
+    async def create_config_async(guild_id: int, data: Dict[str, Any]) -> Optional[str]:
+        try:
+            db = await _get_db_main_async()
+            config_id = str(uuid.uuid4())
+            now = datetime.utcnow().isoformat()
+            doc = data.copy()
+            doc['_id'] = config_id
+            doc['config_id'] = config_id
+            doc['guild_id'] = int(guild_id)
+            doc['enabled'] = True
+            doc['created_at'] = now
+            doc['updated_at'] = now
+            await db[AutoTranslateAdapter.COLL].insert_one(doc)
+            return config_id
+        except Exception: return None
+
+    @staticmethod
+    async def get_config_async(config_id: str) -> Optional[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            doc = await db[AutoTranslateAdapter.COLL].find_one({'_id': config_id})
+            if doc:
+                doc['config_id'] = str(doc['_id'])
+                doc.pop('_id', None)
+            return doc
+        except Exception: return None
+
+    @staticmethod
+    async def get_guild_configs_async(guild_id: int) -> List[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[AutoTranslateAdapter.COLL].find({'guild_id': int(guild_id)})
+            docs = await cursor.to_list(length=None)
+            for doc in docs:
+                doc['config_id'] = str(doc['_id'])
+                doc.pop('_id', None)
+            return docs
+        except Exception: return []
+
+    @staticmethod
+    async def get_configs_for_channel_async(channel_id: int) -> List[Dict[str, Any]]:
+        try:
+            db = await _get_db_main_async()
+            cursor = db[AutoTranslateAdapter.COLL].find({'source_channel_id': int(channel_id), 'enabled': True})
+            docs = await cursor.to_list(length=None)
+            for doc in docs:
+                doc['config_id'] = str(doc['_id'])
+                doc.pop('_id', None)
+            return docs
+        except Exception: return []
+
+    @staticmethod
+    async def update_config_async(config_id: str, data: Dict[str, Any]) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            update_data = data.copy()
+            update_data['updated_at'] = now
+            for k in ['config_id', 'guild_id', '_id', 'created_at']: update_data.pop(k, None)
+            result = await db[AutoTranslateAdapter.COLL].update_one({'_id': config_id}, {'$set': update_data})
+            return result.modified_count > 0 or result.matched_count > 0
+        except Exception: return False
+
+    @staticmethod
+    async def delete_config_async(config_id: str) -> bool:
+        try:
+            db = await _get_db_main_async()
+            result = await db[AutoTranslateAdapter.COLL].delete_one({'_id': config_id})
+            return result.deleted_count > 0
+        except Exception: return False
+
+    @staticmethod
+    async def toggle_config_async(config_id: str, enabled: bool) -> bool:
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            result = await db[AutoTranslateAdapter.COLL].update_one({'_id': config_id}, {'$set': {'enabled': enabled, 'updated_at': now}})
+            return result.modified_count > 0 or result.matched_count > 0
+        except Exception: return False
 
 
 

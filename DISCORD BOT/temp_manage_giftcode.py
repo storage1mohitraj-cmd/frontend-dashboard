@@ -15,7 +15,12 @@ import time
 import logging
 
 try:
-    from db.mongo_adapters import mongo_enabled, GiftCodesAdapter, AutoRedeemSettingsAdapter, AutoRedeemChannelsAdapter, GiftCodeRedemptionAdapter, AutoRedeemMembersAdapter, AutoRedeemedCodesAdapter, _get_db
+    from db.mongo_adapters import (
+        mongo_enabled, GiftCodesAdapter, AutoRedeemSettingsAdapter, 
+        AutoRedeemChannelsAdapter, GiftCodeRedemptionAdapter, 
+        AutoRedeemMembersAdapter, AutoRedeemedCodesAdapter, _get_db,
+        _get_db_main_async
+    )
 except Exception:
     mongo_enabled = lambda: False
     GiftCodesAdapter = None
@@ -300,13 +305,14 @@ class ManageGiftCode(commands.Cog):
         
         try:
             self.logger.info("🔄 [STARTUP] Syncing MongoDB auto-redeem data to SQLite...")
-            db = _get_db()
+            db = await _get_db_main_async()
             
             # --- Members (handle both V1 array-style and V2 flat docs) ---
             synced_members = 0
             skipped = 0
             try:
-                all_member_docs = list(db['auto_redeem_members'].find({}))
+                cursor = db['auto_redeem_members'].find({})
+                all_member_docs = await cursor.to_list(length=None)
                 self.logger.info(f"📊 [STARTUP] Found {len(all_member_docs)} member docs in MongoDB")
                 
                 for doc in all_member_docs:
@@ -372,7 +378,7 @@ class ManageGiftCode(commands.Cog):
             synced_settings = 0
             try:
                 if AutoRedeemSettingsAdapter:
-                    all_settings = AutoRedeemSettingsAdapter.get_all_settings()
+                    all_settings = await AutoRedeemSettingsAdapter.get_all_settings_async()
                     for s in (all_settings or []):
                         try:
                             guild_id = int(s.get('guild_id', 0))
@@ -597,7 +603,7 @@ class ManageGiftCode(commands.Cog):
         """MongoDB/SQLite hybrid storage for auto-redeem members"""
         
         @staticmethod
-        def get_members(cog_instance, guild_id):
+        async def get_members(cog_instance, guild_id):
             """Get all auto-redeem members for a guild (filters out invalid FIDs)
             Priority: MongoDB (if available and has data) > SQLite (fallback and sync source)
             """
@@ -609,12 +615,12 @@ class ManageGiftCode(commands.Cog):
                 # Step 1: Try MongoDB first (if enabled)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        members = AutoRedeemMembersAdapter.get_members(guild_id)
+                        members = await AutoRedeemMembersAdapter.get_members_async(guild_id)
                         if members:
                             from_source = "MongoDB"
                             cog_instance.logger.debug(f"Fetched {len(members)} auto-redeem members from MongoDB for guild {guild_id}")
                     except Exception as e:
-                        cog_instance.logger.warning(f"⚠️ MongoDB get_members failed for guild {guild_id}: {e}. Falling back to SQLite.")
+                        cog_instance.logger.warning(f"⚠️ MongoDB get_members (async) failed for guild {guild_id}: {e}. Falling back to SQLite.")
                         members = []
                 
                 # Step 2: Fallback to SQLite if MongoDB is empty or failed
@@ -652,8 +658,8 @@ class ManageGiftCode(commands.Cog):
                                 for member in members:
                                     try:
                                         # Check if member exists in MongoDB
-                                        if not AutoRedeemMembersAdapter.member_exists(guild_id, member['fid']):
-                                            success = AutoRedeemMembersAdapter.add_member(guild_id, member['fid'], member)
+                                        if not await AutoRedeemMembersAdapter.member_exists_async(guild_id, member['fid']):
+                                            success = await AutoRedeemMembersAdapter.add_member_async(guild_id, member['fid'], member)
                                             if success:
                                                 sync_count += 1
                                     except Exception as sync_err:
@@ -662,7 +668,7 @@ class ManageGiftCode(commands.Cog):
                                 if sync_count > 0:
                                     cog_instance.logger.info(f"✅ Synced {sync_count} members from SQLite to MongoDB for guild {guild_id}")
                             except Exception as sync_error:
-                                cog_instance.logger.warning(f"MongoDB sync failed for guild {guild_id}: {sync_error}")
+                                cog_instance.logger.warning(f"MongoDB sync failed (async) for guild {guild_id}: {sync_error}")
                     except Exception as sqlite_error:
                         cog_instance.logger.error(f"SQLite query failed for guild {guild_id}: {sqlite_error}")
                         return []
@@ -687,7 +693,7 @@ class ManageGiftCode(commands.Cog):
                 return []
         
         @staticmethod
-        def cleanup_null_members(cog_instance, guild_id=None):
+        async def cleanup_null_members(cog_instance, guild_id=None):
             """Remove all members with null/empty FIDs from database"""
             try:
                 removed_count = 0
@@ -709,11 +715,10 @@ class ManageGiftCode(commands.Cog):
                 # Remove from MongoDB
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        from db.mongo_adapters import _get_db
-                        db = _get_db()
+                        db = await _get_db_main_async()
                         if db:
                             if guild_id:
-                                result = db[AutoRedeemMembersAdapter.COLL].delete_many({
+                                result = await db[AutoRedeemMembersAdapter.COLL].delete_many({
                                     'guild_id': int(guild_id),
                                     '$or': [
                                         {'fid': None},
@@ -722,7 +727,7 @@ class ManageGiftCode(commands.Cog):
                                     ]
                                 })
                             else:
-                                result = db[AutoRedeemMembersAdapter.COLL].delete_many({
+                                result = await db[AutoRedeemMembersAdapter.COLL].delete_many({
                                     '$or': [
                                         {'fid': None},
                                         {'fid': ''},
@@ -731,7 +736,7 @@ class ManageGiftCode(commands.Cog):
                                 })
                             removed_count += result.deleted_count
                     except Exception as e:
-                        cog_instance.logger.error(f"Error cleaning up null members from MongoDB: {e}")
+                        cog_instance.logger.error(f"Error cleaning up null members from MongoDB (async): {e}")
                 
                 if removed_count > 0:
                     cog_instance.logger.info(f"🧹 Cleaned up {removed_count} members with null/empty FIDs")
@@ -742,7 +747,7 @@ class ManageGiftCode(commands.Cog):
                 return 0
         
         @staticmethod
-        def add_member(cog_instance, guild_id, fid, member_data):
+        async def add_member(cog_instance, guild_id, fid, member_data):
             """Add a member to auto-redeem list (writes to both MongoDB and SQLite for consistency)"""
             try:
                 # Validate FID - reject null, empty, or 'None' values
@@ -778,13 +783,13 @@ class ManageGiftCode(commands.Cog):
                 # Secondary write: MongoDB (if enabled)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        mongo_success = AutoRedeemMembersAdapter.add_member(guild_id, fid, member_data)
+                        mongo_success = await AutoRedeemMembersAdapter.add_member_async(guild_id, fid, member_data)
                         if mongo_success:
-                            cog_instance.logger.debug(f"✅ Added member {fid} to MongoDB for guild {guild_id}")
+                            cog_instance.logger.debug(f"✅ Added member {fid} to MongoDB (async) for guild {guild_id}")
                         else:
-                            cog_instance.logger.warning(f"MongoDB add_member returned False for {fid}, but SQLite succeeded")
+                            cog_instance.logger.warning(f"MongoDB add_member (async) returned False for {fid}, but SQLite succeeded")
                     except Exception as mongo_e:
-                        cog_instance.logger.warning(f"Failed to add member {fid} to MongoDB (SQLite succeeded): {mongo_e}")
+                        cog_instance.logger.warning(f"Failed to add member {fid} to MongoDB (async) (SQLite succeeded): {mongo_e}")
                 
                 return sqlite_success
             except Exception as e:
@@ -792,13 +797,13 @@ class ManageGiftCode(commands.Cog):
                 return False
         
         @staticmethod
-        def remove_member(cog_instance, guild_id, fid):
+        async def remove_member(cog_instance, guild_id, fid):
             """Remove a member from auto-redeem list"""
             try:
                 # Try MongoDB first
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        success = AutoRedeemMembersAdapter.remove_member(guild_id, fid)
+                        success = await AutoRedeemMembersAdapter.remove_member_async(guild_id, fid)
                         if success:
                             # Also remove from SQLite
                             cog_instance.cursor.execute(
@@ -809,7 +814,7 @@ class ManageGiftCode(commands.Cog):
                             return True
                         return False
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB remove_member failed, using SQLite: {e}")
+                        cog_instance.logger.warning(f"MongoDB remove_member (async) failed, using SQLite: {e}")
                 
                 # Fallback to SQLite
                 cog_instance.cursor.execute(
@@ -823,15 +828,15 @@ class ManageGiftCode(commands.Cog):
                 return False
         
         @staticmethod
-        def member_exists(cog_instance, guild_id, fid):
+        async def member_exists(cog_instance, guild_id, fid):
             """Check if member exists in auto-redeem list"""
             try:
                 # Try MongoDB first
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        return AutoRedeemMembersAdapter.member_exists(guild_id, fid)
+                        return await AutoRedeemMembersAdapter.member_exists_async(guild_id, fid)
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB member_exists failed, using SQLite: {e}")
+                        cog_instance.logger.warning(f"MongoDB member_exists (async) failed, using SQLite: {e}")
                 
                 # Fallback to SQLite
                 cog_instance.cursor.execute(
@@ -844,7 +849,7 @@ class ManageGiftCode(commands.Cog):
                 return False
         
         @staticmethod
-        def sync_members_from_sqlite(cog_instance, guild_id=None):
+        async def sync_members_from_sqlite(cog_instance, guild_id=None):
             """Manually sync all auto-redeem members from SQLite to MongoDB
             This is useful for Oracle VM deployments where MongoDB may have been down
             """
@@ -889,13 +894,13 @@ class ManageGiftCode(commands.Cog):
                         
                         # Check if already in MongoDB
                         try:
-                            if not AutoRedeemMembersAdapter.member_exists(guild_id_val, fid):
-                                success = AutoRedeemMembersAdapter.add_member(guild_id_val, fid, member_data)
+                            if not await AutoRedeemMembersAdapter.member_exists_async(guild_id_val, fid):
+                                success = await AutoRedeemMembersAdapter.add_member_async(guild_id_val, fid, member_data)
                                 if success:
                                     sync_count += 1
-                                    cog_instance.logger.debug(f"✅ Synced member {fid} (guild {guild_id_val}) to MongoDB")
+                                    cog_instance.logger.debug(f"✅ Synced member {fid} (guild {guild_id_val}) to MongoDB (async)")
                         except Exception as check_err:
-                            cog_instance.logger.warning(f"Failed to check if member {fid} exists: {check_err}")
+                            cog_instance.logger.warning(f"Failed to check if member {fid} exists (async): {check_err}")
                     except Exception as row_err:
                         cog_instance.logger.warning(f"Failed to sync row {row}: {row_err}")
                 
@@ -1160,28 +1165,28 @@ class ManageGiftCode(commands.Cog):
                         else:
                             tracking_status = "failed"
                         
-                        GiftCodeRedemptionAdapter.track_redemption(
+                        await GiftCodeRedemptionAdapter.track_redemption_async(
                             guild_id=guild_id,
                             code=giftcode,
                             fid=str(fid),
                             status=tracking_status
                         )
-                        self.logger.debug(f"Tracked redemption: guild={guild_id}, code={giftcode}, fid={fid}, status={tracking_status}")
+                        self.logger.debug(f"Tracked redemption (async): guild={guild_id}, code={giftcode}, fid={fid}, status={tracking_status}")
                     
                     # CRITICAL: Track in AutoRedeemedCodesAdapter to prevent duplicate redemptions on restart
                     # This tracks which specific members have already redeemed a code
                     if mongo_enabled() and AutoRedeemedCodesAdapter:
                         if redemption_successful or final_status == "ALREADY_RECEIVED":
                             # Mark this specific member as having redeemed this code
-                            AutoRedeemedCodesAdapter.mark_code_redeemed_for_member(
+                            await AutoRedeemedCodesAdapter.mark_code_redeemed_for_member_async(
                                 guild_id=guild_id,
                                 code=giftcode,
                                 fid=str(fid),
                                 status="success" if redemption_successful else "already_redeemed"
                             )
-                            self.logger.debug(f"✅ Marked {nickname} (FID: {fid}) as redeemed for code {giftcode} in guild {guild_id}")
+                            self.logger.debug(f"✅ Marked {nickname} (FID: {fid}) as redeemed for code {giftcode} in guild {guild_id} (async)")
                 except Exception as e:
-                    self.logger.error(f"Error tracking redemption: {e}")
+                    self.logger.error(f"Error tracking redemption (async): {e}")
             
             # Return results
             # Treat TIME_ERROR, EXPIRED, and USAGE_LIMIT as "already redeemed" since:
@@ -1229,15 +1234,15 @@ class ManageGiftCode(commands.Cog):
             self.logger.info(f"🔒 Locked auto-redeem for guild {guild_id} with code {giftcode}")
         
         try:
-            # Check if auto redeem is enabled - try MongoDB first, fallback to SQLite
+            # Check if auto redeem is enabled - try MongoDB first (async), fallback to SQLite
             enabled = False
             if mongo_enabled() and AutoRedeemSettingsAdapter:
                 try:
-                    settings = AutoRedeemSettingsAdapter.get_settings(guild_id)
+                    settings = await AutoRedeemSettingsAdapter.get_settings_async(guild_id)
                     if settings:
                         enabled = settings.get('enabled', False)
                 except Exception as e:
-                    self.logger.warning(f"Failed to get auto redeem settings from MongoDB: {e}")
+                    self.logger.warning(f"Failed to get auto redeem settings from MongoDB (async): {e}")
             
             # Fallback to SQLite if MongoDB failed or not enabled
             if not mongo_enabled() or not AutoRedeemSettingsAdapter:
@@ -1252,15 +1257,15 @@ class ManageGiftCode(commands.Cog):
                 self.logger.info(f"Auto redeem disabled for guild {guild_id}, skipping")
                 return
             
-            # Get import channel - try MongoDB first, fallback to SQLite
+            # Get import channel - try MongoDB first (async), fallback to SQLite
             channel_id = None
             if mongo_enabled() and AutoRedeemChannelsAdapter:
                 try:
-                    channel_config = AutoRedeemChannelsAdapter.get_channel(guild_id)
+                    channel_config = await AutoRedeemChannelsAdapter.get_channel_async(guild_id)
                     if channel_config:
                         channel_id = channel_config.get('channel_id')
                 except Exception as e:
-                    self.logger.warning(f"Failed to get auto redeem channel from MongoDB: {e}")
+                    self.logger.warning(f"Failed to get auto redeem channel from MongoDB (async): {e}")
             
             # Fallback to SQLite if MongoDB failed or not enabled
             if channel_id is None:
@@ -1281,8 +1286,8 @@ class ManageGiftCode(commands.Cog):
                 self.logger.warning(f"Import channel {channel_id} not found")
                 return
             
-            # Get all auto-redeem members using MongoDB-first helper
-            members_data = self.AutoRedeemDB.get_members(self, guild_id)
+            # Get all auto-redeem members using MongoDB-first async helper
+            members_data = await self.AutoRedeemDB.get_members(self, guild_id)
             
             if not members_data:
                 self.logger.info(f"No auto-redeem members for guild {guild_id}")
@@ -1302,9 +1307,8 @@ class ManageGiftCode(commands.Cog):
                     # Extract all FIDs
                     all_fids = [member['fid'] for member in members_data]
                     
-                    # Run batch check in thread pool to avoid blocking event loop
-                    redeemed_status = await asyncio.to_thread(
-                        AutoRedeemedCodesAdapter.batch_check_members,
+                    # Use native async batch check — no thread pool needed
+                    redeemed_status = await AutoRedeemedCodesAdapter.batch_check_members_async(
                         guild_id,
                         giftcode,
                         all_fids
@@ -1989,13 +1993,13 @@ class ManageGiftCode(commands.Cog):
             # Also fetch from MongoDB if enabled
             if mongo_enabled() and GiftCodesAdapter:
                 try:
-                    # GiftCodesAdapter.get_all() returns list of tuples: (code, date, validation_status)
-                    mongo_codes = GiftCodesAdapter.get_all()
+                    # GiftCodesAdapter.get_all_async() returns list of tuples: (code, date, validation_status)
+                    mongo_codes = await GiftCodesAdapter.get_all_async()
                     for c in mongo_codes:
                         if c and c[0]:
                              db_codes.add(c[0])
                 except Exception as e:
-                    self.logger.error(f"Failed to fetch codes from Mongo: {e}")
+                    self.logger.error(f"Failed to fetch codes from Mongo (async): {e}")
 
             self.logger.info(f"Found {len(db_codes)} existing codes in database(s)")
             
@@ -2021,28 +2025,13 @@ class ManageGiftCode(commands.Cog):
                     )
                     self.logger.info(f"Added new code to SQLite: {code}")
                     
-                    # CRITICAL: Also insert into MongoDB if enabled
-                    if mongo_enabled() and GiftCodesAdapter and _get_db:
+                    # CRITICAL: Also insert into MongoDB if enabled (async)
+                    if mongo_enabled() and GiftCodesAdapter:
                         try:
-                            # Insert the code with auto_redeem_processed = False
-                            db = _get_db()
-                            if db:
-                                db[GiftCodesAdapter.COLL].update_one(
-                                    {'_id': code},
-                                    {
-                                        '$set': {
-                                            'date': date,
-                                            'validation_status': 'validated',
-                                            'auto_redeem_processed': False,
-                                            'created_at': datetime.utcnow().isoformat(),
-                                            'updated_at': datetime.utcnow().isoformat()
-                                        }
-                                    },
-                                    upsert=True
-                                )
-                                self.logger.info(f"✅ Added new code to MongoDB: {code}")
+                            await GiftCodesAdapter.insert_async(code, date)
+                            self.logger.info(f"✅ Added new code to MongoDB (async): {code}")
                         except Exception as mongo_err:
-                            self.logger.error(f"⚠️ Failed to add code {code} to MongoDB: {mongo_err}")
+                            self.logger.error(f"⚠️ Failed to add code {code} to MongoDB (async): {mongo_err}")
                             # Continue anyway - SQLite is the fallback
                     
                 except Exception as e:
@@ -2069,7 +2058,7 @@ class ManageGiftCode(commands.Cog):
         
         # Cleanup members with null/empty FIDs from all guilds
         self.logger.info("🧹 Cleaning up members with null/empty FIDs...")
-        cleanup_count = self.AutoRedeemDB.cleanup_null_members(self)
+        cleanup_count = await self.AutoRedeemDB.cleanup_null_members(self)
         if cleanup_count > 0:
             self.logger.info(f"✅ Removed {cleanup_count} invalid members from auto-redeem lists")
         
@@ -2112,12 +2101,12 @@ class ManageGiftCode(commands.Cog):
                 self.logger.info("ℹ️ No enabled guilds in SQLite to sync")
                 # Also check MongoDB for existing settings
                 try:
-                    mongo_settings = AutoRedeemSettingsAdapter.get_all_settings()
+                    mongo_settings = await AutoRedeemSettingsAdapter.get_all_settings_async()
                     if mongo_settings:
                         enabled_count = sum(1 for s in mongo_settings if s.get('enabled', False))
                         self.logger.info(f"✅ MongoDB already has {enabled_count} enabled guilds (out of {len(mongo_settings)} total)")
                 except Exception as e:
-                    self.logger.error(f"❌ Error checking MongoDB settings: {e}")
+                    self.logger.error(f"❌ Error checking MongoDB settings (async): {e}")
                 return
             
             # Sync each enabled setting to MongoDB
@@ -2127,27 +2116,27 @@ class ManageGiftCode(commands.Cog):
                 enabled = bool(row[1])
                 updated_by = row[2] if len(row) > 2 else 0
                 
-                # Check if already exists in MongoDB
-                existing = AutoRedeemSettingsAdapter.get_settings(guild_id)
+                # Check if already exists in MongoDB (async)
+                existing = await AutoRedeemSettingsAdapter.get_settings_async(guild_id)
                 
                 if existing and existing.get('enabled', False):
                     self.logger.debug(f"ℹ️ Guild {guild_id} already enabled in MongoDB, skipping")
                     continue
                 
-                # Sync to MongoDB
+                # Sync to MongoDB (async)
                 try:
-                    success = AutoRedeemSettingsAdapter.set_enabled(
+                    success = await AutoRedeemSettingsAdapter.set_enabled_async(
                         guild_id,
                         enabled,
                         updated_by or 0
                     )
                     if success:
                         synced_count += 1
-                        self.logger.info(f"✅ Synced guild {guild_id} auto-redeem settings to MongoDB")
+                        self.logger.info(f"✅ Synced guild {guild_id} auto-redeem settings to MongoDB (async)")
                     else:
-                        self.logger.warning(f"⚠️ Failed to sync guild {guild_id} to MongoDB")
+                        self.logger.warning(f"⚠️ Failed to sync guild {guild_id} to MongoDB (async)")
                 except Exception as e:
-                    self.logger.error(f"❌ Error syncing guild {guild_id}: {e}")
+                    self.logger.error(f"❌ Error syncing guild {guild_id} (async): {e}")
             
             self.logger.info(f"🎉 Synced {synced_count} guild(s) to MongoDB")
             self.logger.info("🏁 === AUTO-REDEEM SETTINGS SYNC COMPLETE ===")
@@ -2167,8 +2156,8 @@ class ManageGiftCode(commands.Cog):
 
             self.logger.info("🔄 === SYNCING GIFT CODES FROM MONGODB TO SQLITE ===")
             
-            # Fetch all codes from MongoDB
-            mongo_codes = GiftCodesAdapter.get_all_with_status()
+            # Fetch all codes from MongoDB (async)
+            mongo_codes = await GiftCodesAdapter.get_all_with_status_async()
             if not mongo_codes:
                 self.logger.info("ℹ️ MongoDB has no gift codes to sync")
                 return
@@ -2344,10 +2333,10 @@ class ManageGiftCode(commands.Cog):
                 
                 for code, _ in old_codes:
                     try:
-                        # Mark in MongoDB
+                        # Mark in MongoDB (async)
                         if mongo_enabled() and GiftCodesAdapter:
                             try:
-                                GiftCodesAdapter.mark_code_processed(code)
+                                await GiftCodesAdapter.update_status_async(code, 'auto_redeem_processed')
                             except:
                                 pass
                         
@@ -2444,12 +2433,12 @@ class ManageGiftCode(commands.Cog):
             mongo_attempted = False
             if mongo_enabled() and AutoRedeemSettingsAdapter:
                 # Check if get_all_settings method exists
-                if hasattr(AutoRedeemSettingsAdapter, 'get_all_settings'):
+                if hasattr(AutoRedeemSettingsAdapter, 'get_all_settings_async'):
                     try:
                         mongo_attempted = True
-                        self.logger.info("📊 Checking MongoDB for enabled guilds...")
-                        # Get all guilds with auto-redeem enabled from MongoDB
-                        all_settings = AutoRedeemSettingsAdapter.get_all_settings()
+                        self.logger.info("📊 Checking MongoDB for enabled guilds (async)...")
+                        # Get all guilds with auto-redeem enabled from MongoDB (async)
+                        all_settings = await AutoRedeemSettingsAdapter.get_all_settings_async()
                         if all_settings:
                             self.logger.info(f"📋 Found {len(all_settings)} total guild settings in MongoDB")
                             enabled_guilds = [
@@ -2515,14 +2504,14 @@ class ManageGiftCode(commands.Cog):
                 # Check if this code has already been processed for auto-redeem
                 already_processed = False
                 
-                # Check MongoDB first
+                # Check MongoDB first (async)
                 if mongo_enabled() and GiftCodesAdapter:
                     try:
-                        code_data = GiftCodesAdapter.get_code(code)
+                        code_data = await GiftCodesAdapter.get_code_async(code)
                         if code_data:
                             already_processed = code_data.get('auto_redeem_processed', False)
                     except Exception as e:
-                        self.logger.warning(f"Failed to check code status in MongoDB: {e}")
+                        self.logger.warning(f"Failed to check code status in MongoDB (async): {e}")
                 
                 # Fallback to SQLite
                 if not mongo_enabled() or not GiftCodesAdapter:
@@ -2568,15 +2557,15 @@ class ManageGiftCode(commands.Cog):
             
             self.logger.info(f"🏁 Queue empty! Marking code {code} as 100% processed globally.")
             
-            # Mark in MongoDB if available
+            # Mark in MongoDB if available (async)
             mongo_marked = False
             if mongo_enabled() and GiftCodesAdapter:
                 try:
-                    GiftCodesAdapter.mark_code_processed(code)
+                    await GiftCodesAdapter.update_status_async(code, 'auto_redeem_processed')
                     mongo_marked = True
-                    self.logger.info(f"✅ Marked {code} as processed in MongoDB")
+                    self.logger.info(f"✅ Marked {code} as processed in MongoDB (async)")
                 except Exception as e:
-                    self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
+                    self.logger.error(f"❌ Failed to mark code in MongoDB (async): {e}")
             
             # Mark in SQLite for consistency
             sqlite_marked = False
@@ -2873,8 +2862,8 @@ class ManageGiftCode(commands.Cog):
                     )
                     return
                 
-                # Get usage statistics for this server
-                stats = GiftCodeRedemptionAdapter.get_all_stats(interaction.guild.id)
+                # Get usage statistics for this server (async)
+                stats = await GiftCodeRedemptionAdapter.get_all_stats_async(interaction.guild.id)
                 
                 if not stats:
                     await interaction.response.send_message(
@@ -3401,7 +3390,7 @@ class ManageGiftCode(commands.Cog):
                     
                     if _mongo_enabled() and GiftCodesAdapter:
                         try:
-                            mongo_codes = GiftCodesAdapter.get_all_with_status()
+                            mongo_codes = await GiftCodesAdapter.get_all_with_status_async()
                             if mongo_codes:
                                 for code_data in mongo_codes:
                                     c = str(code_data.get('giftcode', ''))
@@ -3409,7 +3398,7 @@ class ManageGiftCode(commands.Cog):
                                     date_added = code_data.get('date', '')
                                     db_status_map[c] = (proc, date_added)
                         except Exception as e:
-                            self.logger.warning(f"Failed to fetch from Mongo for trigger menu: {e}")
+                            self.logger.warning(f"Failed to fetch from Mongo (async) for trigger menu: {e}")
                     
                     if not db_status_map:
                         try:
@@ -4006,7 +3995,7 @@ class ManageGiftCode(commands.Cog):
             
             if use_mongo:
                 try:
-                    mongo_settings = AutoRedeemSettingsAdapter.get_settings(interaction.guild.id)
+                    mongo_settings = await AutoRedeemSettingsAdapter.get_settings_async(interaction.guild.id)
                     if mongo_settings:
                         enabled = 1 if mongo_settings.get('enabled', False) else 0
                     else:
@@ -4020,7 +4009,7 @@ class ManageGiftCode(commands.Cog):
                         if settings:
                             enabled = settings[0]
                 except Exception as e:
-                    self.logger.error(f"Failed to load auto redeem settings from MongoDB: {e}")
+                    self.logger.error(f"Failed to load auto redeem settings from MongoDB (async): {e}")
                     # Fall back to SQLite
                     self.cursor.execute("""
                         SELECT enabled
@@ -4041,8 +4030,8 @@ class ManageGiftCode(commands.Cog):
                 if settings:
                     enabled = settings[0]
             
-            # Get member count
-            members = self.AutoRedeemDB.get_members(self, interaction.guild.id)
+            # Get member count (async)
+            members = await self.AutoRedeemDB.get_members(self, interaction.guild.id)
             member_count = len(members)
             
             # Get configured channel for FID monitoring - MongoDB first, SQLite fallback
@@ -4057,7 +4046,7 @@ class ManageGiftCode(commands.Cog):
             
             if use_mongo:
                 try:
-                    mongo_channel = AutoRedeemChannelsAdapter.get_channel(interaction.guild.id)
+                    mongo_channel = await AutoRedeemChannelsAdapter.get_channel_async(interaction.guild.id)
                     if mongo_channel:
                         channel_id = mongo_channel.get('channel_id')
                     else:
@@ -4071,7 +4060,7 @@ class ManageGiftCode(commands.Cog):
                         if channel_result:
                             channel_id = channel_result[0]
                 except Exception as e:
-                    self.logger.error(f"Failed to load auto redeem channel from MongoDB: {e}")
+                    self.logger.error(f"Failed to load auto redeem channel from MongoDB (async): {e}")
                     # Fall back to SQLite
                     self.cursor.execute("""
                         SELECT channel_id 
@@ -4536,8 +4525,8 @@ class ManageGiftCode(commands.Cog):
                 # Get alliance members from MongoDB - filtered by server's assigned alliance
                 from db.mongo_adapters import AllianceMembersAdapter, ServerAllianceAdapter
                 
-                # Get server's assigned alliance
-                alliance_id = ServerAllianceAdapter.get_alliance(interaction.guild.id)
+                # Get server's assigned alliance (async)
+                alliance_id = await ServerAllianceAdapter.get_alliance_async(interaction.guild.id)
                 
                 if not alliance_id:
                     await interaction.followup.send(
@@ -4546,8 +4535,8 @@ class ManageGiftCode(commands.Cog):
                     )
                     return
                 
-                # Get all members and filter by assigned alliance
-                all_members = AllianceMembersAdapter.get_all_members()
+                # Get all members and filter by assigned alliance (async)
+                all_members = await AllianceMembersAdapter.get_all_members_async()
                 members = [m for m in all_members if int(m.get('alliance', 0) or m.get('alliance_id', 0)) == alliance_id]
                 
                 if not members:
@@ -4557,9 +4546,20 @@ class ManageGiftCode(commands.Cog):
                     )
                     return
                 
+                # Pre-compute existing FID map asynchronously BEFORE building the View
+                all_fids_for_check = [m.get('fid') for m in members if m.get('fid')]
+                existing_fids_map = {}
+                if all_fids_for_check and AutoRedeemMembersAdapter:
+                    try:
+                        existing_fids_map = await AutoRedeemMembersAdapter.batch_member_exists_async(
+                            interaction.guild.id, all_fids_for_check
+                        )
+                    except Exception as e:
+                        self.logger.warning(f"batch_member_exists_async failed: {e}")
+                
                 # Create multi-select view
                 class AllianceMemberSelectView(discord.ui.View):
-                    def __init__(self, members_data, cog_instance, guild_id):
+                    def __init__(self, members_data, cog_instance, guild_id, fids_map):
                         super().__init__(timeout=300)  # 5 minute timeout
                         self.members = members_data
                         self.cog = cog_instance
@@ -4567,6 +4567,7 @@ class ManageGiftCode(commands.Cog):
                         self.selected_fids = set()
                         self.current_page = 0
                         self.members_per_page = 20
+                        self.existing_fids_map = fids_map  # Pre-computed async result
                         self.update_components()
                     
                     async def on_timeout(self):
@@ -4589,10 +4590,8 @@ class ManageGiftCode(commands.Cog):
                         end_idx = start_idx + self.members_per_page
                         page_members = self.members[start_idx:end_idx]
                         
-                        # BATCH CHECK: Get all FIDs and check existence in one query
-                        from db.mongo_adapters import AutoRedeemMembersAdapter
-                        all_fids = [m.get('fid') for m in self.members if m.get('fid')]
-                        existing_fids_map = AutoRedeemMembersAdapter.batch_member_exists(self.guild_id, all_fids)
+                        # BATCH CHECK: use pre-computed map (fetched async before view was created)
+                        existing_fids_map = self.existing_fids_map
                         
                         # Create select menu
                         options = []
@@ -4919,7 +4918,7 @@ class ManageGiftCode(commands.Cog):
             
             if mongo_enabled() and AutoRedeemChannelsAdapter:
                 try:
-                    channel_config = AutoRedeemChannelsAdapter.get_channel(interaction.guild.id)
+                    channel_config = await AutoRedeemChannelsAdapter.get_channel_async(interaction.guild.id)
                     if channel_config:
                         existing_channel_id = channel_config.get('channel_id')
                 except Exception as e:
@@ -4935,17 +4934,17 @@ class ManageGiftCode(commands.Cog):
                 if result:
                     existing_channel_id = result[0]
                     
-                    # Sync to MongoDB if found in SQLite but not in MongoDB
+                    # Sync to MongoDB if found in SQLite but not in MongoDB (async)
                     if mongo_enabled() and AutoRedeemChannelsAdapter:
                         try:
-                            AutoRedeemChannelsAdapter.set_channel(
+                            await AutoRedeemChannelsAdapter.set_channel_async(
                                 interaction.guild.id,
                                 existing_channel_id,
                                 interaction.user.id
                             )
-                            self.logger.info(f"Synced channel config to MongoDB for guild {interaction.guild.id}")
+                            self.logger.info(f"Synced channel config to MongoDB (async) for guild {interaction.guild.id}")
                         except Exception as e:
-                            self.logger.warning(f"Failed to sync channel to MongoDB: {e}")
+                            self.logger.warning(f"Failed to sync channel to MongoDB (async): {e}")
             
             if existing_channel_id:
                 # Channel already configured - ask for confirmation
@@ -5059,17 +5058,17 @@ class ManageGiftCode(commands.Cog):
                             await select_interaction.response.send_message("❌ Channel not found.", ephemeral=True)
                             return
                         
-                        # Save to MongoDB first
+                        # Save to MongoDB first (async)
                         try:
                             if mongo_enabled() and AutoRedeemChannelsAdapter:
                                 try:
-                                    AutoRedeemChannelsAdapter.set_channel(
+                                    await AutoRedeemChannelsAdapter.set_channel_async(
                                         self.guild_id,
                                         channel_id,
                                         self.user_id
                                     )
                                 except Exception as e:
-                                    self.cog.logger.error(f"Failed to save channel to MongoDB: {e}")
+                                    self.cog.logger.error(f"Failed to save channel to MongoDB (async): {e}")
                         except ImportError:
                             # MongoDB not available, skip
                             pass
@@ -5221,17 +5220,17 @@ class ManageGiftCode(commands.Cog):
                             await select_interaction.response.send_message("❌ Channel not found.", ephemeral=True)
                             return
                         
-                        # Save to MongoDB first
+                        # Save to MongoDB first (async)
                         try:
                             if mongo_enabled() and AutoRedeemChannelsAdapter:
                                 try:
-                                    AutoRedeemChannelsAdapter.set_channel(
+                                    await AutoRedeemChannelsAdapter.set_channel_async(
                                         self.guild_id,
                                         channel_id,
                                         self.user_id
                                     )
                                 except Exception as e:
-                                    self.cog.logger.error(f"Failed to save channel to MongoDB: {e}")
+                                    self.cog.logger.error(f"Failed to save channel to MongoDB (async): {e}")
                         except ImportError:
                             # MongoDB not available, skip
                             pass
@@ -5310,7 +5309,7 @@ class ManageGiftCode(commands.Cog):
             if _mongo_enabled() and AutoRedeemSettingsAdapter:
                 try:
                     self.logger.info(f"📊 MongoDB: Saving auto-redeem ENABLED for guild {interaction.guild.id}...")
-                    AutoRedeemSettingsAdapter.set_enabled(
+                    await AutoRedeemSettingsAdapter.set_enabled_async(
                         interaction.guild.id,
                         True,
                         interaction.user.id
@@ -5380,7 +5379,7 @@ class ManageGiftCode(commands.Cog):
             if _mongo_enabled() and AutoRedeemSettingsAdapter:
                 try:
                     self.logger.info(f"📊 MongoDB: Saving auto-redeem DISABLED for guild {interaction.guild.id}...")
-                    AutoRedeemSettingsAdapter.set_enabled(
+                    await AutoRedeemSettingsAdapter.set_enabled_async(
                         interaction.guild.id,
                         False,
                         interaction.user.id
@@ -5454,7 +5453,7 @@ class ManageGiftCode(commands.Cog):
                 _mongo_enabled = globals().get('mongo_enabled', lambda: False)
                 if _mongo_enabled() and GiftCodesAdapter:
                     try:
-                        mongo_codes = GiftCodesAdapter.get_all()
+                        mongo_codes = await GiftCodesAdapter.get_all_async()
                         if mongo_codes:
                             all_codes = []
                             for code_data in mongo_codes:
@@ -5656,7 +5655,7 @@ class ManageGiftCode(commands.Cog):
                 _mongo_enabled = globals().get('mongo_enabled', lambda: False)
                 if _mongo_enabled() and GiftCodesAdapter:
                     try:
-                        mongo_codes = GiftCodesAdapter.get_all()
+                        mongo_codes = await GiftCodesAdapter.get_all_async()
                         if mongo_codes:
                             all_codes = []
                             for code_data in mongo_codes:
@@ -5889,10 +5888,10 @@ class ManageGiftCode(commands.Cog):
             
             monitored_channel_id = None
             
-            # Check MongoDB first
+            # Check MongoDB first (async)
             if mongo_enabled() and AutoRedeemChannelsAdapter:
                 try:
-                    channel_config = AutoRedeemChannelsAdapter.get_channel(message.guild.id)
+                    channel_config = await AutoRedeemChannelsAdapter.get_channel_async(message.guild.id)
                     if channel_config:
                         monitored_channel_id = channel_config.get('channel_id')
                         self.logger.debug(f"Found monitored channel {monitored_channel_id} in MongoDB for guild {message.guild.id}")
@@ -5910,17 +5909,17 @@ class ManageGiftCode(commands.Cog):
                     monitored_channel_id = result[0]
                     self.logger.debug(f"Found monitored channel {monitored_channel_id} in SQLite for guild {message.guild.id}")
                     
-                    # Sync to MongoDB if found in SQLite but not in MongoDB
+                    # Sync to MongoDB if found in SQLite but not in MongoDB (async)
                     if mongo_enabled() and AutoRedeemChannelsAdapter:
                         try:
-                            AutoRedeemChannelsAdapter.set_channel(
+                            await AutoRedeemChannelsAdapter.set_channel_async(
                                 message.guild.id,
                                 monitored_channel_id,
                                 message.author.id
                             )
-                            self.logger.info(f"Synced channel config to MongoDB for guild {message.guild.id}")
+                            self.logger.info(f"Synced channel config to MongoDB (async) for guild {message.guild.id}")
                         except Exception as e:
-                            self.logger.warning(f"Failed to sync channel to MongoDB: {e}")
+                            self.logger.warning(f"Failed to sync channel to MongoDB (async): {e}")
             
             # Check if current channel is the monitored channel
             if not monitored_channel_id or monitored_channel_id != message.channel.id:
@@ -5940,8 +5939,8 @@ class ManageGiftCode(commands.Cog):
                 try:
                     self.logger.debug(f"Processing FID {fid} from user {message.author.id}")
                     
-                    # Check if already exists
-                    if self.AutoRedeemDB.member_exists(self, message.guild.id, fid):
+                    # Check if already exists (async)
+                    if await self.AutoRedeemDB.member_exists(self, message.guild.id, fid):
                         self.logger.info(f"FID {fid} already exists in auto-redeem list for guild {message.guild.id}")
                         await message.reply(
                             f"⚠️ {message.author.mention} Your FID `{fid}` is already in the auto-redeem list!",
@@ -5969,8 +5968,8 @@ class ManageGiftCode(commands.Cog):
                         'added_by': message.author.id
                     }
                     
-                    self.logger.debug(f"Adding FID {fid} ({player_data['nickname']}) to auto-redeem list")
-                    success = self.AutoRedeemDB.add_member(
+                    self.logger.debug(f"Adding FID {fid} ({player_data['nickname']}) to auto-redeem list (async)")
+                    success = await self.AutoRedeemDB.add_member(
                         self,
                         message.guild.id,
                         fid,
@@ -6096,7 +6095,7 @@ class ManageGiftCode(commands.Cog):
         if _mongo_enabled() and AutoRedeemSettingsAdapter:
             try:
                 self.logger.info(f"📊 MongoDB: Saving auto-redeem DISABLED for guild {guild_id} (via STOP command)...")
-                AutoRedeemSettingsAdapter.set_enabled(
+                await AutoRedeemSettingsAdapter.set_enabled_async(
                     guild_id,
                     False,
                     ctx.author.id

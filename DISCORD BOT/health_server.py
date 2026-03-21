@@ -137,7 +137,7 @@ async def start_health_server():
     
     # Start on specified port, or search for available port if not on Render
     target_port = port
-    max_retries = 1 if is_render else 10  # On Render, we MUST use the assigned PORT
+    max_retries = 1 if is_render else 20  # On Render, we MUST use the assigned PORT
     
     runner = web.AppRunner(app)
     await runner.setup()
@@ -159,17 +159,25 @@ async def start_health_server():
                 logger.error(f"Health server failed to bind to assigned PORT {current_port}: {e}")
                 raise e
             else:
-                # Locally, try next port
-                logger.warning(f"Port {current_port} in use, trying next...")
+                # On Windows, WinError 10013 means OS blocked 0.0.0.0 binding.
+                # Fall back to localhost-only binding on the same port before trying next port.
+                if hasattr(e, 'winerror') and e.winerror == 10013:
+                    try:
+                        site = web.TCPSite(runner, '127.0.0.1', current_port)
+                        await site.start()
+                        logger.info(f'Health server started (localhost-only) on port {current_port}')
+                        logger.info(f'  - Health check: http://127.0.0.1:{current_port}/health')
+                        return current_port
+                    except OSError:
+                        pass  # Try next port
+                logger.warning(f"Port {current_port} unavailable, trying {current_port + 1}...")
                 continue
     
     # If we get here, we failed to bind to any port
-    logger.error(f"Coult not find any available port for health server (tried {max_retries} ports)")
+    logger.warning(f"Health server could not find an available port (tried {max_retries} ports from {target_port}). Bot runs fine without it.")
     try:
         await runner.cleanup()
     except Exception:
         pass
     return None
 
-    # Keep running until canceled; aiohttp site runs in background on the loop
-    return port

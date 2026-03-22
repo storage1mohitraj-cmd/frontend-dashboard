@@ -538,7 +538,7 @@ def append_feedback_log(user, user_id, feedback_text, posted_channel=False, post
 
 async def fetch_pollinations_image(prompt_text: str, width: int = None, height: int = None, model_name: str = None, seed: int = None) -> bytes:
     """Module-level helper to fetch images from Pollinations public endpoint."""
-    base = "https://pollinations.ai/p/"
+    base = "https://image.pollinations.ai/prompt/"
     encoded = quote(prompt_text, safe='')
     url = base + encoded
     params = []
@@ -546,8 +546,9 @@ async def fetch_pollinations_image(prompt_text: str, width: int = None, height: 
         params.append(f"width={int(width)}")
     if height:
         params.append(f"height={int(height)}")
-    if model_name:
-        params.append(f"model={quote(model_name, safe='')}")
+    # Model parameter currently crashes Pollinations with 500 error, omit it
+    # if model_name:
+    #     params.append(f"model={quote(model_name, safe='')}")
     if seed is not None:
         params.append(f"seed={int(seed)}")
     if params:
@@ -3153,8 +3154,9 @@ async def imagine(
             params.append(f"width={int(width)}")
         if height:
             params.append(f"height={int(height)}")
-        if model_val and model_val != 'stable-diffusion':
-            params.append(f"model={quote(model_val, safe='')}")
+        # Omit model parameter due to 500 errors on Pollinations backend
+        # if model_val and model_val != 'stable-diffusion':
+        #     params.append(f"model={quote(model_val, safe='')}")
         if seed is not None:
             params.append(f"seed={int(seed)}")
         if params:

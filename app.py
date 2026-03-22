@@ -523,7 +523,7 @@ def append_feedback_log(user, user_id, feedback_text, posted_channel=False, post
 
 async def fetch_pollinations_image(prompt_text: str, width: int = None, height: int = None, model_name: str = None, seed: int = None) -> bytes:
     """Module-level helper to fetch images from Pollinations public endpoint."""
-    base = "https://image.pollinations.ai/prompt/"
+    base = "https://pollinations.ai/p/"
     encoded = quote(prompt_text, safe='')
     url = base + encoded
     params = []

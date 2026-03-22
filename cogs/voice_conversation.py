@@ -222,7 +222,7 @@ class VoiceConversation(commands.Cog):
                 return
             
             # Check if this guild has an active session
-            if message.guild.id not in self.active_sessions:
+            if message.guild is None or message.guild.id not in self.active_sessions:
                 return
             
             session = self.active_sessions[message.guild.id]

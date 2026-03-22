@@ -149,6 +149,8 @@ from discord import app_commands
 from dotenv import load_dotenv
 load_dotenv()
 import os
+from urllib.parse import quote
+
 import json
 from bson import ObjectId
 
@@ -537,15 +539,62 @@ def append_feedback_log(user, user_id, feedback_text, posted_channel=False, post
 
 
 async def fetch_pollinations_image(prompt_text: str, width: int = None, height: int = None, model_name: str = None, seed: int = None) -> bytes:
-    """Module-level helper to fetch images using api_manager (bypassing broken Pollinations API)."""
-    # Route through the robust api_manager to use HuggingFace or OpenAI fallback
-    # Seed parameter is ignored as HF/OpenAI don't consistently support it via current wrapper
-    from api_manager import make_image_request
-    try:
-        return await make_image_request(prompt_text, width=width, height=height, model=model_name)
-    except Exception as e:
-        logger.error(f"Image generation fallback failed: {e}")
-        raise
+    """Module-level helper to fetch images from Pollinations.ai (Latest Standard)."""
+    api_key = os.getenv('POLLINATIONS_API_KEY')
+    
+    if api_key:
+        # Use new stable gateway (requires key)
+        base = "https://gen.pollinations.ai/image/"
+        params = [f"key={api_key}"]
+        # Flux is the recommended high-quality model for the new system
+        effective_model = model_name or "flux"
+    else:
+        # Legacy fallback (flaky, model parameter often causes 500s)
+        base = "https://image.pollinations.ai/prompt/"
+        params = []
+        # Strip model on legacy to avoid 500 errors
+        effective_model = None
+
+    encoded = quote(prompt_text, safe='')
+    url = base + encoded
+    
+    if width:
+        params.append(f"width={int(width)}")
+    if height:
+        params.append(f"height={int(height)}")
+    if effective_model:
+        params.append(f"model={quote(effective_model, safe='')}")
+    if seed is not None:
+        params.append(f"seed={int(seed)}")
+        
+    if params:
+        url = url + "?" + "&".join(params)
+
+    timeout = aiohttp.ClientTimeout(total=120)
+    # Use realistic browser headers to prevent 429 Rate Limiting
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "image/jpeg, image/png, image/*"
+    }
+    
+    async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+        async with session.get(url, allow_redirects=True) as resp:
+            if resp.status == 200:
+                content_type = resp.headers.get("Content-Type", "").lower()
+                if "image/" in content_type:
+                    return await resp.read()
+                # If it's not an image but 200, it might be a JSON error wrapped in 200 (rare)
+                data = await resp.read()
+                return data
+            elif resp.status == 401:
+                raise Exception("Pollinations API Key is invalid or missing for the new gateway.")
+            elif resp.status == 429:
+                raise Exception("Rate limited by Pollinations API.")
+            elif resp.status >= 500:
+                raise Exception(f"Pollinations server error: {resp.status}. Try removing the model parameter or using an API Key.")
+            else:
+                text = await resp.text()
+                raise Exception(f"Pollinations request failed: {resp.status} - {text}")
 
 
 def detect_image_request(text: str):

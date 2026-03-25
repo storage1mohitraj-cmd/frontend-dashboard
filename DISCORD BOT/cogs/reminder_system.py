@@ -1104,9 +1104,8 @@ class ReminderSystem(commands.Cog):
         # Store as naive UTC datetime for consistent comparison with reminder_time values.
         self.startup_time = get_accurate_utc_time()  # Always naive UTC
         # Maximum age of a reminder we will still send (minutes).
-        # If a reminder is older than this (e.g. bot had a network hiccup and check_reminders
-        # failed for a while), we silently skip it instead of blasting all missed reminders at once.
-        self.max_staleness_minutes = 5
+        # Set to 1 so if the bot stalls/freezes, any reminder that couldn't be sent exactly on time is strictly skipped.
+        self.max_staleness_minutes = 1
         # Prefer MongoDB-backed storage if MONGO_URI is provided; otherwise fall back to SQLite
         try:
             if os.getenv('MONGO_URI'):

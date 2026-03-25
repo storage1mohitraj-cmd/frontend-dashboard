@@ -978,40 +978,43 @@ class ManageGiftCode(commands.Cog):
 
         @staticmethod
         async def remove_member_async(cog_instance, guild_id, fid):
-            """Remove a member from auto-redeem list asynchronously"""
+            """Remove a member from auto-redeem list asynchronously (thread-safe)"""
             try:
-                # Try MongoDB first
+                fid = str(fid).strip()
+                guild_id_int = int(guild_id)
+                mongo_removed = False
+
+                # Step 1: Remove from MongoDB (async, non-blocking)
                 if mongo_enabled() and AutoRedeemMembersAdapter:
                     try:
-                        success = await AutoRedeemMembersAdapter.remove_member_async(guild_id, fid)
-                        if success:
-                            # Also remove from SQLite in thread
-                            def delete_sqlite():
-                                cog_instance.cursor.execute(
-                                    "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
-                                    (guild_id, fid)
-                                )
-                                cog_instance.giftcode_db.commit()
-                                return True
-                            await asyncio.to_thread(delete_sqlite)
-                            return True
+                        mongo_removed = await AutoRedeemMembersAdapter.remove_member_async(guild_id_int, fid)
+                        if mongo_removed:
+                            cog_instance.logger.debug(f"✅ Removed member {fid} from MongoDB for guild {guild_id_int}")
+                        else:
+                            cog_instance.logger.debug(f"ℹ️ Member {fid} not in MongoDB for guild {guild_id_int}, will try SQLite")
                     except Exception as e:
-                        cog_instance.logger.warning(f"MongoDB remove_member_async failed, falling back to SQLite: {e}")
-                
-                # Fallback to SQLite (in thread)
-                def delete_sqlite_only():
-                    cog_instance.cursor.execute(
-                        "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
-                        (guild_id, fid)
-                    )
-                    cog_instance.giftcode_db.commit()
-                    return cog_instance.cursor.rowcount > 0
-                
-                return await asyncio.to_thread(delete_sqlite_only)
+                        cog_instance.logger.warning(f"MongoDB remove_member_async failed: {e}")
+
+                # Step 2: Always delete from SQLite using a fresh per-thread connection (thread-safe)
+                db_path = 'db/giftcode.sqlite'
+                def delete_sqlite_isolated():
+                    import sqlite3
+                    with sqlite3.connect(db_path, timeout=10) as conn:
+                        conn.execute(
+                            "DELETE FROM auto_redeem_members WHERE guild_id = ? AND fid = ?",
+                            (guild_id_int, fid)
+                        )
+                        conn.commit()
+                        return conn.total_changes > 0
+
+                sqlite_removed = await asyncio.to_thread(delete_sqlite_isolated)
+                if sqlite_removed:
+                    cog_instance.logger.debug(f"✅ Removed member {fid} from SQLite for guild {guild_id_int}")
+
+                # Success if removed from either backend
+                return mongo_removed or sqlite_removed
             except Exception as e:
                 cog_instance.logger.error(f"Error in remove_member_async: {e}")
-                return False
-                cog_instance.logger.error(f"Error removing auto-redeem member: {e}")
                 return False
         
         @staticmethod

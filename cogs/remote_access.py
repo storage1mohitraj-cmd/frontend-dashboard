@@ -228,6 +228,15 @@ class RemoteAccess(commands.Cog):
                 custom_id=f"remote_send_message_{guild.id}",
                 row=1
             ))
+
+            # Delete Message button
+            view.add_item(discord.ui.Button(
+                label="Delete Message",
+                emoji="🗑️",
+                style=discord.ButtonStyle.danger,
+                custom_id=f"remote_delete_message_{guild.id}",
+                row=1
+            ))
             
             
             # Play Music button (new feature)
@@ -256,6 +265,18 @@ class RemoteAccess(commands.Cog):
                 custom_id=f"remote_stop_alliance_monitor_{guild.id}",
                 row=2
             ))
+
+            # Kick User button
+            bot_member = guild.get_member(self.bot.user.id)
+            has_kick = bot_member.guild_permissions.kick_members if bot_member else False
+            view.add_item(discord.ui.Button(
+                label="Kick User",
+                emoji="👢",
+                style=discord.ButtonStyle.danger,
+                custom_id=f"remote_kick_user_{guild.id}",
+                disabled=not has_kick,
+                row=2
+            ))
             
             # Back button
             view.add_item(discord.ui.Button(
@@ -281,12 +302,16 @@ class RemoteAccess(commands.Cog):
                         item.callback = lambda i, g=guild: self.manage_permissions(i, g)
                     elif item.custom_id.startswith("remote_send_message_"):
                         item.callback = lambda i, g=guild: self.send_message(i, g)
+                    elif item.custom_id.startswith("remote_delete_message_"):
+                        item.callback = lambda i, g=guild: self.delete_message_by_id(i, g)
                     elif item.custom_id.startswith("remote_play_music_"):
                         item.callback = lambda i, g=guild: self.play_music(i, g)
                     elif item.custom_id.startswith("remote_alliance_monitor_"):
                         item.callback = lambda i, g=guild: self.start_alliance_monitor(i, g)
                     elif item.custom_id.startswith("remote_stop_alliance_monitor_"):
                         item.callback = lambda i, g=guild: self.stop_alliance_monitor(i, g)
+                    elif item.custom_id.startswith("remote_kick_user_"):
+                        item.callback = lambda i, g=guild: self.kick_user(i, g)
 
             await interaction.response.edit_message(embed=embed, view=view)
             
@@ -1986,6 +2011,475 @@ class RemoteAccess(commands.Cog):
             traceback.print_exc()
             await interaction.response.send_message(
                 "❌ An error occurred while loading the stop monitor menu.",
+                ephemeral=True
+            )
+
+    async def kick_user(self, interaction: discord.Interaction, guild: discord.Guild):
+        """Remotely kick a member from the selected server"""
+        try:
+            bot_member = guild.get_member(self.bot.user.id)
+            if not bot_member or not bot_member.guild_permissions.kick_members:
+                await interaction.response.send_message(
+                    "❌ I don't have **Kick Members** permission in this server.",
+                    ephemeral=True
+                )
+                return
+
+            # Collect kickable members (not bots, not above bot in hierarchy)
+            members = [
+                m for m in guild.members
+                if not m.bot
+                and m.id != self.bot.user.id
+                and m.top_role < bot_member.top_role  # can't kick equal/higher roles
+            ]
+
+            if not members:
+                await interaction.response.send_message(
+                    "❌ No kickable members found in this server.\n"
+                    "(The bot can only kick members whose highest role is below the bot's highest role.)",
+                    ephemeral=True
+                )
+                return
+
+            # Sort alphabetically, limit to 25 for the dropdown
+            members_sorted = sorted(members, key=lambda m: m.display_name.lower())
+
+            options = [
+                discord.SelectOption(
+                    label=f"{m.display_name[:80]}",
+                    value=str(m.id),
+                    description=f"@{str(m)[:40]} • Joined: {m.joined_at.strftime('%Y-%m-%d') if m.joined_at else 'Unknown'}",
+                    emoji="👤"
+                )
+                for m in members_sorted[:25]
+            ]
+
+            select = discord.ui.Select(
+                placeholder="Select a member to kick...",
+                options=options,
+                custom_id="select_member_to_kick"
+            )
+
+            async def member_selected(select_interaction: discord.Interaction):
+                member_id = int(select_interaction.data["values"][0])
+                target = guild.get_member(member_id)
+
+                if not target:
+                    await select_interaction.response.send_message(
+                        "❌ Member not found. They may have already left the server.",
+                        ephemeral=True
+                    )
+                    return
+
+                # Show reason modal
+                from discord.ui import Modal, TextInput
+
+                class KickReasonModal(Modal, title=f"Kick {target.display_name}"):
+                    reason = TextInput(
+                        label="Kick Reason (optional)",
+                        placeholder="Enter a reason for kicking this member...",
+                        required=False,
+                        max_length=512,
+                        style=discord.TextStyle.paragraph
+                    )
+
+                    def __init__(self, parent_cog, member, g):
+                        super().__init__()
+                        self.parent_cog = parent_cog
+                        self.member = member
+                        self.guild = g
+
+                    async def on_submit(self, modal_int: discord.Interaction):
+                        try:
+                            kick_reason = self.reason.value.strip() if self.reason.value else "No reason provided"
+
+                            # Build confirmation embed
+                            confirm_embed = discord.Embed(
+                                title="⚠️ Confirm Member Kick",
+                                description=(
+                                    f"**Member:** {self.member.mention} (`{self.member}`)\_\n"
+                                    f"**User ID:** `{self.member.id}`\n"
+                                    f"**Server:** {self.guild.name}\n"
+                                    f"**Top Role:** {self.member.top_role.name}\n"
+                                    f"**Joined:** {f'<t:{int(self.member.joined_at.timestamp())}:R>' if self.member.joined_at else 'Unknown'}\n"
+                                    f"**Account Created:** <t:{int(self.member.created_at.timestamp())}:R>\n\n"
+                                    f"**Reason:** {kick_reason}\n\n"
+                                    f"⚠️ **This will remove the member from the server.**\n"
+                                    f"They can rejoin with a new invite unless banned."
+                                ),
+                                color=0xF39C12
+                            )
+                            confirm_embed.set_thumbnail(url=self.member.display_avatar.url)
+
+                            confirm_view = discord.ui.View(timeout=60)
+
+                            async def confirm_kick(confirm_int: discord.Interaction):
+                                try:
+                                    member_name = str(self.member)
+                                    member_display = self.member.display_name
+                                    await self.member.kick(reason=f"[Remote Access] {kick_reason} | By: {confirm_int.user}")
+
+                                    success_embed = discord.Embed(
+                                        title="✅ Member Kicked",
+                                        description=(
+                                            f"**Member:** `{member_name}` ({member_display})\_\n"
+                                            f"**Server:** {self.guild.name}\n"
+                                            f"**Reason:** {kick_reason}\n"
+                                            f"**Kicked by:** {confirm_int.user.mention}\n\n"
+                                            f"The member has been removed from the server."
+                                        ),
+                                        color=0x57F287
+                                    )
+                                    await confirm_int.response.edit_message(embed=success_embed, view=None)
+                                    print(f"[REMOTE ACCESS] Kicked {member_name} from {self.guild.name} — Reason: {kick_reason} | By: {confirm_int.user}")
+
+                                except discord.Forbidden:
+                                    await confirm_int.response.send_message(
+                                        "❌ I don't have permission to kick this member.\n"
+                                        "Their role may be equal to or higher than mine.",
+                                        ephemeral=True
+                                    )
+                                except discord.HTTPException as http_err:
+                                    await confirm_int.response.send_message(
+                                        f"❌ Discord API error: {str(http_err)}",
+                                        ephemeral=True
+                                    )
+                                except Exception as kick_err:
+                                    print(f"Kick error: {kick_err}")
+                                    await confirm_int.response.send_message(
+                                        f"❌ An error occurred: {str(kick_err)}",
+                                        ephemeral=True
+                                    )
+
+                            async def cancel_kick(cancel_int: discord.Interaction):
+                                cancel_embed = discord.Embed(
+                                    title="❌ Kick Cancelled",
+                                    description="The member was **not** kicked.",
+                                    color=0x5865F2
+                                )
+                                await cancel_int.response.edit_message(embed=cancel_embed, view=None)
+
+                            confirm_btn = discord.ui.Button(
+                                label="Confirm Kick",
+                                style=discord.ButtonStyle.danger,
+                                emoji="👢"
+                            )
+                            confirm_btn.callback = confirm_kick
+
+                            cancel_btn = discord.ui.Button(
+                                label="Cancel",
+                                style=discord.ButtonStyle.secondary,
+                                emoji="❌"
+                            )
+                            cancel_btn.callback = cancel_kick
+
+                            confirm_view.add_item(confirm_btn)
+                            confirm_view.add_item(cancel_btn)
+
+                            await modal_int.response.send_message(
+                                embed=confirm_embed,
+                                view=confirm_view,
+                                ephemeral=True
+                            )
+
+                        except Exception as e:
+                            print(f"KickReasonModal.on_submit error: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            if not modal_int.response.is_done():
+                                await modal_int.response.send_message(
+                                    f"❌ An error occurred: {str(e)}",
+                                    ephemeral=True
+                                )
+
+                modal = KickReasonModal(self, target, guild)
+                await select_interaction.response.send_modal(modal)
+
+            select.callback = member_selected
+
+            view = discord.ui.View(timeout=300)
+            view.add_item(select)
+
+            # Back button
+            back_button = discord.ui.Button(
+                label="◀ Back",
+                emoji="🏰",
+                style=discord.ButtonStyle.secondary
+            )
+            back_button.callback = lambda i: self.show_server_management(i, guild)
+            view.add_item(back_button)
+
+            total = len(members)
+            shown = min(total, 25)
+            embed = discord.Embed(
+                title=f"👢 Kick Member from {guild.name}",
+                description=(
+                    f"**Server Members:** `{guild.member_count}`\n"
+                    f"**Kickable Members:** `{total}` (showing first `{shown}`)\n\n"
+                    "**Kick Flow:**\n"
+                    "1️⃣ Select a member from the dropdown\n"
+                    "2️⃣ Enter an optional kick reason\n"
+                    "3️⃣ Confirm to execute the kick\n\n"
+                    "⚠️ Only members whose highest role is **below** the bot's role are shown.\n"
+                    "The kicked member can rejoin with a new invite unless banned."
+                ),
+                color=0xF39C12
+            )
+            if guild.icon:
+                embed.set_thumbnail(url=guild.icon.url)
+
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        except Exception as e:
+            print(f"Kick user error: {e}")
+            import traceback
+            traceback.print_exc()
+            await interaction.response.send_message(
+                "❌ An error occurred while loading the kick menu.",
+                ephemeral=True
+            )
+
+    async def delete_message_by_id(self, interaction: discord.Interaction, guild: discord.Guild):
+        """Delete a specific message from a specific channel in the server by message ID"""
+        try:
+            # Get all text channels where bot has manage_messages permission
+            channels = [
+                c for c in guild.text_channels
+                if c.permissions_for(guild.me).manage_messages or c.permissions_for(guild.me).administrator
+            ]
+
+            if not channels:
+                await interaction.response.send_message(
+                    "❌ I don't have **Manage Messages** permission in any text channel of this server.",
+                    ephemeral=True
+                )
+                return
+
+            # Step 1 – channel dropdown
+            options = [
+                discord.SelectOption(
+                    label=f"{channel.name[:90]}",
+                    value=str(channel.id),
+                    description=f"Category: {channel.category.name if channel.category else 'None'} • {channel.topic[:40] if channel.topic else 'No topic'}",
+                    emoji="📝"
+                )
+                for channel in sorted(channels, key=lambda c: c.position)[:25]
+            ]
+
+            select = discord.ui.Select(
+                placeholder="Select the channel that contains the message...",
+                options=options,
+                custom_id="select_channel_for_delete_msg"
+            )
+
+            async def channel_selected(select_interaction: discord.Interaction):
+                channel_id = int(select_interaction.data["values"][0])
+                target_channel = guild.get_channel(channel_id)
+
+                if not target_channel:
+                    await select_interaction.response.send_message(
+                        "❌ Channel not found.",
+                        ephemeral=True
+                    )
+                    return
+
+                # Step 2 – modal to enter the message ID
+                from discord.ui import Modal, TextInput
+
+                class DeleteMessageModal(Modal, title=f"Delete Message in #{target_channel.name}"):
+                    message_id = TextInput(
+                        label="Message ID",
+                        placeholder="Enter the exact message ID to delete...",
+                        required=True,
+                        min_length=17,
+                        max_length=20,
+                        style=discord.TextStyle.short
+                    )
+
+                    def __init__(self, parent_cog, ch, g):
+                        super().__init__()
+                        self.parent_cog = parent_cog
+                        self.channel = ch
+                        self.guild = g
+
+                    async def on_submit(self, modal_int: discord.Interaction):
+                        try:
+                            raw_id = self.message_id.value.strip()
+
+                            # Validate that it is a number
+                            if not raw_id.isdigit():
+                                await modal_int.response.send_message(
+                                    "❌ Invalid message ID. Please enter a numeric Discord message ID.",
+                                    ephemeral=True
+                                )
+                                return
+
+                            msg_id = int(raw_id)
+
+                            # Try to fetch the message so we can show a preview
+                            try:
+                                target_msg = await self.channel.fetch_message(msg_id)
+                            except discord.NotFound:
+                                await modal_int.response.send_message(
+                                    f"❌ Message `{msg_id}` was not found in {self.channel.mention}.\n"
+                                    "Make sure the ID is correct and belongs to the selected channel.",
+                                    ephemeral=True
+                                )
+                                return
+                            except discord.Forbidden:
+                                await modal_int.response.send_message(
+                                    "❌ I don't have permission to read messages in that channel.",
+                                    ephemeral=True
+                                )
+                                return
+
+                            # Build content preview
+                            content_preview = ""
+                            if target_msg.content:
+                                content_preview = target_msg.content[:300]
+                                if len(target_msg.content) > 300:
+                                    content_preview += "…"
+                            elif target_msg.embeds:
+                                embed_title = target_msg.embeds[0].title or "(embed)"
+                                content_preview = f"*Embed: {embed_title}*"
+                            else:
+                                content_preview = "*(no text content)*"
+
+                            # Step 3 – confirmation
+                            confirm_embed = discord.Embed(
+                                title="⚠️ Confirm Message Deletion",
+                                description=(
+                                    f"**Channel:** {self.channel.mention}\n"
+                                    f"**Server:** {self.guild.name}\n"
+                                    f"**Message ID:** `{msg_id}`\n"
+                                    f"**Author:** {target_msg.author.mention} (`{target_msg.author}`)\n"
+                                    f"**Sent:** <t:{int(target_msg.created_at.timestamp())}:R>\n\n"
+                                    f"**Content Preview:**\n>>> {content_preview}\n\n"
+                                    f"⚠️ **This action cannot be undone!**"
+                                ),
+                                color=0xED4245
+                            )
+                            if target_msg.author.display_avatar:
+                                confirm_embed.set_thumbnail(url=target_msg.author.display_avatar.url)
+
+                            confirm_view = discord.ui.View(timeout=60)
+
+                            async def confirm_delete(confirm_int: discord.Interaction):
+                                try:
+                                    await target_msg.delete()
+                                    success_embed = discord.Embed(
+                                        title="✅ Message Deleted",
+                                        description=(
+                                            f"**Channel:** {self.channel.mention}\n"
+                                            f"**Server:** {self.guild.name}\n"
+                                            f"**Message ID:** `{msg_id}`\n"
+                                            f"**Original Author:** `{target_msg.author}`\n\n"
+                                            f"The message has been permanently deleted."
+                                        ),
+                                        color=0x57F287
+                                    )
+                                    await confirm_int.response.edit_message(embed=success_embed, view=None)
+                                    print(f"[REMOTE ACCESS] Deleted message {msg_id} in #{self.channel.name} ({self.guild.name}) by {confirm_int.user}")
+
+                                except discord.Forbidden:
+                                    await confirm_int.response.send_message(
+                                        "❌ I don't have permission to delete that message.",
+                                        ephemeral=True
+                                    )
+                                except discord.NotFound:
+                                    await confirm_int.response.send_message(
+                                        "❌ The message was already deleted or could not be found.",
+                                        ephemeral=True
+                                    )
+                                except Exception as del_err:
+                                    print(f"Delete message error: {del_err}")
+                                    await confirm_int.response.send_message(
+                                        f"❌ An error occurred while deleting: {str(del_err)}",
+                                        ephemeral=True
+                                    )
+
+                            async def cancel_delete(cancel_int: discord.Interaction):
+                                cancel_embed = discord.Embed(
+                                    title="❌ Deletion Cancelled",
+                                    description="Message deletion has been cancelled. The message was not deleted.",
+                                    color=0x5865F2
+                                )
+                                await cancel_int.response.edit_message(embed=cancel_embed, view=None)
+
+                            confirm_btn = discord.ui.Button(
+                                label="Confirm Delete",
+                                style=discord.ButtonStyle.danger,
+                                emoji="🗑️"
+                            )
+                            confirm_btn.callback = confirm_delete
+
+                            cancel_btn = discord.ui.Button(
+                                label="Cancel",
+                                style=discord.ButtonStyle.secondary,
+                                emoji="❌"
+                            )
+                            cancel_btn.callback = cancel_delete
+
+                            confirm_view.add_item(confirm_btn)
+                            confirm_view.add_item(cancel_btn)
+
+                            await modal_int.response.send_message(
+                                embed=confirm_embed,
+                                view=confirm_view,
+                                ephemeral=True
+                            )
+
+                        except Exception as e:
+                            print(f"DeleteMessageModal.on_submit error: {e}")
+                            import traceback
+                            traceback.print_exc()
+                            if not modal_int.response.is_done():
+                                await modal_int.response.send_message(
+                                    f"❌ An error occurred: {str(e)}",
+                                    ephemeral=True
+                                )
+
+                modal = DeleteMessageModal(self, target_channel, guild)
+                await select_interaction.response.send_modal(modal)
+
+            select.callback = channel_selected
+
+            view = discord.ui.View(timeout=300)
+            view.add_item(select)
+
+            # Back button
+            back_button = discord.ui.Button(
+                label="◀ Back",
+                emoji="🏰",
+                style=discord.ButtonStyle.secondary
+            )
+            back_button.callback = lambda i: self.show_server_management(i, guild)
+            view.add_item(back_button)
+
+            embed = discord.Embed(
+                title=f"🗑️ Delete Message in {guild.name}",
+                description=(
+                    "**Delete a Specific Message by ID**\n\n"
+                    "**How to get a Message ID:**\n"
+                    "1. Enable **Developer Mode** in Discord settings\n"
+                    "2. Right-click any message → **Copy Message ID**\n\n"
+                    "**Steps:**\n"
+                    "1️⃣ Select the channel that contains the message\n"
+                    "2️⃣ Enter the Message ID\n"
+                    "3️⃣ Confirm the deletion\n\n"
+                    "⚠️ **This action is permanent and cannot be undone.**"
+                ),
+                color=0xED4245
+            )
+
+            await interaction.response.edit_message(embed=embed, view=view)
+
+        except Exception as e:
+            print(f"Delete message by ID error: {e}")
+            import traceback
+            traceback.print_exc()
+            await interaction.response.send_message(
+                "❌ An error occurred while setting up message deletion.",
                 ephemeral=True
             )
 

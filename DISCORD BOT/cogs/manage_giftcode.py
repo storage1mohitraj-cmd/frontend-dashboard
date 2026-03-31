@@ -804,7 +804,7 @@ class ManageGiftCode(commands.Cog):
                     try:
                         from db.mongo_adapters import _get_db
                         db = _get_db()
-                        if db:
+                        if db is not None:
                             # Use async delete if possible or thread it if using pymongo directly
                             # Since AutoRedeemMembersAdapter might have its own async delete_many, check it.
                             # For consistency with other methods, let's use the adapter if it has it.
@@ -2312,7 +2312,7 @@ class ManageGiftCode(commands.Cog):
                         try:
                             # Insert the code with auto_redeem_processed = False
                             db = _get_db()
-                            if db:
+                            if db is not None:
                                 db[GiftCodesAdapter.COLL].update_one(
                                     {'_id': code},
                                     {

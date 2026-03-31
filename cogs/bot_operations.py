@@ -1326,6 +1326,13 @@ class BotOperations(commands.Cog):
                     row=2
                 ))
                 view.add_item(discord.ui.Button(
+                    label="Custom Columns",
+                    emoji="⚙️",
+                    style=discord.ButtonStyle.secondary,
+                    custom_id="record_columns",
+                    row=2
+                ))
+                view.add_item(discord.ui.Button(
                     label="◀ Back",
                     emoji="🏠",
                     style=discord.ButtonStyle.secondary,
@@ -1443,7 +1450,7 @@ class BotOperations(commands.Cog):
                 return
         
         # Record operation handlers
-        if custom_id in ["record_create", "record_add", "record_remove", "record_view", "record_list", "record_rename", "record_delete"]:
+        if custom_id in ["record_create", "record_add", "record_remove", "record_view", "record_list", "record_rename", "record_delete", "record_columns"]:
             # Import LoginHandler
             try:
                 from cogs.login_handler import LoginHandler
@@ -2336,8 +2343,9 @@ class BotOperations(commands.Cog):
                         
                         await select_interaction.response.defer(ephemeral=True)
                         
-                        # Get members from the selected record
+                        # Get members and custom columns from the selected record
                         members = RecordsAdapter.get_record_members(select_interaction.guild.id, selected_record)
+                        custom_columns = RecordsAdapter.get_custom_columns(select_interaction.guild.id, selected_record)
                         
                         if not members:
                             await select_interaction.followup.send(
@@ -2361,13 +2369,75 @@ class BotOperations(commands.Cog):
                             80: "FC 10", 81: "FC 10-1", 82: "FC 10-2", 83: "FC 10-3", 84: "FC 10-4"
                         }
                         
-                        # Create interactive view with pagination (matching alliance member list)
+                        # Create interactive view with pagination
+                        class MemberDetailsModal(discord.ui.Modal):
+                            def __init__(self, record_name, member_data, custom_cols):
+                                super().__init__(title=f"Edit: {member_data.get('nickname', 'Unknown')[:20]}")
+                                self.record_name = record_name
+                                self.fid = member_data.get('fid')
+                                self.nickname = member_data.get('nickname', 'Unknown')
+                                self.custom_cols = custom_cols
+                                
+                                # Note input (default)
+                                self.note_input = discord.ui.TextInput(
+                                    label="Custom Note",
+                                    placeholder="Enter general tracking notes...",
+                                    default=member_data.get('note', ''),
+                                    style=discord.TextStyle.paragraph,
+                                    required=False,
+                                    max_length=500
+                                )
+                                self.add_item(self.note_input)
+                                
+                                # Add inputs for first 4 custom columns
+                                self.custom_inputs = {}
+                                for col in self.custom_cols[:4]:
+                                    text_input = discord.ui.TextInput(
+                                        label=col,
+                                        placeholder=f"Value for {col}",
+                                        default=member_data.get(col, ''),
+                                        required=False,
+                                        max_length=100
+                                    )
+                                    self.custom_inputs[col] = text_input
+                                    self.add_item(text_input)
+
+                            async def on_submit(self, interaction: discord.Interaction):
+                                from db.mongo_adapters import RecordsAdapter as RecAdapter
+                                guild_id = interaction.guild.id
+                                
+                                # Update note
+                                RecAdapter.update_member_field(guild_id, self.record_name, self.fid, 'note', self.note_input.value or "")
+                                
+                                # Update custom columns
+                                for col, text_input in self.custom_inputs.items():
+                                    RecAdapter.update_member_field(guild_id, self.record_name, self.fid, col, text_input.value or "")
+                                
+                                success_embed = discord.Embed(
+                                    title="✅ Member Data Updated",
+                                    description=f"Successfully updated data for **{self.nickname}** in **{self.record_name}**.",
+                                    color=0x57F287
+                                )
+                                await interaction.response.send_message(embed=success_embed, ephemeral=True)
+
+                        class ProfileActionsView(discord.ui.View):
+                            def __init__(self, record_name, member_data, custom_cols):
+                                super().__init__(timeout=180)
+                                self.record_name = record_name
+                                self.member_data = member_data
+                                self.custom_cols = custom_cols
+                            
+                            @discord.ui.button(label="Edit Details", emoji="📝", style=discord.ButtonStyle.primary)
+                            async def edit_details(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
+                                await btn_interaction.response.send_modal(MemberDetailsModal(self.record_name, self.member_data, self.custom_cols))
+
                         class MemberListView(discord.ui.View):
-                            def __init__(self, members_data, record_name, level_map):
+                            def __init__(self, members_data, record_name, level_map, custom_cols):
                                 super().__init__(timeout=300)
                                 self.members = members_data
                                 self.record_name = record_name
                                 self.level_mapping = level_map
+                                self.custom_columns = custom_cols
                                 self.current_page = 0
                                 self.members_per_page = 15
                                 self.sort_order = "desc"
@@ -2386,12 +2456,10 @@ class BotOperations(commands.Cog):
                                 sorted_members = self.get_sorted_members()
                                 total_pages = self.get_total_pages()
                                 
-                                # Calculate statistics
                                 furnace_levels = [int(m.get('furnace_lv', 0) or 0) for m in self.members]
                                 max_fl = max(furnace_levels) if furnace_levels else 0
                                 avg_fl = sum(furnace_levels) / len(furnace_levels) if furnace_levels else 0
 
-                                # Create embed with record statistics
                                 embed = discord.Embed(
                                     title=f"📁 {self.record_name} - Member List",
                                     description=(
@@ -2414,12 +2482,10 @@ class BotOperations(commands.Cog):
                                     icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
                                 )
 
-                                # Get members for current page
                                 start_idx = self.current_page * self.members_per_page
                                 end_idx = start_idx + self.members_per_page
                                 page_members = sorted_members[start_idx:end_idx]
 
-                                # Add members to embed
                                 member_list = ""
                                 for idx, member in enumerate(page_members, start=start_idx + 1):
                                     nickname = member.get('nickname', 'Unknown')
@@ -2427,22 +2493,19 @@ class BotOperations(commands.Cog):
                                     furnace_lv = int(member.get('furnace_lv', 0) or 0)
                                     level = self.level_mapping.get(furnace_lv, str(furnace_lv))
                                     
-                                    member_list += f"**{idx:02d}.** 👤 {nickname}\n└ 🆔 `ID: {fid}` | ⚔️ `FC: {level}`\n\n"
+                                    line = f"**{idx:02d}.** 👤 {nickname}\n└ 🆔 `ID: {fid}` | ⚔️ `FC: {level}`"
+                                    
+                                    extras = []
+                                    for col in self.custom_columns[:2]:
+                                        val = member.get(col)
+                                        if val: extras.append(f"🏷️ `{col}:{val}`")
+                                    
+                                    if extras: line += f" | {' '.join(extras)}"
+                                    
+                                    member_list += line + "\n\n"
 
                                 embed.description += member_list
-
-                                # Footer with page info
-                                if total_pages > 1:
-                                    embed.set_footer(
-                                        text=f"Page {self.current_page + 1}/{total_pages} • Stored in MongoDB",
-                                        icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
-                                    )
-                                else:
-                                    embed.set_footer(
-                                        text="Stored in MongoDB",
-                                        icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
-                                    )
-
+                                embed.set_footer(text=f"Page {self.current_page + 1}/{total_pages} • MongoDB" if total_pages > 1 else "Stored in MongoDB")
                                 return embed
 
                             @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
@@ -2471,14 +2534,12 @@ class BotOperations(commands.Cog):
                             async def view_profile(self, button_interaction: discord.Interaction, button: discord.ui.Button):
                                 # Create a select menu for choosing a player with pagination
                                 class ProfileSelectView(discord.ui.View):
-                                    def __init__(self, members_data, level_map):
+                                    def __init__(self, members_data, record_name, level_map, custom_cols):
                                         super().__init__(timeout=60)
-                                        self.members = sorted(
-                                            members_data,
-                                            key=lambda x: int(x.get('furnace_lv', 0) or 0),
-                                            reverse=True
-                                        )
+                                        self.record_name = record_name
+                                        self.members = sorted(members_data, key=lambda x: int(x.get('furnace_lv', 0) or 0), reverse=True)
                                         self.level_mapping = level_map
+                                        self.custom_cols = custom_cols
                                         self.current_page = 0
                                         self.members_per_page = 25
                                         self.update_components()
@@ -2609,6 +2670,25 @@ class BotOperations(commands.Cog):
                                             color=0x5865F2
                                         )
                                         
+                                        # Add Note if exists
+                                        note = member.get('note')
+                                        if note:
+                                            profile_embed.add_field(
+                                                name="📝 Record Note",
+                                                value=f"```\n{note}\n```",
+                                                inline=False
+                                            )
+                                        
+                                        # Add all custom column data
+                                        for col in self.custom_cols:
+                                            val = member.get(col)
+                                            if val:
+                                                profile_embed.add_field(
+                                                    name=f"🏷️ {col}",
+                                                    value=f"```\n{val}\n```",
+                                                    inline=True
+                                                )
+                                        
                                         if avatar:
                                             try:
                                                 profile_embed.set_image(url=avatar)
@@ -2616,26 +2696,24 @@ class BotOperations(commands.Cog):
                                                 print(f"Error setting avatar: {e}")
                                         
                                         profile_embed.set_footer(
-                                            text="Stored in MongoDB",
+                                            text=f"Record: {self.record_name} • MongoDB",
                                             icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
                                         )
                                         
+                                        # Show with ProfileActionsView for editing
+                                        actions_view = ProfileActionsView(self.record_name, member, self.custom_cols)
                                         await select_interaction.response.send_message(
                                             embed=profile_embed,
+                                            view=actions_view,
                                             ephemeral=True
                                         )
 
                                 # Show profile selection menu
-                                profile_view = ProfileSelectView(self.members, self.level_mapping)
-                                total_pages = profile_view.get_total_pages()
-                                await button_interaction.response.send_message(
-                                    f"**Select a player to view their profile:** (Page 1/{total_pages})",
-                                    view=profile_view,
-                                    ephemeral=True
-                                )
+                                profile_view = ProfileSelectView(self.members, self.record_name, self.level_mapping, self.custom_columns)
+                                await button_interaction.response.send_message(f"**Select a player:** (Page 1/{profile_view.get_total_pages()})", view=profile_view, ephemeral=True)
 
                         # Create and send the view
-                        view = MemberListView(members, selected_record, level_mapping)
+                        view = MemberListView(members, selected_record, level_mapping, custom_columns)
                         await select_interaction.followup.send(
                             embed=view.create_embed(),
                             view=view,
@@ -2826,6 +2904,74 @@ class BotOperations(commands.Cog):
                 
                 await interaction.response.send_message(embed=embed, view=RecordSelectView(), ephemeral=True)
                 return
+            
+            # Handle record_columns - Configure custom data fields for a record
+            if custom_id == "record_columns":
+                # Get all records for this guild
+                records = RecordsAdapter.get_all_records(interaction.guild.id)
+                if not records:
+                    await interaction.response.send_message("📋 No records found. Create one first!", ephemeral=True)
+                    return
+                
+                # Create select menu with records
+                options = [discord.SelectOption(label=r['record_name'], description=f"👥 {r.get('member_count', 0)} members", value=r['record_name'], emoji="📁") for r in records[:25]]
+                
+                class RecordSelectView(discord.ui.View):
+                    def __init__(self):
+                        super().__init__(timeout=60)
+                        select = discord.ui.Select(placeholder="Select a record to configure columns...", options=options)
+                        select.callback = self.select_callback
+                        self.add_item(select)
+                    
+                    async def select_callback(self, select_interaction: discord.Interaction):
+                        selected_record = select_interaction.data['values'][0]
+                        current_columns = RecordsAdapter.get_custom_columns(select_interaction.guild.id, selected_record)
+                        
+                        class ColumnManagementView(discord.ui.View):
+                            def __init__(self, record_name, columns):
+                                super().__init__(timeout=180)
+                                self.record_name = record_name
+                                self.columns = columns
+                                self.update_view()
+                            
+                            def update_view(self):
+                                self.clear_items()
+                                add_btn = discord.ui.Button(label="Add Column", emoji="➕", style=discord.ButtonStyle.success)
+                                add_btn.callback = self.add_column_callback
+                                self.add_item(add_btn)
+                                if self.columns:
+                                    remove_select = discord.ui.Select(placeholder="Select a column to remove...", options=[discord.SelectOption(label=col, value=col, emoji="🗑️") for col in self.columns])
+                                    remove_select.callback = self.remove_column_callback
+                                    self.add_item(remove_select)
+
+                            async def add_column_callback(self, btn_interaction: discord.Interaction):
+                                class AddColumnModal(discord.ui.Modal, title=f"Add Column to {self.record_name[:20]}"):
+                                    col_name = discord.ui.TextInput(label="Column Name", placeholder="e.g. Rank, Role, Task", required=True, max_length=20)
+                                    async def on_submit(self, modal_interaction: discord.Interaction):
+                                        new_col = self.col_name.value.strip()
+                                        if new_col and RecordsAdapter.add_custom_column(modal_interaction.guild.id, btn_interaction.view.record_name, new_col):
+                                            btn_interaction.view.columns = RecordsAdapter.get_custom_columns(modal_interaction.guild.id, btn_interaction.view.record_name)
+                                            btn_interaction.view.update_view()
+                                            await modal_interaction.response.edit_message(embed=btn_interaction.view.create_embed(), view=btn_interaction.view)
+                                await btn_interaction.response.send_modal(AddColumnModal())
+
+                            async def remove_column_callback(self, sel_interaction: discord.Interaction):
+                                col_to_remove = sel_interaction.data['values'][0]
+                                if RecordsAdapter.remove_custom_column(sel_interaction.guild.id, self.record_name, col_to_remove):
+                                    self.columns = RecordsAdapter.get_custom_columns(sel_interaction.guild.id, self.record_name)
+                                    self.update_view()
+                                    await sel_interaction.response.edit_message(embed=self.create_embed(), view=self)
+
+                            def create_embed(self):
+                                col_list = "\n".join([f"• {c}" for c in self.columns]) if self.columns else "None"
+                                return discord.Embed(title=f"⚙️ Columns - {self.record_name}", description=f"Manage special fields for this record.\n\n**Current Columns:**\n{col_list}", color=0x5865F2)
+
+                        view = ColumnManagementView(selected_record, current_columns)
+                        await select_interaction.response.send_message(embed=view.create_embed(), view=view, ephemeral=True)
+                
+                await interaction.response.send_message(embed=discord.Embed(title="⚙️ Custom Columns Configuration", description="Select a record to manage its columns:", color=0x5865F2), view=RecordSelectView(), ephemeral=True)
+                return
+        
         
         
         # Handle member_operations button from /manage

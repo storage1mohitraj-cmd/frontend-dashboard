@@ -2534,15 +2534,12 @@ class BotOperations(commands.Cog):
                             async def view_profile(self, button_interaction: discord.Interaction, button: discord.ui.Button):
                                 # Create a select menu for choosing a player with pagination
                                 class ProfileSelectView(discord.ui.View):
-                                    def __init__(self, members_data, record_name, level_map):
+                                    def __init__(self, members_data, record_name, level_map, custom_cols):
                                         super().__init__(timeout=60)
                                         self.record_name = record_name
-                                        self.members = sorted(
-                                            members_data,
-                                            key=lambda x: int(x.get('furnace_lv', 0) or 0),
-                                            reverse=True
-                                        )
+                                        self.members = sorted(members_data, key=lambda x: int(x.get('furnace_lv', 0) or 0), reverse=True)
                                         self.level_mapping = level_map
+                                        self.custom_cols = custom_cols
                                         self.current_page = 0
                                         self.members_per_page = 25
                                         self.update_components()
@@ -2682,6 +2679,16 @@ class BotOperations(commands.Cog):
                                                 inline=False
                                             )
                                         
+                                        # Add all custom column data
+                                        for col in self.custom_cols:
+                                            val = member.get(col)
+                                            if val:
+                                                profile_embed.add_field(
+                                                    name=f"🏷️ {col}",
+                                                    value=f"```\n{val}\n```",
+                                                    inline=True
+                                                )
+                                        
                                         if avatar:
                                             try:
                                                 profile_embed.set_image(url=avatar)
@@ -2694,7 +2701,7 @@ class BotOperations(commands.Cog):
                                         )
                                         
                                         # Show with ProfileActionsView for editing
-                                        actions_view = ProfileActionsView(self.record_name, member)
+                                        actions_view = ProfileActionsView(self.record_name, member, self.custom_cols)
                                         await select_interaction.response.send_message(
                                             embed=profile_embed,
                                             view=actions_view,

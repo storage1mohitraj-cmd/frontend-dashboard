@@ -2496,11 +2496,11 @@ class BotOperations(commands.Cog):
                                     line = f"**{idx:02d}.** 👤 {nickname}\n└ 🆔 `ID: {fid}` | ⚔️ `FC: {level}`"
                                     
                                     extras = []
-                                    for col in self.custom_columns[:2]:
-                                        val = member.get(col)
-                                        if val: extras.append(f"🏷️ `{col}:{val}`")
+                                    for col in self.custom_columns:
+                                        val = member.get(col, '')
+                                        extras.append(f"🏷️ `{col}: {val if val else '—'}`")
                                     
-                                    if extras: line += f" | {' '.join(extras)}"
+                                    if extras: line += f"\n└ {' | '.join(extras)}"
                                     
                                     member_list += line + "\n\n"
 
@@ -2945,14 +2945,21 @@ class BotOperations(commands.Cog):
                                     self.add_item(remove_select)
 
                             async def add_column_callback(self, btn_interaction: discord.Interaction):
-                                class AddColumnModal(discord.ui.Modal, title=f"Add Column to {self.record_name[:20]}"):
+                                mgmt_view = self
+                                class AddColumnModal(discord.ui.Modal, title=f"Add Column to {mgmt_view.record_name[:20]}"):
                                     col_name = discord.ui.TextInput(label="Column Name", placeholder="e.g. Rank, Role, Task", required=True, max_length=20)
                                     async def on_submit(self, modal_interaction: discord.Interaction):
                                         new_col = self.col_name.value.strip()
-                                        if new_col and RecordsAdapter.add_custom_column(modal_interaction.guild.id, btn_interaction.view.record_name, new_col):
-                                            btn_interaction.view.columns = RecordsAdapter.get_custom_columns(modal_interaction.guild.id, btn_interaction.view.record_name)
-                                            btn_interaction.view.update_view()
-                                            await modal_interaction.response.edit_message(embed=btn_interaction.view.create_embed(), view=btn_interaction.view)
+                                        if not new_col:
+                                            await modal_interaction.response.send_message("❌ Column name cannot be empty.", ephemeral=True)
+                                            return
+                                        success = RecordsAdapter.add_custom_column(modal_interaction.guild.id, mgmt_view.record_name, new_col)
+                                        if success:
+                                            mgmt_view.columns = RecordsAdapter.get_custom_columns(modal_interaction.guild.id, mgmt_view.record_name)
+                                            mgmt_view.update_view()
+                                            await modal_interaction.response.edit_message(embed=mgmt_view.create_embed(), view=mgmt_view)
+                                        else:
+                                            await modal_interaction.response.send_message(f"❌ Could not add column **{new_col}**. It may already exist.", ephemeral=True)
                                 await btn_interaction.response.send_modal(AddColumnModal())
 
                             async def remove_column_callback(self, sel_interaction: discord.Interaction):
@@ -2963,11 +2970,24 @@ class BotOperations(commands.Cog):
                                     await sel_interaction.response.edit_message(embed=self.create_embed(), view=self)
 
                             def create_embed(self):
-                                col_list = "\n".join([f"• {c}" for c in self.columns]) if self.columns else "None"
-                                return discord.Embed(title=f"⚙️ Columns - {self.record_name}", description=f"Manage special fields for this record.\n\n**Current Columns:**\n{col_list}", color=0x5865F2)
+                                if self.columns:
+                                    col_list = "\n".join([f"• **{c}**" for c in self.columns])
+                                else:
+                                    col_list = "*No columns yet — press Add Column to create one.*"
+                                embed = discord.Embed(
+                                    title=f"⚙️ Custom Columns — {self.record_name}",
+                                    description=(
+                                        "Custom columns appear next to each player in the member list and in their profile.\n"
+                                        "Players with no value for a column will simply show as empty.\n\n"
+                                        f"**Current Columns:**\n{col_list}"
+                                    ),
+                                    color=0x5865F2
+                                )
+                                embed.set_footer(text="Tip: Use short names like 'Rank', 'Role', 'Task'")
+                                return embed
 
                         view = ColumnManagementView(selected_record, current_columns)
-                        await select_interaction.response.send_message(embed=view.create_embed(), view=view, ephemeral=True)
+                        await select_interaction.response.edit_message(embed=view.create_embed(), view=view)
                 
                 await interaction.response.send_message(embed=discord.Embed(title="⚙️ Custom Columns Configuration", description="Select a record to manage its columns:", color=0x5865F2), view=RecordSelectView(), ephemeral=True)
                 return

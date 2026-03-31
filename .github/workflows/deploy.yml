@@ -1,4 +1,4 @@
-name: 🚀 Deploy to Oracle VM
+name: 🚀 Auto Deploy to Oracle VM
 
 on:
   push:
@@ -12,124 +12,75 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - name: 📥 Checkout code (to check requirements diff)
+      - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Need at least 2 commits to diff
+          fetch-depth: 2
 
       - name: 🔍 Check if requirements.txt changed
         id: req_check
         run: |
           if git diff HEAD~1 HEAD --name-only | grep -q "requirements.txt"; then
             echo "changed=true" >> $GITHUB_OUTPUT
-            echo "📦 requirements.txt changed — deps will be reinstalled on VM"
+            echo "📦 requirements.txt changed — deps will be reinstalled"
           else
             echo "changed=false" >> $GITHUB_OUTPUT
-            echo "✅ requirements.txt unchanged — skipping pip install on VM"
+            echo "✅ requirements.txt unchanged"
           fi
 
       - name: 🔑 Setup SSH key
-        env:
-          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
         run: |
-          if [ -z "$ORACLE_SSH_KEY" ]; then
-            echo "❌ ERROR: GitHub Secret ORACLE_SSH_KEY is missing!"
-            echo "Please add it in your repository Settings -> Secrets and variables -> Actions"
-            exit 1
-          fi
-
           mkdir -p ~/.ssh
-          echo "$ORACLE_SSH_KEY" > ~/.ssh/oracle_vm_key
-          chmod 600 ~/.ssh/oracle_vm_key
+          echo "${{ secrets.ORACLE_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
 
       - name: 🚀 Deploy via SSH
         env:
           REQS_CHANGED: ${{ steps.req_check.outputs.changed }}
-          ORACLE_USER: ${{ secrets.ORACLE_USER }}
-          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
         run: |
-          if [ -z "$ORACLE_USER" ] || [ -z "$ORACLE_HOST" ]; then
-            echo "❌ ERROR: GitHub Secrets ORACLE_USER or ORACLE_HOST are missing!"
-            echo "Please add them in your repository Settings -> Secrets and variables -> Actions"
-            exit 1
-          fi
-          
-          ssh -i ~/.ssh/oracle_vm_key \
+          ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
-              -o ConnectTimeout=30 \
-              "$ORACLE_USER@$ORACLE_HOST" << 'ENDSSH'
+              ubuntu@${{ secrets.ORACLE_HOST }} << 'ENDSSH'
           set -e
           echo "================================================"
           echo "🤖 WOS Bot Auto-Deploy — $(date)"
           echo "================================================"
 
-          BOT_DIR="/home/opc/app/bot/DISCORD BOT"
-          if [ ! -d "/home/opc/app/bot/DISCORD BOT" ]; then
-            echo "❌ Bot directory not found: \$BOT_DIR"
-            echo "Run the initial deploy script first!"
-            exit 1
-          fi
-          cd "/home/opc/app/bot/DISCORD BOT"
+          cd ~/bot
 
-          # Pull latest code from GitHub
+          # Pull latest code
           echo ""
           echo "📥 Pulling latest code..."
-          git fetch origin main
+          git fetch origin
           git reset --hard origin/main
-          echo "✅ Code updated to: \$(git rev-parse --short HEAD) — \$(git log -1 --pretty=%s)"
+          echo "✅ Updated to: $(git rev-parse --short HEAD) — $(git log -1 --pretty=%s)"
 
-          VENV_DIR="\$BOT_DIR/venv"
-          CACHE_FILE="\$HOME/.bot_deps_hash"
+          # Sync DISCORD BOT files to root (fix for duplicate directory structure)
+          echo ""
+          echo "🔄 Syncing bot files to active directories..."
+          cp "DISCORD BOT/cogs/bot_operations.py" cogs/bot_operations.py
+          cp "DISCORD BOT/db/mongo_adapters.py" db/mongo_adapters.py
+          echo "✅ Files synced"
 
-          if [ "$REQS_CHANGED" = "true" ]; then
+          # Install deps if requirements changed
+          VENV="$HOME/bot/venv"
+          if [ "$REQS_CHANGED" = "true" ] && [ -d "$VENV" ]; then
             echo ""
-            echo "📦 requirements.txt changed — reinstalling dependencies..."
-            if [ -d "\$VENV_DIR" ]; then
-              source "\$VENV_DIR/bin/activate"
-              pip install --disable-pip-version-check -r requirements.txt
-              md5sum requirements.txt | awk '{print \$1}' > "\$CACHE_FILE"
-              echo "✅ Dependencies installed & hash cached"
-            else
-              echo "⚠️  No venv found at \$VENV_DIR — app.py will handle install on startup"
-              rm -f "\$CACHE_FILE"
-            fi
-          else
-            echo ""
-            echo "⚡ Skipping pip install (requirements unchanged)"
-            if [ -d "\$VENV_DIR" ] && [ ! -f "\$CACHE_FILE" ]; then
-              md5sum requirements.txt | awk '{print \$1}' > "\$CACHE_FILE"
-              echo "📝 Initialized hash cache"
-            fi
+            echo "📦 Installing updated dependencies..."
+            source "$VENV/bin/activate"
+            pip install --disable-pip-version-check -r requirements.txt
+            echo "✅ Dependencies updated"
           fi
 
-          # Restart with PM2
+          # Restart bot
           echo ""
-          echo "🔄 Restarting bot with PM2..."
-          if pm2 describe discordbot > /dev/null 2>&1; then
-            # Use start --force to update configurations like memory limit and backoff
-            pm2 start "./app.py" \
-              --name discordbot \
-              --interpreter "/home/opc/app/bot/DISCORD BOT/venv/bin/python" \
-              --max-memory-restart 600M \
-              --exp-backoff-restart-delay 1000 \
-              --time \
-              --force
-            echo "✅ Bot configuration updated and restarted"
-          else
-            echo "⚠️  'discordbot' not found in PM2. Starting it now..."
-            pm2 start "./app.py" \
-              --name discordbot \
-              --interpreter "/home/opc/app/bot/DISCORD_BOT/venv/bin/python" \
-              --max-memory-restart 600M \
-              --exp-backoff-restart-delay 1000 \
-              --time
-            echo "✅ Bot started"
-          fi
-          pm2 save
+          echo "🔄 Restarting bot..."
+          pm2 restart discordbot --update-env
+          echo "✅ Bot restarted"
 
           echo ""
-          pm2 list
+          pm2 status
           echo ""
           echo "================================================"
           echo "✅ DEPLOYMENT COMPLETE!"

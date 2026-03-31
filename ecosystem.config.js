@@ -17,7 +17,7 @@ module.exports = {
       name: "discordbot",
       script: "app.py",
       interpreter: "python3",      // Windows: change to "python"
-      cwd: "/home/opc/app/bot",    // Oracle VM root path (where this app.py lives)
+      cwd: "/home/ubuntu/bot",    // Oracle VM root path (where this app.py lives)
 
       // ── Restart policy ──────────────────────────────────────────────────
       max_restarts: 5,             // hard-stop loop after 5 consecutive crashes
@@ -43,8 +43,8 @@ module.exports = {
       },
 
       // ── Log files ───────────────────────────────────────────────────────
-      out_file: "/home/opc/app/bot/discordbot-out.log",
-      error_file: "/home/opc/app/bot/discordbot-error.log",
+      out_file: "/home/ubuntu/bot/discordbot-out.log",
+      error_file: "/home/ubuntu/bot/discordbot-error.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: false,
     },

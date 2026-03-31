@@ -1,4 +1,5 @@
-$ip = "140.245.192.181"
+$ip = "140.245.241.54"
+$user = "ubuntu"
 $key = "$env:USERPROFILE\.ssh\oracle_vm_key"
 
 Write-Host "Waiting for Oracle VM to come online and SSH to become available..."
@@ -9,7 +10,7 @@ while ($true) {
         Write-Host "SSH is UP! Creating 2GB Swap Memory and restarting bot..."
         
         # Stop PM2 immediately to prevent OOM crash loop during setup
-        ssh -i $key -o StrictHostKeyChecking=no opc@140.245.192.181 "pm2 stop discordbot"
+        ssh -i $key -o StrictHostKeyChecking=no ${user}@${ip} "pm2 stop discordbot"
         
         # Bash script to create swap
         $swapScript = @"
@@ -29,12 +30,12 @@ else
     free -m
 fi
 "@
-
+        
         # Run swap setup on VM
-        ssh -i $key -o StrictHostKeyChecking=no opc@140.245.192.181 $swapScript
+        ssh -i $key -o StrictHostKeyChecking=no ${user}@${ip} $swapScript
         
         # Restart the bot safely with the extra memory
-        ssh -i $key -o StrictHostKeyChecking=no opc@140.245.192.181 "pm2 restart discordbot --update-env && pm2 save"
+        ssh -i $key -o StrictHostKeyChecking=no ${user}@${ip} "pm2 restart discordbot --update-env && pm2 save"
         
         Write-Host "Swap Memory injected and bot restarted successfully!"
         break

@@ -4741,7 +4741,7 @@ class ManageGiftCode(commands.Cog):
                         # Processing animation
                         processing_embed = discord.Embed(
                             title="➖ Removing Members",
-                            description=f"Removing **{len(self.selected_fids)}** member(s)...\\n\\n```\\nPlease wait...\\n```",
+                            description=f"Removing **{len(self.selected_fids)}** member(s)...\n\n```\nPlease wait...\n```",
                             color=0xED4245
                         )
                         await remove_interaction.response.send_message(embed=processing_embed, ephemeral=True)
@@ -4770,11 +4770,11 @@ class ManageGiftCode(commands.Cog):
                         # Final result
                         result_embed = discord.Embed(
                             title="➖ Bulk Remove - Complete",
-                            description=f"**Results:** {success_count} removed, {fail_count} failed\\n━━━━━━━━━━━━━━━━━━━━━━",
+                            description=f"**Results:** {success_count} removed, {fail_count} failed\n━━━━━━━━━━━━━━━━━━━━━━",
                             color=0x57F287 if success_count > 0 else 0xED4245
                         )
                         
-                        results_text = "\\n".join(results[:20])
+                        results_text = "\n".join(results[:20])
                         if results_text:
                             result_embed.add_field(name="📋 Details", value=results_text, inline=False)
                         

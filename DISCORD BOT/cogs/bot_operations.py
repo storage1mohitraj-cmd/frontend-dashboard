@@ -2936,11 +2936,18 @@ class BotOperations(commands.Cog):
                             
                             def update_view(self):
                                 self.clear_items()
-                                add_btn = discord.ui.Button(label="Add Column", emoji="➕", style=discord.ButtonStyle.success)
+                                add_btn = discord.ui.Button(label="Add Column", emoji="➕", style=discord.ButtonStyle.success, row=0)
                                 add_btn.callback = self.add_column_callback
                                 self.add_item(add_btn)
                                 if self.columns:
-                                    remove_select = discord.ui.Select(placeholder="Select a column to remove...", options=[discord.SelectOption(label=col, value=col, emoji="🗑️") for col in self.columns])
+                                    set_btn = discord.ui.Button(label="Set Player Data", emoji="📝", style=discord.ButtonStyle.primary, row=0)
+                                    set_btn.callback = self.set_player_data_callback
+                                    self.add_item(set_btn)
+                                    remove_select = discord.ui.Select(
+                                        placeholder="Select a column to remove...",
+                                        options=[discord.SelectOption(label=col, value=col, emoji="🗑️") for col in self.columns],
+                                        row=1
+                                    )
                                     remove_select.callback = self.remove_column_callback
                                     self.add_item(remove_select)
 
@@ -2962,12 +2969,75 @@ class BotOperations(commands.Cog):
                                             await modal_interaction.response.send_message(f"❌ Could not add column **{new_col}**. It may already exist.", ephemeral=True)
                                 await btn_interaction.response.send_modal(AddColumnModal())
 
+                            async def set_player_data_callback(self, btn_interaction: discord.Interaction):
+                                mgmt_view = self
+                                members = RecordsAdapter.get_record_members(btn_interaction.guild.id, mgmt_view.record_name)
+                                if not members:
+                                    await btn_interaction.response.send_message("❌ No members in this record.", ephemeral=True)
+                                    return
+                                level_map = {35:"FC1",40:"FC2",45:"FC3",50:"FC4",55:"FC5",60:"FC6",65:"FC7",70:"FC8",75:"FC9",80:"FC10"}
+                                options = []
+                                for m in members[:25]:
+                                    nick = m.get('nickname','Unknown')[:80]
+                                    fid = str(m.get('fid',''))
+                                    fl = int(m.get('furnace_lv',0) or 0)
+                                    fc = next((v for k,v in sorted(level_map.items(),reverse=True) if fl>=k), str(fl))
+                                    col_preview = " | ".join([f"{c}: {m.get(c,'—')}" for c in mgmt_view.columns[:2]])
+                                    desc = f"FID: {fid} | {fc}" + (f" | {col_preview}" if col_preview else "")
+                                    options.append(discord.SelectOption(label=nick, description=desc[:100], value=fid, emoji="👤"))
+
+                                class PlayerSelectView(discord.ui.View):
+                                    def __init__(self):
+                                        super().__init__(timeout=60)
+                                        sel = discord.ui.Select(placeholder="Select a player to fill in data...", options=options)
+                                        sel.callback = self.player_chosen
+                                        self.add_item(sel)
+                                    async def player_chosen(self, sel_interaction: discord.Interaction):
+                                        fid = sel_interaction.data['values'][0]
+                                        member = next((m for m in members if str(m.get('fid',''))==fid), None)
+                                        if not member:
+                                            await sel_interaction.response.send_message("❌ Player not found.", ephemeral=True)
+                                            return
+                                        class FillDataModal(discord.ui.Modal, title=f"Fill Data: {member.get('nickname','')[:20]}"):
+                                            pass
+                                        modal = FillDataModal()
+                                        col_inputs = {}
+                                        for col in mgmt_view.columns[:5]:
+                                            ti = discord.ui.TextInput(
+                                                label=col, placeholder=f"Enter value for {col}...",
+                                                default=str(member.get(col,'')), required=False, max_length=100
+                                            )
+                                            col_inputs[col] = ti
+                                            modal.add_item(ti)
+                                        async def on_submit(modal_interaction: discord.Interaction):
+                                            for col, ti in col_inputs.items():
+                                                RecordsAdapter.update_member_field(
+                                                    modal_interaction.guild.id, mgmt_view.record_name, fid, col, ti.value or ""
+                                                )
+                                            saved = "\n".join([f"• **{c}**: {col_inputs[c].value or '—'}" for c in col_inputs])
+                                            await modal_interaction.response.send_message(
+                                                embed=discord.Embed(
+                                                    title="✅ Player Data Updated",
+                                                    description=f"**{member.get('nickname','Unknown')}**\n\n{saved}",
+                                                    color=0x57F287
+                                                ), ephemeral=True
+                                            )
+                                        modal.on_submit = on_submit
+                                        await sel_interaction.response.send_modal(modal)
+
+                                await btn_interaction.response.send_message(
+                                    content="**Select a player to fill in column data:**",
+                                    view=PlayerSelectView(), ephemeral=True
+                                )
+
                             async def remove_column_callback(self, sel_interaction: discord.Interaction):
                                 col_to_remove = sel_interaction.data['values'][0]
                                 if RecordsAdapter.remove_custom_column(sel_interaction.guild.id, self.record_name, col_to_remove):
                                     self.columns = RecordsAdapter.get_custom_columns(sel_interaction.guild.id, self.record_name)
                                     self.update_view()
                                     await sel_interaction.response.edit_message(embed=self.create_embed(), view=self)
+                                else:
+                                    await sel_interaction.response.send_message("❌ Failed to remove column.", ephemeral=True)
 
                             def create_embed(self):
                                 if self.columns:
@@ -2983,7 +3053,7 @@ class BotOperations(commands.Cog):
                                     ),
                                     color=0x5865F2
                                 )
-                                embed.set_footer(text="Tip: Use short names like 'Rank', 'Role', 'Task'")
+                                embed.set_footer(text="Use 'Set Player Data' to fill column values per player.")
                                 return embed
 
                         view = ColumnManagementView(selected_record, current_columns)

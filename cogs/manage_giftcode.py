@@ -214,15 +214,16 @@ class ManageGiftCode(commands.Cog):
         """Called when the cog is loaded. Initializes background tasks and sessions."""
         self.session = aiohttp.ClientSession()
         self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
-        
-        # Sync MongoDB members/settings to SQLite so they survive restarts
-        # Wait for this to finish BEFORE checking codes to prevent race condition
-        await self._sync_mongo_to_sqlite_on_startup()
-        
+
+        # NOTE: _sync_mongo_to_sqlite_on_startup calls bot.wait_until_ready() internally.
+        # Awaiting it directly here would deadlock setup_hook (which runs before on_ready).
+        # Run it as a background task so setup_hook can finish and the bot can connect.
+        asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
+
         # Start background workers
         self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
         self.api_check_task.start()
-        
+
         # Trigger startup check for existing codes
         asyncio.create_task(self.process_existing_codes_on_startup())
 

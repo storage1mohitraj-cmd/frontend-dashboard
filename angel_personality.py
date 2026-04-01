@@ -193,7 +193,7 @@ class AngelPersonality:
         
         # Build the personalized sections
         personality_section = ""
-        if personality_traits:
+        if personality_traits and user_name:
             personality_section = f"💡 ABOUT {user_name.upper()}: They are {', '.join(personality_traits)}. Tailor your sass and humor accordingly!"
         
         game_status_section = ""

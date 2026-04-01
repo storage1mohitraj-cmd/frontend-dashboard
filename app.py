@@ -1305,7 +1305,7 @@ async def on_message(message: discord.Message):
                 # Show typing indicator for text response
                 async with message.channel.typing():
                     # Get known user name for personalization
-                    user_name = get_known_user_name(message.author.id)
+                    user_name = get_known_user_name(message.author.id) or message.author.display_name
                     
                     # Build messages for OpenRouter
                     system_prompt = get_system_prompt(user_name)
@@ -1391,7 +1391,7 @@ async def on_message(message: discord.Message):
 
                     # Regular AI text response
                     async with message.channel.typing():
-                        user_name = get_known_user_name(message.author.id)
+                        user_name = get_known_user_name(message.author.id) or message.author.display_name
                         system_prompt = get_system_prompt(user_name, str(message.author.id))
                         ai_messages = [
                             {"role": "system", "content": system_prompt},

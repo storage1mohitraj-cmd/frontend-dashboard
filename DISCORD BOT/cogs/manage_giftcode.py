@@ -716,6 +716,53 @@ class ManageGiftCode(commands.Cog):
                 return []
 
         @staticmethod
+        def cleanup_null_members(cog_instance, guild_id=None):
+            """Remove all members with null/empty FIDs from database (synchronous)"""
+            try:
+                removed_count = 0
+                
+                # Remove from SQLite
+                if guild_id:
+                    cog_instance.cursor.execute("""
+                        DELETE FROM auto_redeem_members 
+                        WHERE guild_id = ? AND (fid IS NULL OR fid = '' OR fid = 'None')
+                    """, (guild_id,))
+                else:
+                    cog_instance.cursor.execute("""
+                        DELETE FROM auto_redeem_members 
+                        WHERE fid IS NULL OR fid = '' OR fid = 'None'
+                    """)
+                removed_count = cog_instance.cursor.rowcount
+                cog_instance.giftcode_db.commit()
+                
+                # Remove from MongoDB (if enabled)
+                if mongo_enabled() and AutoRedeemMembersAdapter:
+                    try:
+                        from db.mongo_adapters import _get_db
+                        db = _get_db()
+                        if db is not None:
+                            if guild_id:
+                                result = db[AutoRedeemMembersAdapter.COLL].delete_many({
+                                    'guild_id': int(guild_id),
+                                    '$or': [{'fid': None}, {'fid': ''}, {'fid': 'None'}]
+                                })
+                            else:
+                                result = db[AutoRedeemMembersAdapter.COLL].delete_many({
+                                    '$or': [{'fid': None}, {'fid': ''}, {'fid': 'None'}]
+                                })
+                            removed_count += result.deleted_count
+                    except Exception as e:
+                        cog_instance.logger.error(f"Error cleaning up null members from MongoDB: {e}")
+                
+                if removed_count > 0:
+                    cog_instance.logger.info(f"🧹 Cleaned up {removed_count} members with null/empty FIDs")
+                
+                return removed_count
+            except Exception as e:
+                cog_instance.logger.error(f"Error cleaning up null members: {e}")
+                return 0
+
+        @staticmethod
         async def get_members_async(cog_instance, guild_id):
             """Get all auto-redeem members for a guild (filters out invalid FIDs) asynchronously
             Priority: MongoDB (if available and has data) > SQLite (fallback and sync source)
@@ -1042,6 +1089,17 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 cog_instance.logger.error(f"Error in member_exists_async: {e}")
                 return False
+
+        @staticmethod
+        def member_exists(cog_instance, guild_id, fid):
+            """Check if member exists in auto-redeem list (synchronous)"""
+            try:
+                # Try MongoDB first (if enabled)
+                if mongo_enabled() and AutoRedeemMembersAdapter:
+                    try:
+                        return AutoRedeemMembersAdapter.member_exists(guild_id, fid)
+                    except Exception as e:
+                        cog_instance.logger.warning(f"MongoDB member_exists failed, using SQLite: {e}")
                 
                 # Fallback to SQLite
                 cog_instance.cursor.execute(
@@ -1496,7 +1554,8 @@ class ManageGiftCode(commands.Cog):
                 return
             
             # Get all auto-redeem members using MongoDB-first helper
-            members_data = await self.AutoRedeemDB.get_members(self, guild_id)
+            # Use the proper async method to avoid deadlock and TypeError
+            members_data = await self.AutoRedeemDB.get_members_async(self, guild_id)
             
             if not members_data:
                 self.logger.info(f"No auto-redeem members for guild {guild_id}")
@@ -2355,9 +2414,9 @@ class ManageGiftCode(commands.Cog):
         await self.bot.wait_until_ready()
         self.logger.info("Gift code API check task started")
         
-        # Cleanup members with null/empty FIDs from all guilds
+        # Cleanup members with null/empty FIDs from all guilds (using async variant since we are inside before_loop)
         self.logger.info("🧹 Cleaning up members with null/empty FIDs...")
-        cleanup_count = self.AutoRedeemDB.cleanup_null_members(self)
+        cleanup_count = await self.AutoRedeemDB.cleanup_null_members_async(self)
         if cleanup_count > 0:
             self.logger.info(f"✅ Removed {cleanup_count} invalid members from auto-redeem lists")
         

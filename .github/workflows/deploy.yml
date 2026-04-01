@@ -28,34 +28,50 @@ jobs:
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
-              ubuntu@${{ secrets.ORACLE_HOST }} << ENDSSH
+              -o ConnectTimeout=30 \
+              ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} << 'ENDSSH'
           echo "================================================"
           echo "🤖 WOS Bot Auto-Deploy — \$(date)"
           echo "================================================"
 
-          cd ~/bot
+          # Find bot directory
+          if [ -d "~/app/bot" ]; then
+            BOT_DIR="~/app/bot"
+          elif [ -d "~/bot" ]; then
+            BOT_DIR="~/bot"
+          else
+            echo "❌ ERROR: Bot directory not found! (Tried ~/app/bot and ~/bot)"
+            exit 1
+          fi
+          
+          cd \$BOT_DIR
+          echo "📂 Directory: \$(pwd)"
 
           # Pull latest code
           echo ""
           echo "📥 Pulling latest code..."
-          git fetch origin
+          git fetch origin main
           OLD=\$(git rev-parse --short HEAD)
           git reset --hard origin/main
           NEW=\$(git rev-parse --short HEAD)
           echo "✅ Updated: \$OLD → \$NEW — \$(git log -1 --pretty=%s)"
 
-          # Sync extra files if they exist (non-fatal)
-          if [ -f "DISCORD BOT/cogs/bot_operations.py" ]; then
-            cp "DISCORD BOT/cogs/bot_operations.py" cogs/bot_operations.py && echo "✅ Synced bot_operations.py"
-          fi
-          if [ -f "DISCORD BOT/db/mongo_adapters.py" ]; then
-            cp "DISCORD BOT/db/mongo_adapters.py" db/mongo_adapters.py && echo "✅ Synced mongo_adapters.py"
+          # Update dependencies if requirements.txt changed
+          if git diff --name-only \$OLD \$NEW | grep -q "requirements.txt"; then
+            echo "📦 requirements.txt changed. Installing dependencies..."
+            if [ -d "venv" ]; then
+              source venv/bin/activate
+              pip install -r requirements.txt
+            else
+              pip install -r requirements.txt
+            fi
+            echo "✅ Dependencies updated"
           fi
 
           # Restart bot (always)
           echo ""
           echo "🔄 Restarting bot..."
-          pm2 restart discordbot --update-env
+          pm2 restart discordbot --update-env || pm2 start app.py --name discordbot
           echo "✅ Bot restarted"
 
           echo ""

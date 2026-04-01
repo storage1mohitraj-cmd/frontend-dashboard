@@ -14,22 +14,15 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import logging
-import hashlib
-import time
-import aiohttp
-import ssl
 import re
 from typing import Optional, List
 
 from angel_personality import angel_personality
 from api_manager import make_request
 from command_animator import command_animation
+from wos_api import fetch_wos_player
 
 logger = logging.getLogger(__name__)
-
-# Player API endpoint and secret (same as playerinfo.py)
-API_URL = "https://wos-giftcode-api.centurygame.com/api/player"
-SECRET = "tB87#kPtkxqOS2"
 
 # Personality trait options
 PERSONALITY_TRAITS = [
@@ -213,49 +206,15 @@ class PlayerIDModal(discord.ui.Modal, title="🎮 Step 3: Player Information"):
             )
     
     async def fetch_player_data(self, player_id: str) -> Optional[dict]:
-        """Fetch player data from WOS API"""
-        try:
-            ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
-            
-            headers = {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Origin": "https://wos-giftcode.centurygame.com",
-                "Referer": "https://wos-giftcode.centurygame.com/",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-            }
-            
-            current_time = int(time.time() * 1000)
-            form = f"fid={player_id}&time={current_time}"
-            sign = hashlib.md5((form + SECRET).encode("utf-8")).hexdigest()
-            payload = f"sign={sign}&{form}"
-            
-            async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
-                async with session.post(API_URL, data=payload, headers=headers, timeout=20) as resp:
-                    if resp.status == 403:
-                        logger.error(f"❌ 403 Forbidden in fetch_player_data for {player_id}. Origin header applied.")
-                        return None
-                    try:
-                        js = await resp.json()
-                    except Exception:
-                        logger.warning(f"Invalid JSON response for player ID {player_id}")
-                        return None
-                    
-                    if js.get("code") != 0:
-                        logger.warning(f"API error for player ID {player_id}: {js.get('msg')}")
-                        return None
-                    
-                    data = js.get('data', {})
-                    return {
-                        'nickname': data.get('nickname', 'Unknown'),
-                        'furnace_level': int(data.get('stove_lv', 0)) if data.get('stove_lv') else 0,
-                        'kid': data.get('kid', 'N/A')
-                    }
-        
-        except Exception as e:
-            logger.error(f"Error fetching player data for {player_id}: {e}")
+        """Fetch player data from WOS API using shared utility"""
+        data = await fetch_wos_player(player_id)
+        if not data:
             return None
+        return {
+            'nickname': data.get('nickname', 'Unknown'),
+            'furnace_level': data.get('furnace_level', 0),
+            'kid': data.get('state_id', 'N/A'),
+        }
     
     def get_gender_from_pronouns(self, pronouns: str) -> str:
         """Convert pronouns to gender for angel_personality system"""

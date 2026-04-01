@@ -18,6 +18,11 @@ except Exception:
     mongo_enabled = lambda: False
     UserProfilesAdapter = None
 
+try:
+    from wos_api import fetch_wos_player
+except Exception:
+    fetch_wos_player = None
+
 class UserProfile:
     """User profile for personalization"""
 
@@ -138,7 +143,36 @@ class AngelPersonality:
             self.user_profiles[user_id].last_seen = datetime.now()
         
         return self.user_profiles[user_id]
-    
+
+    async def refresh_game_stats(self, user_id: str) -> bool:
+        """
+        Fetch live WOS stats for a user and update their in-memory profile.
+        Only runs if the user has a player_id stored in game_progress.
+        Returns True if stats were refreshed, False otherwise.
+        """
+        if fetch_wos_player is None:
+            return False
+        profile = self.user_profiles.get(user_id)
+        if not profile:
+            return False
+        player_id = profile.game_progress.get('player_id')
+        if not player_id:
+            return False
+        try:
+            data = await fetch_wos_player(str(player_id))
+            if data:
+                profile.game_progress.update({
+                    'player_id': player_id,
+                    'player_name': data.get('nickname', profile.game_progress.get('player_name', 'Unknown')),
+                    'furnace_level': data.get('furnace_level', 0),
+                    'state_id': data.get('state_id', profile.game_progress.get('state_id', 'N/A')),
+                })
+                logger.info(f"Refreshed live stats for user {user_id}: FC{data.get('furnace_level')} | {data.get('nickname')}")
+                return True
+        except Exception as e:
+            logger.warning(f"Failed to refresh stats for user {user_id}: {e}")
+        return False
+
     def update_user_profile(self, user_id: str, updates: Dict[str, Any]):
         """Update user profile with new information"""
         if user_id in self.user_profiles:

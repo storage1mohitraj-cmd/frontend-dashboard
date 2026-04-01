@@ -63,3 +63,20 @@ async def fetch_player_info(player_id: str) -> Optional[dict ]:
     except Exception as e:
         print(f"[ERROR] wos_api: Exception fetching player info for {player_id}: {e}")
         return None
+
+
+async def fetch_wos_player(player_id: str) -> Optional[dict]:
+    """
+    Fetch live WOS player stats in the format used by angel_personality and app.py.
+    Returns dict with keys: player_id, nickname, furnace_level, state_id.
+    Returns None on failure.
+    """
+    data = await fetch_player_info(player_id)
+    if not data:
+        return None
+    return {
+        "player_id": player_id,
+        "nickname": data.get("name", "Unknown"),
+        "furnace_level": data.get("level", 0),
+        "state_id": str(data.get("id", "N/A")),
+    }

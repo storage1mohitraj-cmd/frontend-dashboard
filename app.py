@@ -1391,8 +1391,16 @@ async def on_message(message: discord.Message):
 
                     # Regular AI text response
                     async with message.channel.typing():
+                        user_id_str = str(message.author.id)
                         user_name = get_known_user_name(message.author.id) or message.author.display_name
-                        system_prompt = get_system_prompt(user_name, str(message.author.id))
+
+                        # Refresh live WOS stats if user is personalized (has player_id saved)
+                        try:
+                            await angel_personality.refresh_game_stats(user_id_str)
+                        except Exception as _refresh_err:
+                            logger.warning(f"Could not refresh game stats for {user_id_str}: {_refresh_err}")
+
+                        system_prompt = get_system_prompt(user_name, user_id_str)
                         ai_messages = [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_question},

@@ -2561,8 +2561,8 @@ class ManageGiftCode(commands.Cog):
         - If a code is OLD, we just MARK it as processed to avoid spam.
         """
         try:
-            # Add a small delay to ensure bot is fully ready
-            await asyncio.sleep(5)
+            # Wait for bot to be ready
+            await self.bot.wait_until_ready()
             
             self.logger.info("🚀 === STARTUP CODE PROCESSING ===")
             self.logger.info("Checking for unprocessed gift codes in ALL databases...")

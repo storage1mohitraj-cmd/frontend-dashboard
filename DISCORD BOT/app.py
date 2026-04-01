@@ -1144,14 +1144,18 @@ async def on_ready():
             synced = await bot.tree.sync()
             logger.info(f"✅ Synced {len(synced)} commands globally")
             
-            # Also sync to each guild for faster visibility (optional but recommended for troubleshooting)
-            for guild in bot.guilds:
-                try:
-                    bot.tree.copy_global_to(guild=guild)
-                    await bot.tree.sync(guild=guild)
-                    logger.info(f"✅ Synced commands to guild: {guild.name}")
-                except Exception as guild_sync_error:
-                    logger.warning(f"⚠️ Failed to sync to guild {guild.name}: {guild_sync_error}")
+            # Also sync to each guild for faster visibility in background
+            async def sync_guilds_task():
+                for guild in bot.guilds:
+                    try:
+                        bot.tree.copy_global_to(guild=guild)
+                        await bot.tree.sync(guild=guild)
+                        logger.info(f"✅ Synced commands to guild: {guild.name}")
+                        await asyncio.sleep(2) # Avoid rate limits
+                    except Exception as guild_sync_error:
+                        logger.warning(f"⚠️ Failed to sync to guild {guild.name}: {guild_sync_error}")
+            
+            asyncio.create_task(sync_guilds_task())
                     
         except Exception as sync_error:
             logger.error(f"❌ Failed to sync commands: {sync_error}")

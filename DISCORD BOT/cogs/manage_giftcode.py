@@ -5855,13 +5855,16 @@ class ManageGiftCode(commands.Cog):
                                         code_str = str(code_data.get('giftcode', ''))
                                         date_str = str(code_data.get('date', ''))
                                         processed = code_data.get('auto_redeem_processed', False)
+                                        status = code_data.get('validation_status', 'pending')
                                     else:
                                         # Unknown format, convert to string
                                         code_str = str(code_data)
                                         date_str = ''
                                         processed = False
+                                        status = 'pending'
                                     
-                                    if code_str:  # Only add non-empty codes
+                                    # Only include active codes (skip invalid/expired ones)
+                                    if code_str and status not in ('invalid', 'expired'):
                                         all_codes.append((code_str, date_str, processed))
                                 except Exception as e:
                                     self.logger.warning(f"Failed to parse MongoDB code entry: {e}")
@@ -5878,10 +5881,12 @@ class ManageGiftCode(commands.Cog):
                         self.cursor.execute("""
                             SELECT giftcode, date, auto_redeem_processed
                             FROM gift_codes
+                            WHERE validation_status IS NULL
+                               OR (validation_status != 'invalid' AND validation_status != 'expired')
                             ORDER BY added_at DESC
                         """)
                         all_codes = self.cursor.fetchall()
-                        self.logger.info(f"Fetched {len(all_codes)} codes from SQLite for reset")
+                        self.logger.info(f"Fetched {len(all_codes)} active codes from SQLite for reset")
                     except Exception as e:
                         self.logger.error(f"❌ SQLite fetch failed: {e}")
                 

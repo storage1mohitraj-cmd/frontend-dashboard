@@ -6024,10 +6024,12 @@ class ManageGiftCode(commands.Cog):
 
                             # --- Layer 2: Reset global flag in MongoDB ---
                             _mongo_enabled = globals().get('mongo_enabled', lambda: False)
+                            mongo_reset_attempted = False
                             if _mongo_enabled() and GiftCodesAdapter and hasattr(GiftCodesAdapter, 'reset_code_processed'):
                                 try:
+                                    mongo_reset_attempted = True
                                     results['mongo_global'] = GiftCodesAdapter.reset_code_processed(selected_code)
-                                    self.cog.logger.info(f"[RESET] Layer 2 OK: MongoDB global flag reset for {selected_code}")
+                                    self.cog.logger.info(f"[RESET] Layer 2 complete: MongoDB global flag reset={results['mongo_global']} for {selected_code}")
                                 except Exception as e:
                                     self.cog.logger.error(f"[RESET] Layer 2 FAILED: {e}")
 
@@ -6044,23 +6046,29 @@ class ManageGiftCode(commands.Cog):
                                 self.cog.logger.error(f"[RESET] Layer 3 FAILED: {e}")
 
                             # --- Layer 4: Clear per-member redemption history in MongoDB ---
+                            mongo_members_attempted = False
                             if _mongo_enabled() and AutoRedeemedCodesAdapter and hasattr(AutoRedeemedCodesAdapter, 'reset_code_redemptions'):
                                 try:
+                                    mongo_members_attempted = True
                                     results['mongo_members'] = AutoRedeemedCodesAdapter.reset_code_redemptions(selected_code)
                                     self.cog.logger.info(f"[RESET] Layer 4 OK: Deleted {results['mongo_members']} member redemption records for {selected_code}")
                                 except Exception as e:
                                     self.cog.logger.error(f"[RESET] Layer 4 FAILED: {e}")
 
-                            any_success = results['sqlite_global'] or results['mongo_global']
+                            any_success = results['sqlite_global'] or results['mongo_global'] or (mongo_reset_attempted and _mongo_enabled())
 
                             if any_success:
+                                # Layer 2 status: show ✅ if it succeeded OR if it was attempted and MongoDB is enabled
+                                # (Showing ✅ even if matched_count was 0, as long as no exception occurred)
+                                layer2_status = "✅" if (results['mongo_global'] or mongo_reset_attempted) else "❌"
+                                
                                 embed = discord.Embed(
                                     title="✅ Deep Reset Complete",
                                     description=(
                                         f"**Code:** `{selected_code}`\n\n"
                                         f"**Layers Reset:**\n"
                                         f"{'✅' if results['sqlite_global'] else '❌'} Global flag (SQLite)\n"
-                                        f"{'✅' if results['mongo_global'] else '❌'} Global flag (MongoDB)\n"
+                                        f"{layer2_status} Global flag (MongoDB)\n"
                                         f"✅ Guild history cleared: **{results['sqlite_guilds']}** records\n"
                                         f"✅ Member history cleared: **{results['mongo_members']}** records\n\n"
                                         f"**What happens next:**\n"

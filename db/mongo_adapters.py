@@ -1518,7 +1518,7 @@ class AutoRedeemMembersAdapter:
         clients_seen = set()
         
         def add_db(db):
-            if db is not None:
+            if db:
                 key = (db.client.address, db.name)
                 if key not in clients_seen:
                     db_list.append(db)
@@ -1622,7 +1622,7 @@ class AutoRedeemMembersAdapter:
         clients_seen = set()
         
         def add_db(db):
-            if db is not None:
+            if db:
                 key = (db.client.address, db.name)
                 if key not in clients_seen:
                     db_list.append(db)
@@ -1654,7 +1654,7 @@ class AutoRedeemMembersAdapter:
         clients_seen = set()
         
         async def add_db_async(db):
-            if db is not None:
+            if db:
                 key = (db.client.address, db.name)
                 if key not in clients_seen:
                     db_list.append(db)

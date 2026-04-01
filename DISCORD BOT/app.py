@@ -1128,6 +1128,8 @@ async def setup_hook():
     except Exception as e:
         logger.error(f"❌ Failed to register persistent views: {e}")
 
+    logger.info("✨ [STARTUP] setup_hook completed successfully")
+
 bot.setup_hook = setup_hook
 
 # Add on_ready event handler to sync commands

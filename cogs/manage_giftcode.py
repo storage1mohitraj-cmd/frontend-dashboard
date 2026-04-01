@@ -2763,162 +2763,129 @@ class ManageGiftCode(commands.Cog):
             self.logger.info("🔔 === TRIGGER AUTO-REDEEM ===")
             self.logger.info(f"📥 Received {len(new_codes)} codes to process: {[c[0] for c in new_codes]}")
             
-            # Get all guilds with auto-redeem enabled
-            enabled_guilds = []
-            
-            # Try MongoDB first - but check if method exists
-            mongo_attempted = False
-            if mongo_enabled() and AutoRedeemSettingsAdapter:
-                # Check if get_all_settings method exists
-                if hasattr(AutoRedeemSettingsAdapter, 'get_all_settings'):
-                    try:
-                        mongo_attempted = True
-                        self.logger.info("📊 Checking MongoDB for enabled guilds...")
-                        # Get all guilds with auto-redeem enabled from MongoDB
-                        all_settings = AutoRedeemSettingsAdapter.get_all_settings()
-                        if all_settings:
-                            self.logger.info(f"📋 Found {len(all_settings)} total guild settings in MongoDB")
-                            enabled_guilds = [
-                                (settings['guild_id'],)
-                                for settings in all_settings
-                                if settings.get('enabled', False)
-                            ]
-                            self.logger.info(f"✅ MongoDB: {len(enabled_guilds)} guilds with auto-redeem ENABLED")
-                            if enabled_guilds:
-                                self.logger.info(f"📝 Enabled guild IDs: {[g[0] for g in enabled_guilds]}")
-                            else:
-                                self.logger.warning("⚠️ MongoDB: No guilds have auto-redeem enabled!")
-                        else:
-                            self.logger.warning("⚠️ MongoDB: No settings found (empty collection)")
-                    except Exception as e:
-                        self.logger.error(f"❌ MongoDB get_all_settings failed: {e}")
-                        mongo_attempted = False  # Force SQLite fallback
-                else:
-                    self.logger.info("ℹ️ MongoDB: get_all_settings() method not available, using SQLite...")
-            elif mongo_enabled():
-                self.logger.warning("⚠️ MongoDB enabled but AutoRedeemSettingsAdapter unavailable")
-            else:
-                self.logger.info("ℹ️ MongoDB not enabled, checking SQLite...")
-            
-            # Fallback to SQLite if MongoDB failed or not enabled
-            if not enabled_guilds:
-                try:
-                    self.logger.info("📂 Checking SQLite for enabled guilds...")
-                    self.cursor.execute("""
-                        SELECT guild_id FROM auto_redeem_settings WHERE enabled = 1
-                    """)
-                    enabled_guilds = self.cursor.fetchall()
-                    self.logger.info(f"✅ SQLite: {len(enabled_guilds)} guilds with auto-redeem ENABLED")
-                    if enabled_guilds:
-                        self.logger.info(f"📝 Enabled guild IDs: {[g[0] for g in enabled_guilds]}")
-                    else:
-                        self.logger.warning("⚠️ SQLite: No guilds have auto-redeem enabled!")
-                except Exception as e:
-                    self.logger.error(f"❌ SQLite query failed: {e}")
-            
+            enabled_guilds = await self._get_enabled_guilds()
             if not enabled_guilds:
                 self.logger.error("❌ CRITICAL: No guilds have auto-redeem enabled!")
-                self.logger.error("🔍 To enable auto-redeem:")
-                self.logger.error("   1. Go to Auto-Redeem Configuration menu")
-                self.logger.error("   2. Click 'Enable Auto-Redeem' button")
-                self.logger.error("   3. Ensure you have members added to auto-redeem list")
-                
-                # Check for existing settings even if disabled for diagnosis
-                try:
-                    self.cursor.execute("SELECT COUNT(*) FROM auto_redeem_settings")
-                    count = self.cursor.fetchone()[0]
-                    self.logger.info(f"📊 SQLite check: Found {count} total rows in auto_redeem_settings")
-                except Exception as e:
-                    self.logger.error(f"❌ Failed to check total SQLite rows: {e}")
-                    
-                self.logger.error("🏁 === TRIGGER AUTO-REDEEM COMPLETE (NO GUILDS) ===")
                 return
-            
+
             self.logger.info(f"Triggering auto-redeem for {len(enabled_guilds)} guilds with {len(new_codes)} new codes")
-            
-            # Process each new code for each enabled guild
+
+            redemption_tasks = []
             for code, date in new_codes:
-                # Check if this code has already been processed for auto-redeem
-                already_processed = False
-                
-                # Check MongoDB first
-                if mongo_enabled() and GiftCodesAdapter:
-                    try:
-                        code_data = GiftCodesAdapter.get_code(code)
-                        if code_data:
-                            already_processed = code_data.get('auto_redeem_processed', False)
-                    except Exception as e:
-                        self.logger.warning(f"Failed to check code status in MongoDB: {e}")
-                
-                # Fallback to SQLite
-                if not mongo_enabled() or not GiftCodesAdapter:
-                    self.cursor.execute(
-                        "SELECT auto_redeem_processed FROM gift_codes WHERE giftcode = ?",
-                        (code,)
-                    )
-                    result = self.cursor.fetchone()
-                    already_processed = result[0] if result and result[0] else 0
-                
-                # Determine if this is a manual trigger (is_recheck) by checking the parameter
-                # Passed to trigger_auto_redeem_for_new_codes
-                
-                if already_processed and not is_recheck:
-                    self.logger.info(f"⏭️ Skipping code {code} - already fully processed")
-                    continue  # Skip this code entirely
-                
-                if is_recheck:
-                    self.logger.info(f"🔄 Manual Trigger: Bypassing completion status for code {code}")
-                
-                # --- NEW: Filter out guilds that have already completed this code ---
-                try:
-                    self.cursor.execute(
-                        "SELECT guild_id FROM auto_redeem_completed_guilds WHERE giftcode = ?",
-                        (code,)
-                    )
-                    completed_guilds = {row[0] for row in self.cursor.fetchall()}
-                except Exception as e:
-                    self.logger.error(f"Failed to fetch completed guilds for code {code}: {e}")
-                    completed_guilds = set()
-                
-                pending_guilds = [(g_id,) for (g_id,) in enabled_guilds if g_id not in completed_guilds]
-                
-                if not pending_guilds:
-                    self.logger.info(f"⏭️ Skipping code {code} - already processed by all {len(enabled_guilds)} enabled guilds!")
-                    # Just in case the global flag missed it
-                    await self._mark_code_done(code)
-                    continue
-                
-                # Initialize granular tracking for this code
-                self._pending_jobs_per_code[code] = len(pending_guilds)
-                self.logger.info(f"🎯 Processing code {code} for {len(pending_guilds)} guilds... (Skipped {len(completed_guilds)}) (Recheck: {is_recheck})")
-                
-                for (guild_id,) in pending_guilds:
-                    try:
-                        # Queue the auto-redeem to prevent memory/ratelimit spikes
-                        self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
-                        self.logger.info(f"📥 Queued auto-redeem: guild={guild_id}, code={code}")
-                    except Exception as e:
-                        self.logger.error(f"❌ Failed to queue auto-redeem for guild {guild_id}: {e}")
-                        # Decrement immediately if queuing failed
-                        await self._decrement_pending_jobs(code)
-                
-                self.logger.info(f"📊 Queued auto-redeem for code {code} across {len(pending_guilds)} guilds")
-                
-            self.logger.info(f"✅ Processed {len(new_codes)} codes for auto-redeem")
+                task = asyncio.create_task(self._process_single_code(code, date, enabled_guilds, is_recheck))
+                redemption_tasks.append(task)
+            
+            await asyncio.gather(*redemption_tasks, return_exceptions=True)
+
             self.logger.info("🏁 === TRIGGER AUTO-REDEEM COMPLETE ===")
         
         except Exception as e:
-            self.logger.exception(f"Error triggering auto-redeem: {e}")
+            self.logger.exception(f"Error in trigger_auto_redeem_for_new_codes: {e}")
+
+    async def _get_enabled_guilds(self):
+        """Fetch all guilds with auto-redeem enabled from MongoDB or SQLite."""
+        # Try MongoDB first
+        if mongo_enabled() and AutoRedeemSettingsAdapter and hasattr(AutoRedeemSettingsAdapter, 'get_all_settings'):
+            try:
+                self.logger.info("📊 Checking MongoDB for enabled guilds...")
+                all_settings = AutoRedeemSettingsAdapter.get_all_settings()
+                if all_settings:
+                    enabled_guilds = [(s['guild_id'],) for s in all_settings if s.get('enabled', False)]
+                    self.logger.info(f"✅ MongoDB: {len(enabled_guilds)} guilds with auto-redeem ENABLED")
+                    return enabled_guilds
+            except Exception as e:
+                self.logger.error(f"❌ MongoDB get_all_settings failed: {e}")
+        
+        # Fallback to SQLite
+        try:
+            self.logger.info("📂 Checking SQLite for enabled guilds...")
+            self.cursor.execute("SELECT guild_id FROM auto_redeem_settings WHERE enabled = 1")
+            enabled_guilds = self.cursor.fetchall()
+            self.logger.info(f"✅ SQLite: {len(enabled_guilds)} guilds with auto-redeem ENABLED")
+            return enabled_guilds
+        except Exception as e:
+            self.logger.error(f"❌ SQLite query failed: {e}")
+            return []
+
+    async def _process_single_code(self, code, date, enabled_guilds, is_recheck):
+        """Process a single gift code for all enabled guilds."""
+        try:
+            already_processed = await self._is_code_already_processed(code)
+            if already_processed and not is_recheck:
+                self.logger.info(f"⏭️ Skipping code {code} - already fully processed")
+                return
+
+            if is_recheck:
+                self.logger.info(f"🔄 Manual Trigger: Bypassing completion status for code {code}")
+
+            completed_guilds = await self._get_completed_guilds(code)
+            pending_guilds = [g for g in enabled_guilds if g[0] not in completed_guilds]
+
+            if not pending_guilds:
+                self.logger.info(f"⏭️ Skipping code {code} - already processed by all {len(enabled_guilds)} enabled guilds!")
+                await self._mark_code_done(code)
+                return
+
+            self.logger.info(f"🎯 Processing code {code} for {len(pending_guilds)} guilds... (Skipped {len(completed_guilds)})")
+            
+            for (guild_id,) in pending_guilds:
+                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
+            
+            # Wait for all jobs for THIS code to complete
+            await self.wait_for_code_completion(code, len(pending_guilds))
+
+        except Exception as e:
+            self.logger.exception(f"Error processing single code {code}: {e}")
+
+    async def _is_code_already_processed(self, code):
+        """Check if a code is marked as fully processed in MongoDB or SQLite."""
+        if mongo_enabled() and GiftCodesAdapter:
+            try:
+                code_data = GiftCodesAdapter.get_code(code)
+                if code_data and code_data.get('auto_redeem_processed', False):
+                    return True
+            except Exception as e:
+                self.logger.warning(f"Failed to check code status in MongoDB: {e}")
+        
+        try:
+            self.cursor.execute("SELECT auto_redeem_processed FROM gift_codes WHERE giftcode = ?", (code,))
+            result = self.cursor.fetchone()
+            return result and result[0]
+        except Exception as e:
+            self.logger.error(f"Failed to check code status in SQLite: {e}")
+            return False
+
+    async def _get_completed_guilds(self, code):
+        """Get a set of guild IDs that have already completed redemption for a code."""
+        try:
+            self.cursor.execute("SELECT guild_id FROM auto_redeem_completed_guilds WHERE giftcode = ?", (code,))
+            return {row[0] for row in self.cursor.fetchall()}
+        except Exception as e:
+            self.logger.error(f"Failed to fetch completed guilds for code {code}: {e}")
+            return set()
+
+    async def wait_for_code_completion(self, code, expected_jobs):
+        """Wait until the number of completed jobs for a code reaches the expected count."""
+        self._pending_jobs_per_code[code] = expected_jobs
+        self._completion_events[code] = asyncio.Event()
+
+        try:
+            await asyncio.wait_for(self._completion_events[code].wait(), timeout=3600) # 1hr timeout
+            self.logger.info(f"🏁 All {expected_jobs} jobs for code {code} completed. Marking as fully processed.")
+            await self._mark_code_done(code)
+        except asyncio.TimeoutError:
+            self.logger.error(f"⌛️ Timeout waiting for code {code} to complete. It may be stuck.")
+        finally:
+            self._pending_jobs_per_code.pop(code, None)
+            self._completion_events.pop(code, None)
 
     async def _decrement_pending_jobs(self, code):
-        """Decrement the pending jobs count for a code and mark as processed if zero."""
+        """Decrement pending jobs and set event if all jobs for a code are done."""
         if code in self._pending_jobs_per_code:
             self._pending_jobs_per_code[code] -= 1
             if self._pending_jobs_per_code[code] <= 0:
-                self.logger.info(f"🏁 All queued jobs for code {code} completed. Marking as fully processed.")
-                # DELIBERATE: No more self.auto_redeem_queue.join() wait
-                await self._mark_code_done(code)
-                self._pending_jobs_per_code.pop(code, None)
+                if code in self._completion_events:
+                    self._completion_events[code].set()
 
     async def _mark_code_done(self, code):
         """Internal helper to mark code as processed in DBs without waiting for queue."""

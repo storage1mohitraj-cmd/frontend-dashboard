@@ -17,17 +17,6 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: 🔍 Check if requirements.txt changed
-        id: req_check
-        run: |
-          if git diff HEAD~1 HEAD --name-only | grep -q "requirements.txt"; then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "📦 requirements.txt changed — deps will be reinstalled"
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "✅ requirements.txt unchanged"
-          fi
-
       - name: 🔑 Setup SSH key
         run: |
           mkdir -p ~/.ssh
@@ -35,16 +24,13 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
 
       - name: 🚀 Deploy via SSH
-        env:
-          REQS_CHANGED: ${{ steps.req_check.outputs.changed }}
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
-              ubuntu@${{ secrets.ORACLE_HOST }} << 'ENDSSH'
-          set -e
+              ubuntu@${{ secrets.ORACLE_HOST }} << ENDSSH
           echo "================================================"
-          echo "🤖 WOS Bot Auto-Deploy — $(date)"
+          echo "🤖 WOS Bot Auto-Deploy — \$(date)"
           echo "================================================"
 
           cd ~/bot
@@ -53,27 +39,20 @@ jobs:
           echo ""
           echo "📥 Pulling latest code..."
           git fetch origin
+          OLD=\$(git rev-parse --short HEAD)
           git reset --hard origin/main
-          echo "✅ Updated to: $(git rev-parse --short HEAD) — $(git log -1 --pretty=%s)"
+          NEW=\$(git rev-parse --short HEAD)
+          echo "✅ Updated: \$OLD → \$NEW — \$(git log -1 --pretty=%s)"
 
-          # Sync DISCORD BOT files to root (fix for duplicate directory structure)
-          echo ""
-          echo "🔄 Syncing bot files to active directories..."
-          cp "DISCORD BOT/cogs/bot_operations.py" cogs/bot_operations.py
-          cp "DISCORD BOT/db/mongo_adapters.py" db/mongo_adapters.py
-          echo "✅ Files synced"
-
-          # Install deps if requirements changed
-          VENV="$HOME/bot/venv"
-          if [ "$REQS_CHANGED" = "true" ] && [ -d "$VENV" ]; then
-            echo ""
-            echo "📦 Installing updated dependencies..."
-            source "$VENV/bin/activate"
-            pip install --disable-pip-version-check -r requirements.txt
-            echo "✅ Dependencies updated"
+          # Sync extra files if they exist (non-fatal)
+          if [ -f "DISCORD BOT/cogs/bot_operations.py" ]; then
+            cp "DISCORD BOT/cogs/bot_operations.py" cogs/bot_operations.py && echo "✅ Synced bot_operations.py"
+          fi
+          if [ -f "DISCORD BOT/db/mongo_adapters.py" ]; then
+            cp "DISCORD BOT/db/mongo_adapters.py" db/mongo_adapters.py && echo "✅ Synced mongo_adapters.py"
           fi
 
-          # Restart bot
+          # Restart bot (always)
           echo ""
           echo "🔄 Restarting bot..."
           pm2 restart discordbot --update-env

@@ -40,8 +40,16 @@ If nothing to commit (clean tree), skip steps 3 and 4.
 cd "f:\Whiteout Survival Bot" && git push origin main
 ```
 
-### 5. Confirm deploy triggered
-After a successful push, inform the user:
-- ✅ Changes pushed to GitHub (`main` branch)
-- 🚀 GitHub Actions auto-deploy triggered → Oracle VM will pull + restart bot automatically
-- The bot will be live in ~1-2 minutes
+### 5. Instant Deploy via SSH
+Bypasses the 2-minute GitHub Actions wait by pushing directly to the VM.
+// turbo
+```
+ssh -i "C:\Users\mohit\.ssh\oracle_vm_key" -o StrictHostKeyChecking=no ubuntu@140.245.241.54 "cd bot && git pull && pm2 restart discordbot"
+```
+
+### 6. Confirm Deployment
+After a successful SSH restart:
+- ✅ Changes pushed to GitHub
+- 🚀 Instant SSH Deploy successful
+- 🔄 Bot restarted on Oracle VM (Ubuntu)
+- The bot is now LIVE with the new changes!

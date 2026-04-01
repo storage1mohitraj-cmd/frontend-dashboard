@@ -1149,7 +1149,7 @@ async def on_ready():
                 try:
                     bot.tree.copy_global_to(guild=guild)
                     await bot.tree.sync(guild=guild)
-                    logger.debug(f"✅ Synced commands to guild: {guild.name}")
+                    logger.info(f"✅ Synced commands to guild: {guild.name}")
                 except Exception as guild_sync_error:
                     logger.warning(f"⚠️ Failed to sync to guild {guild.name}: {guild_sync_error}")
                     

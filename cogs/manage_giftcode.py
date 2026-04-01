@@ -207,6 +207,7 @@ class ManageGiftCode(commands.Cog):
         self.current_job = None  # Track what's currently processing: (guild_id, code)
         self.processed_jobs_count = 0
         self._pending_jobs_per_code = {} # {code: count_of_guilds_left}
+        self._completion_events = {}     # {code: asyncio.Event}
         
         self.session = None
 

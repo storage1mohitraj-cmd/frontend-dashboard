@@ -1074,6 +1074,34 @@ class GiftCodesAdapter:
             return False
 
     @staticmethod
+    def reset_code_processed(code: str) -> bool:
+        """Reset auto_redeem_processed to False, allowing the code to be re-processed (sync)"""
+        try:
+            db = _get_db_wos()
+            result = db[GiftCodesAdapter.COLL].update_one(
+                {'_id': code},
+                {'$set': {'auto_redeem_processed': False, 'updated_at': datetime.utcnow().isoformat()}}
+            )
+            return result.modified_count > 0 or result.matched_count > 0
+        except Exception as e:
+            logger.error(f'Failed to reset code {code} processed status: {e}')
+            return False
+
+    @staticmethod
+    async def reset_code_processed_async(code: str) -> bool:
+        """Reset auto_redeem_processed to False, allowing the code to be re-processed (async)"""
+        try:
+            db = await _get_db_wos_async()
+            result = await db[GiftCodesAdapter.COLL].update_one(
+                {'_id': code},
+                {'$set': {'auto_redeem_processed': False, 'updated_at': datetime.utcnow().isoformat()}}
+            )
+            return result.modified_count > 0 or result.matched_count > 0
+        except Exception as e:
+            logger.error(f'Failed to reset code (async) {code} processed status: {e}')
+            return False
+
+    @staticmethod
     def mark_code_invalid(code: str) -> bool:
         """Mark a gift code as invalid/expired"""
         try:
@@ -3711,6 +3739,30 @@ class AutoRedeemedCodesAdapter:
         except Exception as e:
             logger.error(f'Failed to batch check redemptions (async) for {giftcode}: {e}')
             return {str(fid): False for fid in fids}
+
+    @staticmethod
+    def reset_code_redemptions(code: str) -> int:
+        """Delete all per-member redemption records for a specific code (sync). Returns count deleted."""
+        try:
+            db = _get_db_main()
+            result = db[AutoRedeemedCodesAdapter.COLL].delete_many({'code': code})
+            logger.info(f'[RESET] Deleted {result.deleted_count} member redemption records for code {code}')
+            return result.deleted_count
+        except Exception as e:
+            logger.error(f'Failed to reset member redemptions for code {code}: {e}')
+            return 0
+
+    @staticmethod
+    async def reset_code_redemptions_async(code: str) -> int:
+        """Delete all per-member redemption records for a specific code (async). Returns count deleted."""
+        try:
+            db = await _get_db_main_async()
+            result = await db[AutoRedeemedCodesAdapter.COLL].delete_many({'code': code})
+            logger.info(f'[RESET] Deleted {result.deleted_count} member redemption records (async) for code {code}')
+            return result.deleted_count
+        except Exception as e:
+            logger.error(f'Failed to reset member redemptions (async) for code {code}: {e}')
+            return 0
 
 
 # Alias for backward compatibility

@@ -5928,58 +5928,88 @@ class ManageGiftCode(commands.Cog):
                     async def reset_code(self, select_interaction: discord.Interaction):
                         try:
                             await select_interaction.response.defer(ephemeral=True)
-                            
                             selected_code = select_interaction.data["values"][0]
-                            
-                            # Reset in MongoDB if available - use insert() to update
-                            _mongo_enabled = globals().get('mongo_enabled', lambda: False)
-                            mongo_success = False
-                            if _mongo_enabled() and GiftCodesAdapter:
-                                try:
-                                    # MongoDB adapter doesn't have update_code, so we need to use insert with replace
-                                    # Or just skip MongoDB update and rely on SQLite
-                                    self.cog.logger.info(f"Skipping MongoDB update (no update_code method), using SQLite only")
-                                except Exception as e:
-                                    self.cog.logger.error(f"MongoDB operation failed: {e}")
-                            
-                            # Also reset in SQLite for consistency
-                            sqlite_success = False
+
+                            self.cog.logger.info(f"DEEP RESET initiated for code {selected_code} by {select_interaction.user}")
+
+                            results = {
+                                'sqlite_global': False,
+                                'mongo_global': False,
+                                'sqlite_guilds': 0,
+                                'mongo_members': 0,
+                            }
+
+                            # --- Layer 1: Reset global flag in SQLite ---
                             try:
                                 self.cog.cursor.execute(
                                     "UPDATE gift_codes SET auto_redeem_processed = 0 WHERE giftcode = ?",
                                     (selected_code,)
                                 )
                                 self.cog.giftcode_db.commit()
-                                sqlite_success = True
-                                self.cog.logger.info(f"Reset code {selected_code} in SQLite")
+                                results['sqlite_global'] = True
+                                self.cog.logger.info(f"[RESET] Layer 1 OK: SQLite global flag reset for {selected_code}")
                             except Exception as e:
-                                self.cog.logger.error(f"Failed to reset code in SQLite: {e}")
-                            
-                            if mongo_success or sqlite_success:
+                                self.cog.logger.error(f"[RESET] Layer 1 FAILED: {e}")
+
+                            # --- Layer 2: Reset global flag in MongoDB ---
+                            _mongo_enabled = globals().get('mongo_enabled', lambda: False)
+                            if _mongo_enabled() and GiftCodesAdapter and hasattr(GiftCodesAdapter, 'reset_code_processed'):
+                                try:
+                                    results['mongo_global'] = GiftCodesAdapter.reset_code_processed(selected_code)
+                                    self.cog.logger.info(f"[RESET] Layer 2 OK: MongoDB global flag reset for {selected_code}")
+                                except Exception as e:
+                                    self.cog.logger.error(f"[RESET] Layer 2 FAILED: {e}")
+
+                            # --- Layer 3: Clear guild completion history in SQLite ---
+                            try:
+                                self.cog.cursor.execute(
+                                    "DELETE FROM auto_redeem_completed_guilds WHERE giftcode = ?",
+                                    (selected_code,)
+                                )
+                                results['sqlite_guilds'] = self.cog.cursor.rowcount
+                                self.cog.giftcode_db.commit()
+                                self.cog.logger.info(f"[RESET] Layer 3 OK: Cleared {results['sqlite_guilds']} guild records for {selected_code}")
+                            except Exception as e:
+                                self.cog.logger.error(f"[RESET] Layer 3 FAILED: {e}")
+
+                            # --- Layer 4: Clear per-member redemption history in MongoDB ---
+                            if _mongo_enabled() and AutoRedeemedCodesAdapter and hasattr(AutoRedeemedCodesAdapter, 'reset_code_redemptions'):
+                                try:
+                                    results['mongo_members'] = AutoRedeemedCodesAdapter.reset_code_redemptions(selected_code)
+                                    self.cog.logger.info(f"[RESET] Layer 4 OK: Deleted {results['mongo_members']} member redemption records for {selected_code}")
+                                except Exception as e:
+                                    self.cog.logger.error(f"[RESET] Layer 4 FAILED: {e}")
+
+                            any_success = results['sqlite_global'] or results['mongo_global']
+
+                            if any_success:
                                 embed = discord.Embed(
-                                    title="✅ Code Status Reset",
+                                    title="✅ Deep Reset Complete",
                                     description=(
                                         f"**Code:** `{selected_code}`\n\n"
-                                        "The auto-redeem processed status has been reset.\n\n"
-                                        "**What happens next:**\n"
-                                        "• This code will be detected as unprocessed\n"
-                                        "• Auto-redeem will trigger for this code on next check\n"
-                                        "• You can test the auto-redeem functionality again\n\n"
-                                        f"**Updated in:** {('MongoDB, ' if mongo_success else '') + ('SQLite' if sqlite_success else '')}"
+                                        f"**Layers Reset:**\n"
+                                        f"{'✅' if results['sqlite_global'] else '❌'} Global flag (SQLite)\n"
+                                        f"{'✅' if results['mongo_global'] else '❌'} Global flag (MongoDB)\n"
+                                        f"✅ Guild history cleared: **{results['sqlite_guilds']}** records\n"
+                                        f"✅ Member history cleared: **{results['mongo_members']}** records\n\n"
+                                        f"**What happens next:**\n"
+                                        f"• The code is now treated as **completely new**\n"
+                                        f"• Click **Trigger Auto-Redeem** to start redemption\n"
+                                        f"• OR it will auto-trigger on the next bot check"
                                     ),
                                     color=0x57F287
                                 )
                                 embed.set_footer(
-                                    text=f"Reset by {select_interaction.user.name}",
+                                    text=f"Deep Reset by {select_interaction.user.name}",
                                     icon_url=select_interaction.user.display_avatar.url
                                 )
                                 await select_interaction.followup.send(embed=embed, ephemeral=True)
                             else:
                                 await select_interaction.followup.send(
-                                    "❌ Failed to reset code status in both databases.",
+                                    "❌ Failed to reset code status. Check bot logs for details.",
                                     ephemeral=True
                                 )
-                        
+
                         except Exception as e:
                             self.cog.logger.exception(f"Error resetting code: {e}")
                             try:

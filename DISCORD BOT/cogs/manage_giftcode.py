@@ -217,7 +217,9 @@ class ManageGiftCode(commands.Cog):
         
         # Sync MongoDB members/settings to SQLite so they survive restarts
         # Wait for this to finish BEFORE checking codes to prevent race condition
-        await self._sync_mongo_to_sqlite_on_startup()
+        # Start synchronization in the background to avoid blocking the bot's startup
+        # This resolves the deadlock where the bot waits for cog to load, but cog waits for bot to be ready
+        asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
         
         # Start background workers
         self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())

@@ -1139,8 +1139,22 @@ async def on_ready():
         logger.info(f"📊 Connected to {len(bot.guilds)} guild(s)")
         
         # Sync commands automatically to fix visibility issues
-        synced = await bot.tree.sync()
-        logger.info(f"✅ Synced {len(synced)} commands globally")
+        try:
+            # First, try to sync globally
+            synced = await bot.tree.sync()
+            logger.info(f"✅ Synced {len(synced)} commands globally")
+            
+            # Also sync to each guild for faster visibility (optional but recommended for troubleshooting)
+            for guild in bot.guilds:
+                try:
+                    bot.tree.copy_global_to(guild=guild)
+                    await bot.tree.sync(guild=guild)
+                    logger.debug(f"✅ Synced commands to guild: {guild.name}")
+                except Exception as guild_sync_error:
+                    logger.warning(f"⚠️ Failed to sync to guild {guild.name}: {guild_sync_error}")
+                    
+        except Exception as sync_error:
+            logger.error(f"❌ Failed to sync commands: {sync_error}")
         
     except Exception as e:
         logger.error(f"❌ Error in on_ready: {e}", exc_info=True)

@@ -227,7 +227,7 @@ class ServerAge(commands.Cog):
                 inline=False
             )
 
-        embed.set_footer(text="Whiteout Survival || by Magnus 🚀")
+        embed.set_footer(text="Whiteout Survival | Magnus")
         
         # Check if interaction was already responded to (deferred)
         if interaction.response.is_done():

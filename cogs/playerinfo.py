@@ -307,13 +307,13 @@ class PlayerInfoCog(commands.Cog):
                 if WATERMARK_URL:
                     p3 = urllib.parse.urlparse(WATERMARK_URL)
                     if p3.scheme in ("http", "https") and p3.netloc:
-                        embed.set_footer(text="Requested via Magnus", icon_url=WATERMARK_URL)
+                        embed.set_footer(text="Whiteout Survival | Magnus")
                     else:
-                        embed.set_footer(text="Requested via Magnus")
+                        embed.set_footer(text="Whiteout Survival | Magnus")
                 else:
-                    embed.set_footer(text="Requested via Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus")
             except Exception:
-                embed.set_footer(text="Requested via Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus")
 
             try:
                 # Delete thinking message and send actual player info
@@ -415,7 +415,7 @@ class PlayerInfoCog(commands.Cog):
             embed = discord.Embed(colour=discord.Colour.blurple())
             if js is None:
                 embed.description = "No valid response from API."
-                embed.set_footer(text="Requested via /playerinfo . Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus")
                 return embed
 
             if js.get("code") != 0:
@@ -424,11 +424,11 @@ class PlayerInfoCog(commands.Cog):
                 if ('role' in api_msg and ('not' in api_msg and ('exist' in api_msg or 'found' in api_msg))) \
                    or (('not' in api_msg) and ('exist' in api_msg or 'found' in api_msg)):
                     embed.description = "Player not found — check the 9-digit player ID and try again."
-                    embed.set_footer(text="Requested via /playerinfo . Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus")
                     return embed
                 else:
                     embed.description = f"API error: {api_msg_raw}"
-                    embed.set_footer(text="Requested via /playerinfo . Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus")
                     return embed
 
             data = js.get('data', {})
@@ -488,11 +488,11 @@ class PlayerInfoCog(commands.Cog):
             # Footer
             try:
                 if WATERMARK_URL and _is_valid_url(WATERMARK_URL):
-                    embed.set_footer(text="Requested via /playerinfo . Magnus", icon_url=WATERMARK_URL)
+                    embed.set_footer(text="Whiteout Survival | Magnus")
                 else:
-                    embed.set_footer(text="Requested via /playerinfo . Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus")
             except Exception:
-                embed.set_footer(text="Requested via /playerinfo . Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus")
 
             return embed
 
@@ -506,7 +506,7 @@ class PlayerInfoCog(commands.Cog):
                     if exc:
                         self.logger.warning("Network error for fid=%s: %s", fid, exc)
                         embed = discord.Embed(colour=discord.Colour.blurple(), description=f"Request error: {exc}")
-                        embed.set_footer(text="Requested via /playerinfo . Magnus")
+                        embed.set_footer(text="Whiteout Survival | Magnus")
                         await interaction.followup.send(embed=embed)
                         continue
                     # build embed from js (may be None if invalid json)
@@ -598,7 +598,7 @@ class PlayerInfoCog(commands.Cog):
         
         if js is None:
             embed.description = "No valid response from API."
-            embed.set_footer(text="Requested via /editplayerinfo . Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus")
         elif js.get("code") != 0:
             api_msg_raw = js.get('msg') or ''
             api_msg = str(api_msg_raw).lower().replace('_', ' ')
@@ -607,7 +607,7 @@ class PlayerInfoCog(commands.Cog):
                 embed.description = "Player not found — check the 9-digit player ID and try again."
             else:
                 embed.description = f"API error: {api_msg_raw}"
-            embed.set_footer(text="Requested via /editplayerinfo . Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus")
         else:
             # Success
             data = js.get('data', {})
@@ -710,11 +710,11 @@ class PlayerInfoCog(commands.Cog):
             # Footer
             try:
                 if WATERMARK_URL and _is_valid_url(WATERMARK_URL):
-                    embed.set_footer(text="Requested via /editplayerinfo . Magnus", icon_url=WATERMARK_URL)
+                    embed.set_footer(text="Whiteout Survival | Magnus")
                 else:
-                    embed.set_footer(text="Requested via /editplayerinfo . Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus")
             except Exception:
-                embed.set_footer(text="Requested via /editplayerinfo . Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus")
 
         # Update message
         try:

@@ -148,7 +148,7 @@ class BotOperations(commands.Cog):
                     ),
                     color=0x2B2D31
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -279,7 +279,7 @@ class BotOperations(commands.Cog):
                     ),
                     color=0x2B2D31
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -486,7 +486,7 @@ class BotOperations(commands.Cog):
                         embed.description += player_list
                         
                         if self.total_pages > 1:
-                            embed.set_footer(text="Whiteout Survival | Magnus")
+                            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                         
                         return embed
                     
@@ -586,7 +586,7 @@ class BotOperations(commands.Cog):
                                                 ),
                                                 color=0x57F287
                                             )
-                                            embed.set_footer(text="Whiteout Survival | Magnus")
+                                            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                             await tz_interaction.response.edit_message(
                                                 embed=embed,
                                                 view=None
@@ -698,7 +698,7 @@ class BotOperations(commands.Cog):
                                     ),
                                     color=0x57F287
                                 )
-                                embed.set_footer(text="Whiteout Survival | Magnus")
+                                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 await tz_interaction.response.edit_message(
                                     embed=embed,
                                     view=None
@@ -977,7 +977,7 @@ class BotOperations(commands.Cog):
                         embed.set_thumbnail(url=clock_thumbnail)
                     
                     if len(member_chunks) > 1:
-                        embed.set_footer(text="Whiteout Survival | Magnus")
+                        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                     
                     embeds.append(embed)
                 
@@ -1258,7 +1258,7 @@ class BotOperations(commands.Cog):
                     ),
                     color=0x2B2D31
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -1382,7 +1382,7 @@ class BotOperations(commands.Cog):
                     value=f"{interaction.user.mention}",
                     inline=True
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -1525,7 +1525,7 @@ class BotOperations(commands.Cog):
                     )
                 
                 if len(records) > 25:
-                    embed.set_footer(text="Whiteout Survival | Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                 
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
@@ -1645,7 +1645,7 @@ class BotOperations(commands.Cog):
                                             description=f"Adding **{len(fid_list)}** member(s) to **{self.record_name}**...\n\n```\nPlease wait while we process your request.\n```",
                                             color=0x5865F2
                                         )
-                                        processing_embed.set_footer(text="Whiteout Survival | Magnus")
+                                        processing_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         
                                         await modal_interaction.response.send_message(embed=processing_embed, ephemeral=True)
                                         
@@ -1699,7 +1699,7 @@ class BotOperations(commands.Cog):
                                                     description=f"**{self.record_name}**\n\n```\n[{progress_bar}] {int((idx/len(fid_list))*100)}%\n```\n✅ Success: {success_count} | ❌ Failed: {fail_count}",
                                                     color=0x5865F2
                                                 )
-                                                progress_embed.set_footer(text="Whiteout Survival | Magnus")
+                                                progress_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                                 
                                                 await modal_interaction.edit_original_response(embed=progress_embed)
                                         
@@ -2107,7 +2107,7 @@ class BotOperations(commands.Cog):
                                             description=f"Removing **{len(fid_list)}** member(s) from **{self.record_name}**...\n\n```\nPlease wait while we process your request.\n```",
                                             color=0x5865F2
                                         )
-                                        processing_embed.set_footer(text="Whiteout Survival | Magnus")
+                                        processing_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         
                                         await modal_interaction.response.send_message(embed=processing_embed, ephemeral=True)
                                         
@@ -2140,7 +2140,7 @@ class BotOperations(commands.Cog):
                                                     description=f"**{self.record_name}**\n\n```\n[{progress_bar}] {int((idx/len(fid_list))*100)}%\n```\n✅ Success: {success_count} | ❌ Failed: {fail_count}",
                                                     color=0x5865F2
                                                 )
-                                                progress_embed.set_footer(text="Whiteout Survival | Magnus")
+                                                progress_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                                 
                                                 await modal_interaction.edit_original_response(embed=progress_embed)
                                         
@@ -2161,7 +2161,7 @@ class BotOperations(commands.Cog):
                                             )
                                         
                                         if len(results) > 20:
-                                            result_embed.set_footer(text="Whiteout Survival | Magnus")
+                                            result_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         
                                         await modal_interaction.edit_original_response(embed=result_embed)
                                 
@@ -2214,7 +2214,7 @@ class BotOperations(commands.Cog):
                                     description=f"Removing **{len(fid_list)}** member(s) from **{self.record_name}**...\n\n```\nPlease wait while we process your request.\n```",
                                     color=0x5865F2
                                 )
-                                processing_embed.set_footer(text="Whiteout Survival | Magnus")
+                                processing_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 
                                 await modal_interaction.response.send_message(embed=processing_embed, ephemeral=True)
                                 
@@ -2247,7 +2247,7 @@ class BotOperations(commands.Cog):
                                             description=f"**{self.record_name}**\n\n```\n[{progress_bar}] {int((idx/len(fid_list))*100)}%\n```\n✅ Success: {success_count} | ❌ Failed: {fail_count}",
                                             color=0x5865F2
                                         )
-                                        progress_embed.set_footer(text="Whiteout Survival | Magnus")
+                                        progress_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         
                                         await modal_interaction.edit_original_response(embed=progress_embed)
                                 
@@ -2268,7 +2268,7 @@ class BotOperations(commands.Cog):
                                     )
                                 
                                 if len(results) > 20:
-                                    result_embed.set_footer(text="Whiteout Survival | Magnus")
+                                    result_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 
                                 await modal_interaction.edit_original_response(embed=result_embed)
                         
@@ -2487,7 +2487,7 @@ class BotOperations(commands.Cog):
                                     member_list += line + "\n\n"
 
                                 embed.description += member_list
-                                embed.set_footer(text="Whiteout Survival | Magnus")
+                                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 return embed
 
                             @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
@@ -2677,7 +2677,7 @@ class BotOperations(commands.Cog):
                                             except Exception as e:
                                                 print(f"Error setting avatar: {e}")
                                         
-                                        profile_embed.set_footer(text="Whiteout Survival | Magnus")
+                                        profile_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         
                                         # Show with ProfileActionsView for editing
                                         actions_view = ProfileActionsView(self.record_name, member, self.custom_cols)
@@ -3032,7 +3032,7 @@ class BotOperations(commands.Cog):
                                     ),
                                     color=0x5865F2
                                 )
-                                embed.set_footer(text="Whiteout Survival | Magnus")
+                                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 return embed
 
                         view = ColumnManagementView(selected_record, current_columns)
@@ -3092,7 +3092,7 @@ class BotOperations(commands.Cog):
                     ),
                     color=0x2B2D31
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 view = discord.ui.View(timeout=300)
                 view.add_item(discord.ui.Button(
@@ -3292,7 +3292,7 @@ class BotOperations(commands.Cog):
                             footer_text += f" • Filtered by {self.active_filter}"
                         footer_text += " • Stored in MongoDB"
                         
-                        embed.set_footer(text="Whiteout Survival | Magnus")
+                        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                         return embed
 
@@ -3506,7 +3506,7 @@ class BotOperations(commands.Cog):
                                     except Exception as e:
                                         print(f"DEBUG [bot_operations]: Error setting avatar: {e}")
                                 
-                                profile_embed.set_footer(text="Whiteout Survival | Magnus")
+                                profile_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 
                                 await select_interaction.response.send_message(
                                     embed=profile_embed,
@@ -3587,7 +3587,7 @@ class BotOperations(commands.Cog):
                             description=f"{'➕ Adding' if True else '➖ Removing'} **{len(valid_fids)}** member(s)...\n\n```\nPlease wait while we process your request.\n```",
                             color=0x5865F2
                         )
-                        processing_embed.set_footer(text="Whiteout Survival | Magnus")
+                        processing_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                         
                         await modal_interaction.response.send_message(embed=processing_embed, ephemeral=True)
                         
@@ -3636,7 +3636,7 @@ class BotOperations(commands.Cog):
                                     description=f"Processing **{len(valid_fids)}** member(s)...\n\n```ansi\n\u001b[2;32m✓ Success: {len(success_list)}\n\u001b[2;31m✗ Failed:  {len(failed_list)}\n\u001b[2;37m⟳ Pending: {len(valid_fids) - idx}\u001b[0m\n```",
                                     color=0x5865F2
                                 )
-                                progress_embed.set_footer(text="Whiteout Survival | Magnus")
+                                progress_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 
                                 try:
                                     await modal_interaction.edit_original_response(embed=progress_embed)
@@ -3685,7 +3685,7 @@ class BotOperations(commands.Cog):
                                 inline=False
                             )
                         
-                        result_embed.set_footer(text="Whiteout Survival | Magnus")
+                        result_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                 
@@ -3750,7 +3750,7 @@ class BotOperations(commands.Cog):
                             description=f"➖ Removing **{len(valid_fids)}** member(s)...\n\n```\nPlease wait while we process your request.\n```",
                             color=0x5865F2
                         )
-                        processing_embed.set_footer(text="Whiteout Survival | Magnus")
+                        processing_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                         
                         await modal_interaction.response.send_message(embed=processing_embed, ephemeral=True)
                         
@@ -3784,7 +3784,7 @@ class BotOperations(commands.Cog):
                                     description=f"Processing **{len(valid_fids)}** member(s)...\n\n```ansi\n\u001b[2;32m✓ Removed: {len(success_list)}\n\u001b[2;31m✗ Failed:  {len(failed_list)}\n\u001b[2;37m⟳ Pending: {len(valid_fids) - idx}\u001b[0m\n```",
                                     color=0x5865F2
                                 )
-                                progress_embed.set_footer(text="Whiteout Survival | Magnus")
+                                progress_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 
                                 try:
                                     await modal_interaction.edit_original_response(embed=progress_embed)
@@ -3833,7 +3833,7 @@ class BotOperations(commands.Cog):
                                 inline=False
                             )
                         
-                        result_embed.set_footer(text="Whiteout Survival | Magnus")
+                        result_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                 
@@ -3892,7 +3892,7 @@ class BotOperations(commands.Cog):
                     ),
                     color=0x2B2D31
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -4147,7 +4147,7 @@ class BotOperations(commands.Cog):
                         )
                         
                         if self.total_pages > 1:
-                            embed.set_footer(text="Whiteout Survival | Magnus")
+                            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                         
                         return embed
                     
@@ -4326,7 +4326,7 @@ class BotOperations(commands.Cog):
                                         ),
                                         color=discord.Color.green()
                                     )
-                                    success_embed.set_footer(text="Whiteout Survival | Magnus")
+                                    success_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                     await alliance_interaction.response.edit_message(embed=success_embed, view=None)
                                 else:
                                     await alliance_interaction.response.send_message(
@@ -4368,7 +4368,7 @@ class BotOperations(commands.Cog):
                                             ),
                                             color=discord.Color.green()
                                         )
-                                        remove_embed.set_footer(text="Whiteout Survival | Magnus")
+                                        remove_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         await button_interaction.response.edit_message(embed=remove_embed, view=None)
                                     else:
                                         await button_interaction.response.send_message(
@@ -4549,7 +4549,7 @@ class BotOperations(commands.Cog):
                         )
                         
                         if self.total_pages > 1:
-                            embed.set_footer(text="Whiteout Survival | Magnus")
+                            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                         
                         return embed
                     
@@ -4656,7 +4656,7 @@ class BotOperations(commands.Cog):
                                             ),
                                             color=discord.Color.green()
                                         )
-                                        embed.set_footer(text="Whiteout Survival | Magnus")
+                                        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         await modal_interaction.response.send_message(embed=embed, ephemeral=True)
                                     else:
                                         await modal_interaction.response.send_message(
@@ -5926,7 +5926,7 @@ class BotOperations(commands.Cog):
                     value=f"{interaction.user.mention}",
                     inline=True
                 )
-                dashboard_embed.set_footer(text="Whiteout Survival | Magnus")
+                dashboard_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 dashboard_view = discord.ui.View()
                 dashboard_view.add_item(discord.ui.Button(
@@ -6079,7 +6079,7 @@ class BotOperations(commands.Cog):
                             value=f"{modal_interaction.user.mention}",
                             inline=True
                         )
-                        dashboard_embed.set_footer(text="Whiteout Survival | Magnus")
+                        dashboard_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                         dashboard_view = discord.ui.View()
                         dashboard_view.add_item(discord.ui.Button(
@@ -6163,7 +6163,7 @@ class BotOperations(commands.Cog):
                 inline=False
             )
             
-            auth_embed.set_footer(text="Whiteout Survival | Magnus")
+            auth_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
             # Send authentication embed with button
             view = ManageAuthView(interaction.guild.id, interaction.guild.name)
@@ -6332,7 +6332,7 @@ class PersistentMemberListView(discord.ui.View):
             footer_text += f" • Filtered by {self.active_filter}"
         footer_text += " • Stored in MongoDB"
         
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         return embed
     
@@ -6560,7 +6560,7 @@ class PersistentMemberListView(discord.ui.View):
                         except Exception as e:
                             print(f"Error setting avatar: {e}")
                     
-                    profile_embed.set_footer(text="Whiteout Survival | Magnus")
+                    profile_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                     
                     await select_interaction.response.send_message(embed=profile_embed, ephemeral=True)
             

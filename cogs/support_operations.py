@@ -112,7 +112,7 @@ class SupportView(discord.ui.View):
             color=discord.Color.green()
         )
 
-        about_embed.set_footer(text="Whiteout Survival | Magnus")
+        about_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         try:
             await interaction.response.send_message(embed=about_embed, ephemeral=True)

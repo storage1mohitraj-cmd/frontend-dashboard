@@ -1245,9 +1245,9 @@ class Alliance(commands.Cog):
                                 )
                                 
                                 if self.total_pages > 1:
-                                    embed.set_footer(text="Whiteout Survival | Magnus")
+                                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 else:
-                                    embed.set_footer(text="Whiteout Survival | Magnus")
+                                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                 
                                 return embed
                             
@@ -1310,7 +1310,7 @@ class Alliance(commands.Cog):
                                             ),
                                             color=0x57F287
                                         )
-                                        success_embed.set_footer(text="Whiteout Survival | Magnus")
+                                        success_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         
                                         await btn_interaction.response.edit_message(
                                             embed=success_embed,
@@ -1353,7 +1353,7 @@ class Alliance(commands.Cog):
                                             ),
                                             color=0xED4245
                                         )
-                                        success_embed.set_footer(text="Whiteout Survival | Magnus")
+                                        success_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                         
                                         await btn_interaction.response.edit_message(
                                             embed=success_embed,
@@ -1629,7 +1629,7 @@ class Alliance(commands.Cog):
                     )
                     result_embed.add_field(name="Alliance Details", value=info_section, inline=False)
                     
-                    result_embed.set_footer(text="Whiteout Survival | Magnus")
+                    result_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                     result_embed.timestamp = discord.utils.utcnow()
                     
                     await select_interaction.response.edit_message(embed=result_embed, view=None)
@@ -1679,7 +1679,7 @@ class Alliance(commands.Cog):
                 ),
                 color=discord.Color.red()
             )
-            no_alliance_embed.set_footer(text="Whiteout Survival | Magnus")
+            no_alliance_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             return await interaction.response.send_message(embed=no_alliance_embed, ephemeral=True)
 
         alliance_options = [
@@ -1841,7 +1841,7 @@ class Alliance(commands.Cog):
                             )
                             result_embed.add_field(name="Alliance Details", value=info_section, inline=False)
                             
-                            result_embed.set_footer(text="Whiteout Survival | Magnus")
+                            result_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                             result_embed.timestamp = discord.utils.utcnow()
                             
                             await channel_interaction.response.edit_message(embed=result_embed, view=None)
@@ -1898,7 +1898,7 @@ class Alliance(commands.Cog):
             ),
             color=discord.Color.blue()
         )
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         embed.timestamp = discord.utils.utcnow()
         
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
@@ -1948,7 +1948,7 @@ class Alliance(commands.Cog):
                 ),
                 color=discord.Color.red()
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             embed.timestamp = discord.utils.utcnow()
 
             view = PaginatedDeleteView(option_pages, self.alliance_delete_callback)
@@ -2059,7 +2059,7 @@ class Alliance(commands.Cog):
                         ),
                         color=discord.Color.green()
                     )
-                    cleanup_embed.set_footer(text="Whiteout Survival | Magnus")
+                    cleanup_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                     cleanup_embed.timestamp = discord.utils.utcnow()
                     
                     await button_interaction.response.edit_message(embed=cleanup_embed, view=None)
@@ -2325,7 +2325,7 @@ class Alliance(commands.Cog):
     def _set_embed_footer(self, embed: discord.Embed, guild: Optional[discord.Guild] = None):
         """Set the standard footer for alliance monitoring embeds"""
         server_name = guild.name if guild else "ICE"
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
     
     def _initialize_monitoring_tables(self):
         """Create necessary database tables if they don't exist"""
@@ -3129,7 +3129,7 @@ class Alliance(commands.Cog):
                 inline=False
             )
             
-            auth_embed.set_footer(text="Whiteout Survival | Magnus")
+            auth_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Send authentication embed with button
             view = AllianceAuthView(interaction.guild.id, interaction.guild.name, self)
@@ -3305,7 +3305,7 @@ class Alliance(commands.Cog):
                         description=description,
                         color=discord.Color.gold()
                     )
-                    embed.set_footer(text="Whiteout Survival | Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                     
                     # Set embed footer with bot branding
                     self.cog._set_embed_footer(embed)
@@ -4104,7 +4104,7 @@ class PaginatedDeleteView(discord.ui.View):
             ),
             color=discord.Color.red()
         )
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         embed.timestamp = discord.utils.utcnow()
         
         await interaction.response.edit_message(embed=embed, view=self)
@@ -4126,7 +4126,7 @@ class PaginatedDeleteView(discord.ui.View):
             ),
             color=discord.Color.red()
         )
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         embed.timestamp = discord.utils.utcnow()
         
         await interaction.response.edit_message(embed=embed, view=self)

@@ -82,7 +82,7 @@ class PaginationView(discord.ui.View):
 
     async def update_page(self, interaction: discord.Interaction):
         embed = self.chunks[self.current_page]
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def on_timeout(self) -> None:
@@ -267,7 +267,7 @@ class AllianceMemberOperations(commands.Cog):
             color=discord.Color.blue()
         )
         
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
         class MemberOperationsView(discord.ui.View):
             def __init__(self, cog):
@@ -787,7 +787,7 @@ class AllianceMemberOperations(commands.Cog):
 
                             embed.description += member_list
                             
-                            embed.set_footer(text="Whiteout Survival | Magnus")
+                            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                             
                             embeds.append(embed)
 

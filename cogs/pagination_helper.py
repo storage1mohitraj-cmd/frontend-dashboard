@@ -130,9 +130,9 @@ def create_paginated_embeds(
         
         # Add page footer
         if total_pages > 1:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         else:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         embeds.append(embed)
     
@@ -215,7 +215,7 @@ def create_alliance_log_embeds(
         
         # Add page footer
         if total_pages > 1:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         embeds.append(embed)
     

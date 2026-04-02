@@ -1212,7 +1212,7 @@ class ReminderSystem(commands.Cog):
 
                         if footer_t or footer_icon:
                             try:
-                                embed.set_footer(text="Whiteout Survival | Magnus")
+                                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                             except Exception:
                                 pass
                         pass
@@ -1512,11 +1512,11 @@ class ReminderSystem(commands.Cog):
             value=(target_channel.mention if target_channel else "(unknown channel)"),
         )
         
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         # If the user provided footer text/icon, override footer
         try:
             if footer_text or footer_icon_url:
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         except Exception:
             pass
 
@@ -1573,9 +1573,9 @@ class ReminderSystem(commands.Cog):
             )
         
         if len(user_reminders) > 10:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         else:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         await interaction.response.send_message(embed=embed, ephemeral=True)
         # Send small previews for reminders that include images (up to 5)
@@ -1695,9 +1695,9 @@ class ReminderSystem(commands.Cog):
                 )
 
             if len(all_reminders) > 15:
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             else:
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
             if interaction.response.is_done():
                 await interaction.followup.send(embed=embed, ephemeral=True)

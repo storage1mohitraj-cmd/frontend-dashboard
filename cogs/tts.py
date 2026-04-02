@@ -275,7 +275,7 @@ class TTS(commands.Cog):
                 description=f"**Current voice:** {current}\n\n{voice_list}",
                 color=discord.Color.blue()
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
             # Set voice

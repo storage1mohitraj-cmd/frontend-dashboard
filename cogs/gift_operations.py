@@ -1616,7 +1616,7 @@ class GiftOperations(commands.Cog):
                 )
             
             # Add footer
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Send the message
             await channel.send(embed=embed)
@@ -2535,9 +2535,9 @@ class GiftOperations(commands.Cog):
             embed.add_field(name=name, value=value, inline=False)
         
         if len(active_codes) > 10:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         else:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
         # Step 7: Create view with buttons
         from giftcode_poster import GiftCodeView
@@ -4788,7 +4788,7 @@ class GiftView(discord.ui.View):
                                         ),
                                         color=discord.Color.green()
                                     )
-                                    queue_embed.set_footer(text="Whiteout Survival | Magnus")
+                                    queue_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                                     
                                     await button_interaction.response.edit_message(
                                         embed=queue_embed,

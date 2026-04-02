@@ -222,7 +222,7 @@ class StartView(discord.ui.View):
                 inline=False
             )
             
-            auth_embed.set_footer(text="Whiteout Survival | Magnus")
+            auth_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Send authentication embed with button
             view = AllianceAuthView(interaction.guild.id, interaction.guild.name, self.bot)
@@ -405,7 +405,7 @@ class StartView(discord.ui.View):
                 inline=False
             )
             
-            auth_embed.set_footer(text="Whiteout Survival | Magnus")
+            auth_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Send authentication embed with button
             view = GiftCodeAuthView(interaction.guild.id, interaction.guild.name, self.bot)
@@ -532,7 +532,7 @@ class StartView(discord.ui.View):
                 color=0x00d9ff
             )
             embed.set_thumbnail(url="https://i.postimg.cc/Fzq03CJf/a463d7c7-7fc7-47fc-b24d-1324383ee2ff-removebg-preview.png")
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             view = sv.InteractiveHelpView()
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
@@ -882,7 +882,7 @@ class StartView(discord.ui.View):
                 ),
                 color=discord.Color.green()
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         except Exception as e:
             logger.error(f"Error in games button: {e}")

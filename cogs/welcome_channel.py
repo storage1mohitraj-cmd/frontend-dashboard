@@ -219,7 +219,7 @@ class WelcomeMenuView(discord.ui.View):
                 color=discord.Color.blue()
             )
             embed.set_image(url="attachment://welcome_demo.png")
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Send demo message
             file = discord.File(image_buffer, filename="welcome_demo.png")
@@ -508,7 +508,7 @@ class WelcomeChannel(commands.Cog):
                 color=discord.Color.blue()
             )
             embed.set_image(url="attachment://welcome.png")
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Send welcome message
             file = discord.File(image_buffer, filename="welcome.png")

@@ -262,7 +262,7 @@ class CategorySelect(discord.ui.Select):
                 color=0x00d9ff
             )
             embed.set_thumbnail(url="https://i.postimg.cc/Fzq03CJf/a463d7c7-7fc7-47fc-b24d-1324383ee2ff-removebg-preview.png")
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "fun_games":
             embed = discord.Embed(
@@ -311,7 +311,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "giftcodes":
             embed = discord.Embed(
@@ -357,7 +357,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "music":
             embed = discord.Embed(
@@ -549,7 +549,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "reminders":
             embed = discord.Embed(
@@ -587,7 +587,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "community":
             embed = discord.Embed(
@@ -644,7 +644,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "alliance":
             embed = discord.Embed(
@@ -700,7 +700,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "config":
             embed = discord.Embed(
@@ -758,7 +758,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "autotranslate":
             embed = discord.Embed(
@@ -825,7 +825,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         elif category == "utility":
             embed = discord.Embed(
@@ -859,7 +859,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
         
         try:
             await interaction.response.edit_message(embed=embed)
@@ -1464,7 +1464,7 @@ class BirthdayDashboardView(discord.ui.View):
                     embed.add_field(name=f"{item['user'].display_name}", value=f"📅 {month_name} {item['day']} ({days_text})", inline=False)
                 
                 if len(upcoming) > 10:
-                    embed.set_footer(text="Whiteout Survival | Magnus")
+                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                 
                 await button_interaction.followup.send(embed=embed, ephemeral=True)
             else:

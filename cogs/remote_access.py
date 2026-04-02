@@ -62,7 +62,7 @@ class RemoteAccess(commands.Cog):
                     color=0x00D9FF
                 )
                 
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
                 # Create server selection dropdown
                 if len(guilds) <= 25:
@@ -159,7 +159,7 @@ class RemoteAccess(commands.Cog):
             if guild.icon:
                 embed.set_thumbnail(url=guild.icon.url)
             
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
 
             view = discord.ui.View(timeout=300)
             
@@ -370,7 +370,7 @@ class RemoteAccess(commands.Cog):
                             inline=False
                         )
             
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Back button
             view = discord.ui.View(timeout=300)
@@ -1012,7 +1012,7 @@ class RemoteAccess(commands.Cog):
                             )
                             
                             if self.footer_text.value:
-                                message_embed.set_footer(text="Whiteout Survival | Magnus")
+                                message_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                             
                             # Send the embed
                             sent_message = await channel.send(embed=message_embed)
@@ -1100,7 +1100,7 @@ class RemoteAccess(commands.Cog):
                                 color=0xED4245
                             )
                             
-                            announcement_embed.set_footer(text="Whiteout Survival | Magnus")
+                            announcement_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                             
                             # Prepare mention
                             mention_text = ""

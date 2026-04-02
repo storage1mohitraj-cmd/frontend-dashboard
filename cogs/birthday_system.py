@@ -139,7 +139,7 @@ class BirthdayWishView(discord.ui.View):
                     ),
                     color=0xFF69B4  # Hot pink
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
                 await interaction.response.send_message(embed=embed, ephemeral=True)
                 return
             
@@ -203,7 +203,7 @@ class BirthdayWishView(discord.ui.View):
                 inline=False
             )
             
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
             
             # Send ephemeral message (only visible to the user who clicked)
             await interaction.response.send_message(embed=embed, ephemeral=True)

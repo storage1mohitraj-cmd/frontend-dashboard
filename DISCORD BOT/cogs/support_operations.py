@@ -112,7 +112,7 @@ class SupportView(discord.ui.View):
             color=discord.Color.green()
         )
 
-        about_embed.set_footer(text="Created by Magnus🔥")
+        about_embed.set_footer(text="Whiteout Survival | Magnus")
         
         try:
             await interaction.response.send_message(embed=about_embed, ephemeral=True)

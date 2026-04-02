@@ -6521,8 +6521,7 @@ class ManageGiftCode(commands.Cog):
                             embed.set_thumbnail(url=avatar)
                         
                         embed.set_footer(
-                            text="Whiteout Survival || Magnus", 
-                            icon_url=self.bot.user.display_avatar.url if self.bot.user.display_avatar else None
+                            text="Whiteout Survival | Magnus"
                         )
                         
                         sent_msg = await message.reply(embed=embed)

@@ -6194,6 +6194,7 @@ class PersistentMemberListView(discord.ui.View):
         self.alliance_id = alliance_id
         self.current_page = 0
         self.members_per_page = 15
+        self.sort_column = "furnace_lv"
         self.sort_order = "desc"
         self.active_filter = None
         
@@ -6249,7 +6250,7 @@ class PersistentMemberListView(discord.ui.View):
     
     def get_filtered_members(self, all_members):
         """Get members filtered by active FC filter"""
-        if self.active_filter is None:
+        if self.active_filter is None or self.active_filter == "all":
             return all_members
         
         if self.active_filter in self.fc_ranges:
@@ -6263,11 +6264,32 @@ class PersistentMemberListView(discord.ui.View):
     
     def get_sorted_members(self, all_members):
         filtered = self.get_filtered_members(all_members)
-        return sorted(
-            filtered,
-            key=lambda x: int(x.get('furnace_lv', 0) or 0),
-            reverse=(self.sort_order == "desc")
-        )
+        
+        # Fetch notes for display and sorting
+        try:
+            from db.mongo_adapters import RecordsAdapter
+            notes_data = RecordsAdapter.get_all_notes() or {}
+        except:
+            notes_data = {}
+            
+        # Enrich filtered members with notes
+        for m in filtered:
+            fid = str(m.get('fid', ''))
+            m['note'] = notes_data.get(fid, '')
+
+        def sort_key(x):
+            val = x.get(self.sort_column, '')
+            if self.sort_column == 'furnace_lv':
+                try:
+                    return int(val or 0)
+                except (ValueError, TypeError):
+                    return 0
+            if isinstance(val, str):
+                return val.lower()
+            return val
+
+        reverse = (self.sort_order == "desc")
+        return sorted(filtered, key=sort_key, reverse=reverse)
     
     def get_total_pages(self, all_members):
         filtered_count = len(self.get_filtered_members(all_members))
@@ -6320,8 +6342,10 @@ class PersistentMemberListView(discord.ui.View):
                 fid = member.get('fid', 'N/A')
                 furnace_lv = int(member.get('furnace_lv', 0) or 0)
                 level = self.level_mapping.get(furnace_lv, str(furnace_lv))
+                note = member.get('note', '')
                 
-                member_list += f"**{idx:02d}.** 👤 {nickname}\n└ 🆔 `ID: {fid}` | ⚔️ `FC: {level}`\n\n"
+                note_text = f" | 📝 `{note}`" if note else ""
+                member_list += f"**{idx:02d}.** 👤 {nickname}\n└ 🆔 `ID: {fid}` | ⚔️ `FC: {level}`{note_text}\n\n"
             embed.description += member_list
         else:
             embed.description += "*No members found with this filter.*\n\n"
@@ -6365,40 +6389,63 @@ class PersistentMemberListView(discord.ui.View):
             await interaction.response.send_message("❌ Error loading next page", ephemeral=True)
     
     @discord.ui.select(
-        placeholder="Filter by FC Level",
+        placeholder="Select Column to Sort",
         options=[
-            discord.SelectOption(label="All Members", value="all", emoji="👥", description="Show all alliance members"),
-            discord.SelectOption(label="Sort ↑ Ascending", value="sort_asc", emoji="🔼", description="Sort by FC level (low to high)"),
-            discord.SelectOption(label="Sort ↓ Descending", value="sort_desc", emoji="🔽", description="Sort by FC level (high to low)"),
-            discord.SelectOption(label="FC 1", value="FC 1", emoji="1️⃣", description="FC 1 to FC 1-4"),
-            discord.SelectOption(label="FC 2", value="FC 2", emoji="2️⃣", description="FC 2 to FC 2-4"),
-            discord.SelectOption(label="FC 3", value="FC 3", emoji="3️⃣", description="FC 3 to FC 3-4"),
-            discord.SelectOption(label="FC 4", value="FC 4", emoji="4️⃣", description="FC 4 to FC 4-4"),
-            discord.SelectOption(label="FC 5", value="FC 5", emoji="5️⃣", description="FC 5 to FC 5-4"),
-            discord.SelectOption(label="FC 6", value="FC 6", emoji="6️⃣", description="FC 6 to FC 6-4"),
-            discord.SelectOption(label="FC 7", value="FC 7", emoji="7️⃣", description="FC 7 to FC 7-4"),
-            discord.SelectOption(label="FC 8", value="FC 8", emoji="8️⃣", description="FC 8 to FC 8-4"),
+            discord.SelectOption(label="Nickname", value="nickname", emoji="👤"),
+            discord.SelectOption(label="FID", value="fid", emoji="🆔"),
+            discord.SelectOption(label="Furnace Level", value="furnace_lv", emoji="🔥"),
+            discord.SelectOption(label="Note/Custom", value="note", emoji="📝"),
         ],
         row=1,
+        custom_id="memberlist_sort_column"
+    )
+    async def sort_column_select(self, interaction: discord.Interaction, select: discord.ui.Select):
+        try:
+            self.sort_column = interaction.data['values'][0]
+            self.current_page = 0
+            
+            members, alliance_name = await self.fetch_members_and_alliance_name()
+            embed = await self.create_embed(members, alliance_name)
+            await interaction.response.edit_message(embed=embed, view=self)
+        except Exception as e:
+            print(f"Error in sort_column_select: {e}")
+            await interaction.response.send_message("❌ Error updating sort column", ephemeral=True)
+
+    @discord.ui.button(label="Sort: Desc", emoji="🔃", style=discord.ButtonStyle.secondary, row=1, custom_id="memberlist_sort_toggle")
+    async def toggle_sort_order(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            self.sort_order = "asc" if self.sort_order == "desc" else "desc"
+            button.label = f"Sort: {'Asc' if self.sort_order == 'asc' else 'Desc'}"
+            self.current_page = 0
+            
+            members, alliance_name = await self.fetch_members_and_alliance_name()
+            embed = await self.create_embed(members, alliance_name)
+            await interaction.response.edit_message(embed=embed, view=self)
+        except Exception as e:
+            print(f"Error in toggle_sort_order: {e}")
+            await interaction.response.send_message("❌ Error toggling sort order", ephemeral=True)
+
+    @discord.ui.select(
+        placeholder="Filter by FC Level Range",
+        options=[
+            discord.SelectOption(label="All Members", value="all", emoji="👥"),
+            discord.SelectOption(label="FC 1", value="FC 1", emoji="1️⃣"),
+            discord.SelectOption(label="FC 2", value="FC 2", emoji="2️⃣"),
+            discord.SelectOption(label="FC 3", value="FC 3", emoji="3️⃣"),
+            discord.SelectOption(label="FC 4", value="FC 4", emoji="4️⃣"),
+            discord.SelectOption(label="FC 5", value="FC 5", emoji="5️⃣"),
+            discord.SelectOption(label="FC 6", value="FC 6", emoji="6️⃣"),
+            discord.SelectOption(label="FC 7", value="FC 7", emoji="7️⃣"),
+            discord.SelectOption(label="FC 8", value="FC 8", emoji="8️⃣"),
+        ],
+        row=2,
         custom_id="memberlist_filter"
     )
     async def filter_select(self, interaction: discord.Interaction, select: discord.ui.Select):
         try:
             selected = interaction.data['values'][0]
-            
-            if selected == "all":
-                self.active_filter = None
-                self.current_page = 0
-            elif selected == "sort_asc":
-                self.sort_order = "asc"
-                self.current_page = 0
-            elif selected == "sort_desc":
-                self.sort_order = "desc"
-                self.current_page = 0
-            else:
-                # FC level filter
-                self.active_filter = selected
-                self.current_page = 0
+            self.active_filter = selected
+            self.current_page = 0
             
             members, alliance_name = await self.fetch_members_and_alliance_name()
             embed = await self.create_embed(members, alliance_name)

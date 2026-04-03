@@ -317,16 +317,39 @@ class FIDCommands(commands.Cog):
                                 )
 
                             if len(members) > 25:
-                                embed.set_footer(text="Whiteout Survival | Magnus")} members • Stored in MongoDB",
+                                embed.set_footer(
+                                    text=f"Whiteout Survival | Magnus | {len(members)} members • Stored in MongoDB",
                                     icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
                                 )
                             else:
                                 embed.set_footer(text="Whiteout Survival | Magnus")
 
-
-                            # Send to channel (not ephemeral)
                             # Create view with pagination and filter buttons
                             class MemberListView(discord.ui.View):
+                                class ColumnSortSelect(discord.ui.Select):
+                                    def __init__(self, current_column):
+                                        options = [
+                                            discord.SelectOption(label="Nickname", value="nickname", emoji="👤"),
+                                            discord.SelectOption(label="FID", value="fid", emoji="🆔"),
+                                            discord.SelectOption(label="Furnace Level", value="furnace_lv", emoji="⚔️")
+                                        ]
+                                        # Set the default selected option
+                                        for option in options:
+                                            if option.value == current_column:
+                                                option.default = True
+                                        
+                                        super().__init__(
+                                            placeholder="Sort by column...",
+                                            options=options,
+                                            custom_id="sort_column_select",
+                                            row=1
+                                        )
+
+                                    async def callback(self, interaction: discord.Interaction):
+                                        self.view.sort_column = self.values[0]
+                                        self.view.current_page = 0
+                                        await self.view.update_view(interaction)
+
                                 def __init__(self, members_data, alliance_name, level_map):
                                     super().__init__(timeout=300)
                                     self.members = members_data
@@ -334,13 +357,51 @@ class FIDCommands(commands.Cog):
                                     self.level_mapping = level_map
                                     self.current_page = 0
                                     self.members_per_page = 15
+                                    self.sort_column = "furnace_lv"
                                     self.sort_order = "desc"  # desc or asc
                                     self.message = None
+                                    self.update_components()
+
+                                def update_components(self):
+                                    self.clear_items()
+                                    
+                                    # Navigation Buttons (Row 0)
+                                    self.add_item(self.prev_btn)
+                                    self.add_item(self.next_btn)
+                                    
+                                    # Sort Order Toggle (Row 0)
+                                    toggle_emoji = "🔼" if self.sort_order == "asc" else "🔽"
+                                    toggle_label = f"Sort: {self.sort_order.upper()}"
+                                    self.sort_toggle_btn.emoji = toggle_emoji
+                                    self.sort_toggle_btn.label = toggle_label
+                                    self.add_item(self.sort_toggle_btn)
+                                    
+                                    # Profile Button (Row 0)
+                                    self.add_item(self.profile_btn)
+                                    
+                                    # Column Select (Row 1)
+                                    self.add_item(self.ColumnSortSelect(self.sort_column))
+
+                                async def update_view(self, interaction: discord.Interaction):
+                                    self.update_components()
+                                    embed = self.create_embed()
+                                    await interaction.response.edit_message(embed=embed, view=self)
 
                                 def get_sorted_members(self):
+                                    def sort_key(x):
+                                        val = x.get(self.sort_column, 0)
+                                        if self.sort_column == "furnace_lv":
+                                            return int(val or 0)
+                                        if self.sort_column == "fid":
+                                            try:
+                                                return int(val or 0)
+                                            except:
+                                                return 0
+                                        return str(val or "").lower()
+
                                     return sorted(
                                         self.members,
-                                        key=lambda x: int(x.get('furnace_lv', 0) or 0),
+                                        key=sort_key,
                                         reverse=(self.sort_order == "desc")
                                     )
 
@@ -399,38 +460,46 @@ class FIDCommands(commands.Cog):
 
                                     return embed
 
-                                @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, custom_id="prev_page")
-                                async def previous_page(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                                @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, custom_id="prev_page", row=0)
+                                async def previous_page(self, interaction: discord.Interaction, button: discord.ui.Button):
                                     if self.current_page > 0:
                                         self.current_page -= 1
-                                        embed = self.create_embed()
-                                        await button_interaction.response.edit_message(embed=embed, view=self)
+                                        await self.update_view(interaction)
                                     else:
-                                        await button_interaction.response.defer()
+                                        await interaction.response.defer()
 
-                                @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, custom_id="next_page")
-                                async def next_page(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                                @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, custom_id="next_page", row=0)
+                                async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
                                     if self.current_page < self.get_total_pages() - 1:
                                         self.current_page += 1
-                                        embed = self.create_embed()
-                                        await button_interaction.response.edit_message(embed=embed, view=self)
+                                        await self.update_view(interaction)
                                     else:
-                                        await button_interaction.response.defer()
+                                        await interaction.response.defer()
 
-                                @discord.ui.button(label="Filter", emoji="🔽", style=discord.ButtonStyle.secondary, custom_id="filter_sort")
-                                async def filter_sort(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                                    # Toggle sort order
+                                @discord.ui.button(label="Sort: DESC", emoji="🔽", style=discord.ButtonStyle.secondary, custom_id="filter_sort", row=0)
+                                async def filter_sort(self, interaction: discord.Interaction, button: discord.ui.Button):
                                     self.sort_order = "asc" if self.sort_order == "desc" else "desc"
-                                    self.current_page = 0  # Reset to first page
-                                    
-                                    # Update button emoji
-                                    button.emoji = "🔼" if self.sort_order == "asc" else "🔽"
-                                    
-                                    embed = self.create_embed()
-                                    await button_interaction.response.edit_message(embed=embed, view=self)
+                                    self.current_page = 0
+                                    await self.update_view(interaction)
 
-                                @discord.ui.button(label="Profile", emoji="👤", style=discord.ButtonStyle.secondary, custom_id="view_profile")
-                                async def view_profile(self, button_interaction: discord.Interaction, button: discord.ui.Button):
+                                @property
+                                def prev_btn(self):
+                                    return [b for b in self.children if b.custom_id == "prev_page"][0]
+                                
+                                @property
+                                def next_btn(self):
+                                    return [b for b in self.children if b.custom_id == "next_page"][0]
+                                
+                                @property
+                                def sort_toggle_btn(self):
+                                    return [b for b in self.children if b.custom_id == "filter_sort"][0]
+                                
+                                @property
+                                def profile_btn(self):
+                                    return [b for b in self.children if b.custom_id == "view_profile"][0]
+
+                                @discord.ui.button(label="Profile", emoji="👤", style=discord.ButtonStyle.secondary, custom_id="view_profile", row=0)
+                                async def view_profile(self, interaction: discord.Interaction, button: discord.ui.Button):
                                     # Create a select menu for choosing a player
                                     class ProfileSelectView(discord.ui.View):
                                         def __init__(self, members_data, level_map):
@@ -745,11 +814,10 @@ class FIDCommands(commands.Cog):
         except:
             alliance_name = f"Alliance {alliance_id}"
         
-        result_embed.set_footer(text="Whiteout Survival | Magnus")")
+        result_embed.set_footer(text="Whiteout Survival | Magnus")
         
         await message.channel.send(embed=result_embed)
 
 
 async def setup(bot):
     await bot.add_cog(FIDCommands(bot))
-

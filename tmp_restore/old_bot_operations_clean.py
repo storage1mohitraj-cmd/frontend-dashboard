@@ -1271,7 +1271,7 @@ class BotOperations(commands.Cog):
                     color=0x2B2D31
                 )
                 embed.set_footer(
-                    text="Whiteout Survival | Records",
+                    text=f"{interaction.guild.name} x Magnus🚀",
                     icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
                 )
 
@@ -1398,7 +1398,7 @@ class BotOperations(commands.Cog):
                     inline=True
                 )
                 embed.set_footer(
-                    text="Whiteout Survival | Management",
+                    text=f"{interaction.guild.name} x Magnus🚀",
                     icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
                 )
 
@@ -2232,7 +2232,7 @@ class BotOperations(commands.Cog):
                                     description=f"Removing **{len(fid_list)}** member(s) from **{self.record_name}**...\n\n```\nPlease wait while we process your request.\n```",
                                     color=0x5865F2
                                 )
-                                        processing_embed.set_footer(text=f"Processing 0/{len(fid_list)} FIDs...")
+                                processing_embed.set_footer(text=f"Processing 0/{len(fid_list)} FIDs...")
                                 
                                 await modal_interaction.response.send_message(embed=processing_embed, ephemeral=True)
                                 
@@ -2265,7 +2265,7 @@ class BotOperations(commands.Cog):
                                             description=f"**{self.record_name}**\n\n```\n[{progress_bar}] {int((idx/len(fid_list))*100)}%\n```\n✅ Success: {success_count} | ❌ Failed: {fail_count}",
                                             color=0x5865F2
                                         )
-                                                progress_embed.set_footer(text=f"Processing {idx}/{len(fid_list)} FIDs...")
+                                        progress_embed.set_footer(text=f"Processing {idx}/{len(fid_list)} FIDs...")
                                         
                                         await modal_interaction.edit_original_response(embed=progress_embed)
                                 
@@ -3715,7 +3715,10 @@ class BotOperations(commands.Cog):
                                 inline=False
                             )
                         
-                                            result_embed.set_footer(text=f"Showing 20 of {len(results)} results")
+                        result_embed.set_footer(
+                            text="Operation Complete • MAGNUS",
+                            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+                        )
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                 
@@ -3863,7 +3866,7 @@ class BotOperations(commands.Cog):
                                 inline=False
                             )
                         
-                                            result_embed.set_footer(text=f"Showing 20 of {len(results)} results")
+                        result_embed.set_footer(text="Operation Complete • MAGNUS")
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                 
@@ -6383,10 +6386,10 @@ class PersistentMemberListView(discord.ui.View):
             footer_text += f" • Filtered by {self.active_filter}"
         footer_text += " • Stored in MongoDB"
         
-                        embed.set_footer(
-                            text=footer_text,
-                            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
-                        )
+        embed.set_footer(
+            text=footer_text,
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+        )
         
         return embed
     

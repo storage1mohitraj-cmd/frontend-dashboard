@@ -1635,7 +1635,7 @@ class Alliance(commands.Cog):
                     )
                     result_embed.add_field(name="Alliance Details", value=info_section, inline=False)
                     
-                    result_embed.set_footer(text="Alliance has been successfully created")
+                    result_embed.set_footer(text="Alliance settings have been successfully saved")
                     result_embed.timestamp = discord.utils.utcnow()
                     
                     await select_interaction.response.edit_message(embed=result_embed, view=None)
@@ -1904,7 +1904,7 @@ class Alliance(commands.Cog):
             ),
             color=discord.Color.blue()
         )
-        embed.set_footer(text="Select an alliance to edit its settings")
+        embed.set_footer(text="Use the dropdown menu below to select an alliance")
         embed.timestamp = discord.utils.utcnow()
         
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
@@ -1954,7 +1954,7 @@ class Alliance(commands.Cog):
                 ),
                 color=discord.Color.red()
             )
-            embed.set_footer(text="Select an alliance to delete")
+            embed.set_footer(text="⚠️ Warning: Deleting an alliance will remove all its data!")
             embed.timestamp = discord.utils.utcnow()
 
             view = PaginatedDeleteView(option_pages, self.alliance_delete_callback)
@@ -2127,8 +2127,6 @@ class Alliance(commands.Cog):
                     "└ Manage gift codes and rewards\n\n"
                     "📜 **Alliance History**\n"
                     "└ View alliance changes and history\n\n"
-                    "📂 **Records Management**\n"
-                    "└ Track custom player groups\n\n"
                     "🆘 **Support Operations**\n"
                     "└ Access support features\n"
                     "━━━━━━━━━━━━━━━━━━━━━━"
@@ -2180,13 +2178,6 @@ class Alliance(commands.Cog):
                 row=2
             ))
             view.add_item(discord.ui.Button(
-                label="Records",
-                emoji="📂",
-                style=discord.ButtonStyle.primary,
-                custom_id="records_menu",
-                row=3
-            ))
-            view.add_item(discord.ui.Button(
                 label="Other Features",
                 emoji="🔧",
                 style=discord.ButtonStyle.primary,
@@ -2221,24 +2212,6 @@ class Alliance(commands.Cog):
                         ephemeral=True
                     )
 
-        elif custom_id == "records_menu":
-            try:
-                bot_ops_cog = interaction.client.get_cog("BotOperations")
-                if bot_ops_cog:
-                    await bot_ops_cog.records_menu(interaction)
-                else:
-                    await interaction.response.send_message(
-                        "❌ Bot Operations module not found (Records inaccessible).",
-                        ephemeral=True
-                    )
-            except Exception as e:
-                print(f"Records menu error in alliance handle: {e}")
-                if not interaction.response.is_done():
-                    await interaction.response.send_message(
-                        "An error occurred while loading Records menu.",
-                        ephemeral=True
-                    )
-
     async def show_main_menu(self, interaction: discord.Interaction):
         try:
             embed = discord.Embed(
@@ -2257,8 +2230,6 @@ class Alliance(commands.Cog):
                     "└ Manage gift codes and rewards\n\n"
                     "📜 **Alliance History**\n"
                     "└ View alliance changes and history\n\n"
-                    "📂 **Records Management**\n"
-                    "└ Track custom player groups\n\n"
                     "🆘 **Support Operations**\n"
                     "└ Access support features\n\n"
                     "🔧 **Other Features**\n"
@@ -2312,13 +2283,6 @@ class Alliance(commands.Cog):
                 row=2
             ))
             view.add_item(discord.ui.Button(
-                label="Records",
-                emoji="📂",
-                style=discord.ButtonStyle.primary,
-                custom_id="records_menu",
-                row=3
-            ))
-            view.add_item(discord.ui.Button(
                 label="Other Features",
                 emoji="🔧",
                 style=discord.ButtonStyle.primary,
@@ -2366,7 +2330,11 @@ class Alliance(commands.Cog):
 
     def _set_embed_footer(self, embed: discord.Embed, guild: Optional[discord.Guild] = None):
         """Set the standard footer for alliance monitoring embeds"""
-        embed.set_footer(text="Alliance Monitoring System")
+        server_name = guild.name if guild else "ICE"
+        embed.set_footer(
+            text=f"Whiteout Survival || {server_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png?ex=6921335a&is=691fe1da&hm=9b8fa5ee98abc7630652de0cca2bd0521be394317e450a9bfdc5c48d0482dffe"
+        )
     
     def _initialize_monitoring_tables(self):
         """Create necessary database tables if they don't exist"""
@@ -3171,7 +3139,8 @@ class Alliance(commands.Cog):
             )
             
             auth_embed.set_footer(
-                text="Secured by Discord Interaction Gateway"
+                text="Secured by Discord Interaction Gateway",
+                icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445660030815961209/discord-logo-png_seeklogo-481205_1.png?ex=69312752&is=692fd5d2&hm=5d6d7961ff5e1d3837308cbea9c5f0baa4a5cdf59af9009e49ba67b864963fe6"
             )
             
             # Send authentication embed with button

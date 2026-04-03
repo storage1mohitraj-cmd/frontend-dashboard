@@ -133,7 +133,10 @@ class PlayerIDValidator(commands.Cog):
                     # Valid in Local DB
                     await message.add_reaction('✅')
                     
+                    # Create Embed
                     embed = discord.Embed(title="ℹ️ Player Info", color=discord.Color.green())
+                    embed.add_field(name="👤 Nickname", value=local_info.get("nickname", "Unknown"), inline=True)
+                    embed.add_field(name="🆔 Player ID", value=player_id, inline=True)
                     embed.add_field(name="🔥 Furnace Level", value=str(local_info.get("level", "Unknown")), inline=True)
                     
                     # Add Alliance field ONLY if found locally

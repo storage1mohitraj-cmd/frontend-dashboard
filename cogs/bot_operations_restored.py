@@ -1271,7 +1271,7 @@ class BotOperations(commands.Cog):
                     color=0x2B2D31
                 )
                 embed.set_footer(
-                    text="Whiteout Survival | Records",
+                    text=f"{interaction.guild.name} x Magnus🚀",
                     icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
                 )
 
@@ -1398,7 +1398,7 @@ class BotOperations(commands.Cog):
                     inline=True
                 )
                 embed.set_footer(
-                    text="Whiteout Survival | Management",
+                    text=f"{interaction.guild.name} x Magnus🚀",
                     icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
                 )
 

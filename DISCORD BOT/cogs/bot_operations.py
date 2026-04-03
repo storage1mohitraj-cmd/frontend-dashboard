@@ -6354,9 +6354,14 @@ class PersistentMemberListView(discord.ui.View):
         footer_text = f"Page {self.current_page + 1}/{total_pages}"
         if self.active_filter:
             footer_text += f" • Filtered by {self.active_filter}"
-        footer_text += " • Stored in MongoDB"
         
-        embed.set_footer(text="Whiteout Survival | Magnus")
+        # Use more descriptive footer based on view type
+        if hasattr(self, 'is_records_view') and self.is_records_view:
+            footer_text += " • Alliance Records • Persistent"
+        else:
+            footer_text += " • Member List • Persistent"
+        
+        embed.set_footer(text=f"Whiteout Survival | Magnus | {footer_text}")
         
         return embed
     
@@ -6625,6 +6630,23 @@ class PersistentMemberListView(discord.ui.View):
             traceback.print_exc()
             await interaction.response.send_message("❌ Error loading profiles", ephemeral=True)
 
+
+
+class PersistentRecordsView(PersistentMemberListView):
+    """Specialized version of PersistentMemberListView for Records"""
+    def __init__(self, alliance_id: int = 0):
+        super().__init__(alliance_id=alliance_id)
+        self.is_records_view = True
+        # Override custom IDs to ensure they don't collide with the standard member list if needed,
+        # but here we want them to use the same logic, so we keep them or override them if we want separate handlers.
+        # For now, keeping them the same is fine if they are registered as different persistent views.
+        
+    async def create_embed(self, all_members, alliance_name):
+        embed = await super().create_embed(all_members, alliance_name)
+        # Update title to show "Records"
+        filter_text = f" - {self.active_filter}" if self.active_filter else ""
+        embed.title = f"📜 {alliance_name} - Alliance Records{filter_text}"
+        return embed
 
 async def setup(bot):
     await bot.add_cog(BotOperations(bot, sqlite3.connect('db/settings.sqlite'))) 

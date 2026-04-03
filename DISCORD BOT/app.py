@@ -1114,10 +1114,11 @@ async def setup_hook():
         bot.add_view(PollinateNoEditView())
         logger.info("✅ Registered Pollinate Views")
         
-        # Register PersistentMemberListView
-        from cogs.bot_operations import PersistentMemberListView
+        # Register PersistentMemberListView and PersistentRecordsView
+        from cogs.bot_operations import PersistentMemberListView, PersistentRecordsView
         bot.add_view(PersistentMemberListView(alliance_id=0))
-        logger.info("✅ Registered PersistentMemberListView")
+        bot.add_view(PersistentRecordsView(alliance_id=0))
+        logger.info("✅ Registered PersistentMemberListView and PersistentRecordsView")
         
         # Register BirthdayWishView
         from cogs.birthday_system import BirthdayWishView
@@ -4175,6 +4176,7 @@ async def register_view(interaction: discord.Interaction, channel: discord.TextC
                     discord.SelectOption(label="Birthday Wish", value="birthdaywish", emoji="🎉", description="Birthday wish message with gift button"),
                     discord.SelectOption(label="Gift Code", value="giftcode", emoji="🎁", description="Gift code redeem view"),
                     discord.SelectOption(label="Member List", value="memberlist", emoji="👥", description="Alliance member list view"),
+                    discord.SelectOption(label="Records", value="records", emoji="📜", description="Persistent alliance records view"),
                 ]
                 super().__init__(placeholder="Select view type...", options=options, min_values=1, max_values=1)
             
@@ -4210,7 +4212,7 @@ async def register_view(interaction: discord.Interaction, channel: discord.TextC
                         metadata['birthday_user_ids'] = birthday_user_ids
                     elif view_type == 'giftcode':
                         view = sv.GiftCodeView()
-                    elif view_type == 'memberlist':
+                    elif view_type == 'memberlist' or view_type == 'records':
                         # Extract alliance_id from the embed
                         if not self.message_obj.embeds:
                             await select_interaction.response.send_message("❌ Message has no embed. Cannot determine alliance_id.", ephemeral=True)
@@ -4246,9 +4248,14 @@ async def register_view(interaction: discord.Interaction, channel: discord.TextC
                             )
                             return
                         
-                        from cogs.bot_operations import PersistentMemberListView
-                        view = PersistentMemberListView(alliance_id=alliance_id)
+                        from cogs.bot_operations import PersistentMemberListView, PersistentRecordsView
+                        if view_type == 'records':
+                            view = PersistentRecordsView(alliance_id=alliance_id)
+                        else:
+                            view = PersistentMemberListView(alliance_id=alliance_id)
+                            
                         metadata['alliance_id'] = alliance_id
+                        metadata['is_records'] = (view_type == 'records')
                     
                     if view:
                         # Register view with bot

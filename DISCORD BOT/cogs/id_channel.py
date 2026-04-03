@@ -4,7 +4,7 @@ import sqlite3
 from datetime import datetime, timedelta
 import os
 
-from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter
+from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter, RecordsAdapter
 
 SECRET = "tB87#kPtkxqOS2"
 
@@ -56,8 +56,8 @@ class IDChannel(commands.Cog):
         except Exception:
             print(message)
 
-    def _upsert_member_from_api(self, fid: int, nickname: str, furnace_lv: int, kid, stove_lv_content, alliance_id: int, avatar_image=None) -> bool:
-        """Save member data to database"""
+    def _upsert_member_from_api(self, guild_id: int, fid: int, nickname: str, furnace_lv: int, kid, stove_lv_content, alliance_id: int, avatar_image=None) -> bool:
+        """Save member data to database and records system"""
         try:
             member_doc = {
                 'fid': str(fid),
@@ -79,6 +79,19 @@ class IDChannel(commands.Cog):
                     self._log_debug(f"Attempting Mongo upsert for {fid}...")
                     result = AllianceMembersAdapter.upsert_member(str(fid), member_doc)
                     self._log_debug(f"Mongo upsert result: {result}")
+                    
+                    # Also add to default record for the alliance/guild
+                    try:
+                        record_name = "Main" # Default record name
+                        # Ensure record exists
+                        if not RecordsAdapter.get_record(guild_id, record_name):
+                            RecordsAdapter.create_record(guild_id, record_name, self.bot.user.id)
+                        
+                        RecordsAdapter.add_member_to_record(guild_id, record_name, str(fid), member_doc)
+                        self._log_debug(f"Added member {fid} to records system.")
+                    except Exception as re:
+                        self._log_debug(f"Failed to add member to records system: {re}")
+                        
                     if result:
                         return True
             except Exception as e:
@@ -147,9 +160,9 @@ class IDChannel(commands.Cog):
                 stove_lv_content = player_data.get('stove_lv_content', '')
                 avatar_image = player_data.get('avatar_image', '')
                 
-                # Save to database
+                # Save to database and records system
                 success = self._upsert_member_from_api(
-                    fid, nickname, furnace_lv, kid, 
+                    message.guild.id, fid, nickname, furnace_lv, kid, 
                     stove_lv_content, alliance_id, avatar_image
                 )
                 

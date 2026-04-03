@@ -86,6 +86,49 @@ class PlayerInfoCog(commands.Cog):
         # Thinking animation instance for message-based lookups
         self._thinking_animation = ThinkingAnimation()
 
+    def _is_managed_channel(self, message: discord.Message) -> bool:
+        """Return True if this channel is managed by another cog (auto-redeem or ID channel).
+        
+        playerinfo should NOT intercept 9-digit FIDs in these channels because a
+        dedicated cog already handles them and will produce its own response.
+        """
+        if not message.guild:
+            return False
+        try:
+            import sqlite3
+            guild_id = message.guild.id
+            channel_id = message.channel.id
+
+            # Check manage_giftcode auto-redeem channel
+            try:
+                with sqlite3.connect('db/giftcode.sqlite') as db:
+                    cur = db.cursor()
+                    cur.execute(
+                        "SELECT 1 FROM auto_redeem_channels WHERE guild_id = ? AND channel_id = ?",
+                        (guild_id, channel_id)
+                    )
+                    if cur.fetchone():
+                        return True
+            except Exception:
+                pass
+
+            # Check id_channel registration channels
+            try:
+                with sqlite3.connect('db/id_channel.sqlite') as db:
+                    cur = db.cursor()
+                    cur.execute(
+                        "SELECT 1 FROM id_channels WHERE guild_id = ? AND channel_id = ?",
+                        (guild_id, channel_id)
+                    )
+                    if cur.fetchone():
+                        return True
+            except Exception:
+                pass
+
+        except Exception:
+            pass
+        return False
+
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Listen for messages that contain a standalone 9-digit number and show player info inline.
@@ -103,6 +146,11 @@ class PlayerInfoCog(commands.Cog):
             
             # Skip if message starts with !Add or !Remove (FID commands)
             if content.strip().startswith(('!Add', '!Remove')):
+                return
+
+            # Skip channels that have dedicated cogs handling FID input
+            # (auto-redeem channels and ID-registration channels)
+            if self._is_managed_channel(message):
                 return
             
             m = re.search(r"\b(\d{9})\b", content)

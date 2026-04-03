@@ -1517,35 +1517,12 @@ class BotOperations(commands.Cog):
             
             # Handle record_list (no modal needed)
             if custom_id == "record_list":
-                records = RecordsAdapter.get_all_records(interaction.guild.id)
+                # Use PersistentRecordsView for the list
+                from cogs.bot_operations import PersistentRecordsView
+                view = PersistentRecordsView()
+                embed, _ = await view.create_embed(interaction.guild.id, interaction.guild.name)
                 
-                if not records:
-                    await interaction.response.send_message(
-                        "📋 No records found. Use **Create Record** to create one!",
-                        ephemeral=True
-                    )
-                    return
-                
-                embed = discord.Embed(
-                    title="📋 Custom Records",
-                    description=f"Total Records: **{len(records)}**\n━━━━━━━━━━━━━━━━━━━━━━",
-                    color=0x5865F2
-                )
-                
-                for record in records[:25]:
-                    member_count = record.get('member_count', 0)
-                    created_at = record.get('created_at', 'Unknown')[:10]
-                    
-                    embed.add_field(
-                        name=f"📁 {record['record_name']}",
-                        value=f"👥 Members: `{member_count}`\n📅 Created: `{created_at}`",
-                        inline=True
-                    )
-                
-                if len(records) > 25:
-                    embed.set_footer(text=f"Showing 25 of {len(records)} records")
-                
-                await interaction.response.send_message(embed=embed, ephemeral=True)
+                await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 return
             
             # Handle record_create
@@ -2293,7 +2270,7 @@ class BotOperations(commands.Cog):
                         await select_interaction.response.send_modal(RemoveMembersModal(selected_record))
                 
                 embed = discord.Embed(
-                    title="➖ Remove Members from Record",
+                    title="➕ Remove Members from Record",
                     description="Select a record to remove members from:",
                     color=0x5865F2
                 )
@@ -2341,384 +2318,12 @@ class BotOperations(commands.Cog):
                     async def select_callback(self, select_interaction: discord.Interaction):
                         selected_record = select_interaction.data['values'][0]
                         
-                        await select_interaction.response.defer(ephemeral=True)
+                        # Use PersistentRecordDetailView for the specific record
+                        from cogs.bot_operations import PersistentRecordDetailView
+                        view = PersistentRecordDetailView(record_name=selected_record)
+                        embed = await view.create_embed(select_interaction.guild.id, select_interaction.guild.name)
                         
-                        # Get members and custom columns from the selected record
-                        members = RecordsAdapter.get_record_members(select_interaction.guild.id, selected_record)
-                        custom_columns = RecordsAdapter.get_custom_columns(select_interaction.guild.id, selected_record)
-                        
-                        if not members:
-                            await select_interaction.followup.send(
-                                f"📋 No members found in record **{selected_record}**.",
-                                ephemeral=True
-                            )
-                            return
-                        
-                        # Furnace level mapping
-                        level_mapping = {
-                            31: "30-1", 32: "30-2", 33: "30-3", 34: "30-4",
-                            35: "FC 1", 36: "FC 1-1", 37: "FC 1-2", 38: "FC 1-3", 39: "FC 1-4",
-                            40: "FC 2", 41: "FC 2-1", 42: "FC 2-2", 43: "FC 2-3", 44: "FC 2-4",
-                            45: "FC 3", 46: "FC 3-1", 47: "FC 3-2", 48: "FC 3-3", 49: "FC 3-4",
-                            50: "FC 4", 51: "FC 4-1", 52: "FC 4-2", 53: "FC 4-3", 54: "FC 4-4",
-                            55: "FC 5", 56: "FC 5-1", 57: "FC 5-2", 58: "FC 5-3", 59: "FC 5-4",
-                            60: "FC 6", 61: "FC 6-1", 62: "FC 6-2", 63: "FC 6-3", 64: "FC 6-4",
-                            65: "FC 7", 66: "FC 7-1", 67: "FC 7-2", 68: "FC 7-3", 69: "FC 7-4",
-                            70: "FC 8", 71: "FC 8-1", 72: "FC 8-2", 73: "FC 8-3", 74: "FC 8-4",
-                            75: "FC 9", 76: "FC 9-1", 77: "FC 9-2", 78: "FC 9-3", 79: "FC 9-4",
-                            80: "FC 10", 81: "FC 10-1", 82: "FC 10-2", 83: "FC 10-3", 84: "FC 10-4"
-                        }
-                        
-                        # Create interactive view with pagination
-                        class MemberDetailsModal(discord.ui.Modal):
-                            def __init__(self, record_name, member_data, custom_cols):
-                                super().__init__(title=f"Edit: {member_data.get('nickname', 'Unknown')[:20]}")
-                                self.record_name = record_name
-                                self.fid = member_data.get('fid')
-                                self.nickname = member_data.get('nickname', 'Unknown')
-                                self.custom_cols = custom_cols
-                                
-                                # Note input (default)
-                                self.note_input = discord.ui.TextInput(
-                                    label="Custom Note",
-                                    placeholder="Enter general tracking notes...",
-                                    default=member_data.get('note', ''),
-                                    style=discord.TextStyle.paragraph,
-                                    required=False,
-                                    max_length=500
-                                )
-                                self.add_item(self.note_input)
-                                
-                                # Add inputs for first 4 custom columns
-                                self.custom_inputs = {}
-                                for col in self.custom_cols[:4]:
-                                    text_input = discord.ui.TextInput(
-                                        label=col,
-                                        placeholder=f"Value for {col}",
-                                        default=member_data.get(col, ''),
-                                        required=False,
-                                        max_length=100
-                                    )
-                                    self.custom_inputs[col] = text_input
-                                    self.add_item(text_input)
-
-                            async def on_submit(self, interaction: discord.Interaction):
-                                from db.mongo_adapters import RecordsAdapter as RecAdapter
-                                guild_id = interaction.guild.id
-                                
-                                # Update note
-                                RecAdapter.update_member_field(guild_id, self.record_name, self.fid, 'note', self.note_input.value or "")
-                                
-                                # Update custom columns
-                                for col, text_input in self.custom_inputs.items():
-                                    RecAdapter.update_member_field(guild_id, self.record_name, self.fid, col, text_input.value or "")
-                                
-                                success_embed = discord.Embed(
-                                    title="✅ Member Data Updated",
-                                    description=f"Successfully updated data for **{self.nickname}** in **{self.record_name}**.",
-                                    color=0x57F287
-                                )
-                                await interaction.response.send_message(embed=success_embed, ephemeral=True)
-
-                        class ProfileActionsView(discord.ui.View):
-                            def __init__(self, record_name, member_data, custom_cols):
-                                super().__init__(timeout=180)
-                                self.record_name = record_name
-                                self.member_data = member_data
-                                self.custom_cols = custom_cols
-                            
-                            @discord.ui.button(label="Edit Details", emoji="📝", style=discord.ButtonStyle.primary)
-                            async def edit_details(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
-                                await btn_interaction.response.send_modal(MemberDetailsModal(self.record_name, self.member_data, self.custom_cols))
-
-                        class MemberListView(discord.ui.View):
-                            def __init__(self, members_data, record_name, level_map, custom_cols):
-                                super().__init__(timeout=300)
-                                self.members = members_data
-                                self.record_name = record_name
-                                self.level_mapping = level_map
-                                self.custom_columns = custom_cols
-                                self.current_page = 0
-                                self.members_per_page = 15
-                                self.sort_order = "desc"
-
-                            def get_sorted_members(self):
-                                return sorted(
-                                    self.members,
-                                    key=lambda x: int(x.get('furnace_lv', 0) or 0),
-                                    reverse=(self.sort_order == "desc")
-                                )
-
-                            def get_total_pages(self):
-                                return (len(self.members) - 1) // self.members_per_page + 1
-
-                            def create_embed(self):
-                                sorted_members = self.get_sorted_members()
-                                total_pages = self.get_total_pages()
-                                
-                                furnace_levels = [int(m.get('furnace_lv', 0) or 0) for m in self.members]
-                                max_fl = max(furnace_levels) if furnace_levels else 0
-                                avg_fl = sum(furnace_levels) / len(furnace_levels) if furnace_levels else 0
-
-                                embed = discord.Embed(
-                                    title=f"📁 {self.record_name} - Member List",
-                                    description=(
-                                        "```ml\n"
-                                        "Record Statistics\n"
-                                        "══════════════════════════\n"
-                                        f"📊 Total Members    : {len(self.members)}\n"
-                                        f"⚔️ Highest Level    : {self.level_mapping.get(max_fl, str(max_fl))}\n"
-                                        f"📈 Average Level    : {self.level_mapping.get(int(avg_fl), str(int(avg_fl)))}\n"
-                                        "══════════════════════════\n"
-                                        "```\n"
-                                        "**Member List**\n"
-                                        "━━━━━━━━━━━━━━━━━━━━━━\n"
-                                    ),
-                                    color=0x5865F2
-                                )
-                                
-                                embed.set_author(
-                                    name="RECORD DATABASE • ACCESS GRANTED",
-                                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
-                                )
-
-                                start_idx = self.current_page * self.members_per_page
-                                end_idx = start_idx + self.members_per_page
-                                page_members = sorted_members[start_idx:end_idx]
-
-                                member_list = ""
-                                for idx, member in enumerate(page_members, start=start_idx + 1):
-                                    nickname = member.get('nickname', 'Unknown')
-                                    fid = member.get('fid', 'N/A')
-                                    furnace_lv = int(member.get('furnace_lv', 0) or 0)
-                                    level = self.level_mapping.get(furnace_lv, str(furnace_lv))
-                                    
-                                    line = f"**{idx:02d}.** 👤 {nickname}\n└ 🆔 `ID: {fid}` | ⚔️ `FC: {level}`"
-                                    
-                                    extras = []
-                                    for col in self.custom_columns:
-                                        val = member.get(col, '')
-                                        extras.append(f"🏷️ `{col}: {val if val else '—'}`")
-                                    
-                                    if extras: line += f"\n└ {' | '.join(extras)}"
-                                    
-                                    member_list += line + "\n\n"
-
-                                embed.description += member_list
-                                embed.set_footer(text=f"Page {self.current_page + 1}/{total_pages} • MongoDB" if total_pages > 1 else "Stored in MongoDB")
-                                return embed
-
-                            @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=0)
-                            async def previous_page(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                                if self.current_page > 0:
-                                    self.current_page -= 1
-                                    await button_interaction.response.edit_message(embed=self.create_embed(), view=self)
-                                else:
-                                    await button_interaction.response.defer()
-
-                            @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=0)
-                            async def next_page(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                                if self.current_page < self.get_total_pages() - 1:
-                                    self.current_page += 1
-                                    await button_interaction.response.edit_message(embed=self.create_embed(), view=self)
-                                else:
-                                    await button_interaction.response.defer()
-
-                            @discord.ui.button(label="🔄 Sort", style=discord.ButtonStyle.secondary, row=0)
-                            async def toggle_sort(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                                self.sort_order = "asc" if self.sort_order == "desc" else "desc"
-                                self.current_page = 0
-                                await button_interaction.response.edit_message(embed=self.create_embed(), view=self)
-
-                            @discord.ui.button(label="Profile", emoji="👤", style=discord.ButtonStyle.secondary, row=0)
-                            async def view_profile(self, button_interaction: discord.Interaction, button: discord.ui.Button):
-                                # Create a select menu for choosing a player with pagination
-                                class ProfileSelectView(discord.ui.View):
-                                    def __init__(self, members_data, record_name, level_map, custom_cols):
-                                        super().__init__(timeout=60)
-                                        self.record_name = record_name
-                                        self.members = sorted(members_data, key=lambda x: int(x.get('furnace_lv', 0) or 0), reverse=True)
-                                        self.level_mapping = level_map
-                                        self.custom_cols = custom_cols
-                                        self.current_page = 0
-                                        self.members_per_page = 25
-                                        self.update_components()
-
-                                    def get_total_pages(self):
-                                        return (len(self.members) - 1) // self.members_per_page + 1
-
-                                    def update_components(self):
-                                        self.clear_items()
-                                        
-                                        # Get members for current page
-                                        start_idx = self.current_page * self.members_per_page
-                                        end_idx = start_idx + self.members_per_page
-                                        page_members = self.members[start_idx:end_idx]
-                                        
-                                        # Create select menu with member options
-                                        options = []
-                                        for idx, member in enumerate(page_members, start=start_idx + 1):
-                                            nickname = member.get('nickname', 'Unknown')
-                                            fid = member.get('fid', 'N/A')
-                                            furnace_lv = int(member.get('furnace_lv', 0) or 0)
-                                            level = self.level_mapping.get(furnace_lv, str(furnace_lv))
-                                            
-                                            options.append(
-                                                discord.SelectOption(
-                                                    label=f"#{idx:02d} {nickname[:80]}",
-                                                    description=f"FID: {fid} | FC: {level}",
-                                                    value=str(fid),
-                                                    emoji="👤"
-                                                )
-                                            )
-                                        
-                                        select = discord.ui.Select(
-                                            placeholder=f"Select a player (Page {self.current_page + 1}/{self.get_total_pages()})...",
-                                            options=options,
-                                            custom_id="player_select"
-                                        )
-                                        select.callback = self.player_selected
-                                        self.add_item(select)
-                                        
-                                        # Add pagination buttons if needed
-                                        if self.get_total_pages() > 1:
-                                            prev_button = discord.ui.Button(
-                                                emoji="⬅️",
-                                                style=discord.ButtonStyle.secondary,
-                                                disabled=(self.current_page == 0),
-                                                row=1
-                                            )
-                                            prev_button.callback = self.previous_page
-                                            self.add_item(prev_button)
-                                            
-                                            next_button = discord.ui.Button(
-                                                emoji="➡️",
-                                                style=discord.ButtonStyle.secondary,
-                                                disabled=(self.current_page >= self.get_total_pages() - 1),
-                                                row=1
-                                            )
-                                            next_button.callback = self.next_page
-                                            self.add_item(next_button)
-
-                                    async def previous_page(self, button_interaction: discord.Interaction):
-                                        if self.current_page > 0:
-                                            self.current_page -= 1
-                                            self.update_components()
-                                            await button_interaction.response.edit_message(
-                                                content=f"**Select a player to view their profile:** (Page {self.current_page + 1}/{self.get_total_pages()})",
-                                                view=self
-                                            )
-                                        else:
-                                            await button_interaction.response.defer()
-
-                                    async def next_page(self, button_interaction: discord.Interaction):
-                                        if self.current_page < self.get_total_pages() - 1:
-                                            self.current_page += 1
-                                            self.update_components()
-                                            await button_interaction.response.edit_message(
-                                                content=f"**Select a player to view their profile:** (Page {self.current_page + 1}/{self.get_total_pages()})",
-                                                view=self
-                                            )
-                                        else:
-                                            await button_interaction.response.defer()
-
-                                    async def player_selected(self, select_interaction: discord.Interaction):
-                                        fid = select_interaction.data['values'][0]
-                                        
-                                        # Find the member
-                                        member = next((m for m in self.members if m.get('fid') == fid), None)
-                                        if not member:
-                                            await select_interaction.response.send_message(
-                                                "❌ Player not found.",
-                                                ephemeral=True
-                                            )
-                                            return
-                                        
-                                        # Create profile embed
-                                        nickname = member.get('nickname', 'Unknown')
-                                        furnace_lv = int(member.get('furnace_lv', 0) or 0)
-                                        level = self.level_mapping.get(furnace_lv, str(furnace_lv))
-                                        avatar = member.get('avatar_image', '')
-                                        
-                                        # If no avatar in database, try to fetch from API
-                                        if not avatar:
-                                            try:
-                                                from cogs.login_handler import LoginHandler
-                                                login_handler = LoginHandler()
-                                                result = await login_handler.fetch_player_data(str(fid))
-                                                
-                                                if result['status'] == 'success' and result['data']:
-                                                    avatar = result['data'].get('avatar_image', '')
-                                                    
-                                                    # Update member data in RecordsAdapter with avatar
-                                                    if avatar:
-                                                        member['avatar_image'] = avatar
-                                                        # Note: RecordsAdapter doesn't have direct member update, 
-                                                        # but avatar will be fetched next time
-                                            except Exception as e:
-                                                print(f"Error fetching avatar from API: {e}")
-                                        
-                                        profile_embed = discord.Embed(
-                                            title=f"👤 Player Profile",
-                                            description=(
-                                                f"**{nickname}**\n\n"
-                                                f"```yaml\n"
-                                                f"FID         : {fid}\n"
-                                                f"Furnace Lv  : {level}\n"
-                                                f"```"
-                                            ),
-                                            color=0x5865F2
-                                        )
-                                        
-                                        # Add Note if exists
-                                        note = member.get('note')
-                                        if note:
-                                            profile_embed.add_field(
-                                                name="📝 Record Note",
-                                                value=f"```\n{note}\n```",
-                                                inline=False
-                                            )
-                                        
-                                        # Add all custom column data
-                                        for col in self.custom_cols:
-                                            val = member.get(col)
-                                            if val:
-                                                profile_embed.add_field(
-                                                    name=f"🏷️ {col}",
-                                                    value=f"```\n{val}\n```",
-                                                    inline=True
-                                                )
-                                        
-                                        if avatar:
-                                            try:
-                                                profile_embed.set_image(url=avatar)
-                                            except Exception as e:
-                                                print(f"Error setting avatar: {e}")
-                                        
-                                        profile_embed.set_footer(
-                                            text=f"Record: {self.record_name} • MongoDB",
-                                            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
-                                        )
-                                        
-                                        # Show with ProfileActionsView for editing
-                                        actions_view = ProfileActionsView(self.record_name, member, self.custom_cols)
-                                        await select_interaction.response.send_message(
-                                            embed=profile_embed,
-                                            view=actions_view,
-                                            ephemeral=True
-                                        )
-
-                                # Show profile selection menu
-                                profile_view = ProfileSelectView(self.members, self.record_name, self.level_mapping, self.custom_columns)
-                                await button_interaction.response.send_message(f"**Select a player:** (Page 1/{profile_view.get_total_pages()})", view=profile_view, ephemeral=True)
-
-                        # Create and send the view
-                        view = MemberListView(members, selected_record, level_mapping, custom_columns)
-                        await select_interaction.followup.send(
-                            embed=view.create_embed(),
-                            view=view,
-                            ephemeral=False
-                        )
+                        await select_interaction.response.send_message(embed=embed, view=view, ephemeral=True)
                 
                 embed = discord.Embed(
                     title="👁️ View Record",
@@ -6636,7 +6241,198 @@ class PersistentMemberListView(discord.ui.View):
             await interaction.response.send_message("❌ Error loading profiles", ephemeral=True)
 
 
+
+# ============================================================================
+# PERSISTENT RECORDS VIEW - Lists all record groups
+# ============================================================================
+
+class PersistentRecordsView(discord.ui.View):
+    """Persistent view for listing all custom records in a guild."""
+    
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.current_page = 0
+        self.records_per_page = 20
+
+    async def create_embed(self, guild_id, guild_name):
+        try:
+            records = RecordsAdapter.get_all_records(guild_id)
+        except Exception as e:
+            print(f"Error fetching records for persistent view: {e}")
+            records = []
+            
+        embed = discord.Embed(
+            title="📋 Project Records",
+            description=(
+                "Select a record from the menu below to view its details, participants, and custom data.\n\n"
+                f"**Available Records for {guild_name}:**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            ),
+            color=0x2B2D31
+        )
+        
+        embed.set_author(
+            name="RECORD DATABASE • ACCESS GRANTED",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+        )
+        
+        if records:
+            record_list = ""
+            for idx, r in enumerate(records, 1):
+                name = r.get('record_name', 'Unknown')
+                count = r.get('member_count', 0)
+                record_list += f"**{idx:02d}.** 📁 `{name}`\n└ 👥 `Size: {count} members`\n\n"
+            embed.description += record_list
+        else:
+            embed.description += "*No records found. Create one using the menu below!*"
+        
+        embed.set_footer(
+            text=f"{guild_name} x Magnus🚀",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+        )
+        
+        return embed, records
+
+    @discord.ui.button(label="View Record", emoji="👁️", style=discord.ButtonStyle.primary, row=0, custom_id="persistent_record_view_btn")
+    async def view_record(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            records = RecordsAdapter.get_all_records(interaction.guild.id)
+            if not records:
+                await interaction.response.send_message("❌ No records found to view.", ephemeral=True)
+                return
+                
+            # Create a selection view for records
+            class RecordSelectionDropdown(discord.ui.View):
+                def __init__(self, record_list):
+                    super().__init__(timeout=60)
+                    options = [
+                        discord.SelectOption(label=r['record_name'], value=r['record_name'], emoji="📁", description=f"{r['member_count']} members")
+                        for r in record_list[:25]
+                    ]
+                    select = discord.ui.Select(placeholder="Choose a record to view...", options=options)
+                    select.callback = self.select_callback
+                    self.add_item(select)
+                    
+                async def select_callback(self, select_interaction: discord.Interaction):
+                    record_name = select_interaction.data['values'][0]
+                    from cogs.bot_operations import PersistentRecordDetailView
+                    detail_view = PersistentRecordDetailView(record_name=record_name)
+                    embed = await detail_view.create_embed(select_interaction.guild.id, select_interaction.guild.name)
+                    await select_interaction.response.send_message(embed=embed, view=detail_view, ephemeral=True)
+            
+            await interaction.response.send_message("Select a record to view details:", view=RecordSelectionDropdown(records), ephemeral=True)
+        except Exception as e:
+            print(f"Error in PersistentRecordsView.view_record: {e}")
+            await interaction.response.send_message("❌ Error loading record selector", ephemeral=True)
+
+    @discord.ui.button(label="Refresh", emoji="🔄", style=discord.ButtonStyle.secondary, row=0, custom_id="persistent_record_refresh")
+    async def refresh_list(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            embed, _ = await self.create_embed(interaction.guild.id, interaction.guild.name)
+            await interaction.response.edit_message(embed=embed, view=self)
+        except Exception as e:
+            print(f"Error refreshing records: {e}")
+            await interaction.response.defer()
+
+# ============================================================================
+# PERSISTENT RECORD DETAIL VIEW - Shows members of a specific record
+# ============================================================================
+
+class PersistentRecordDetailView(discord.ui.View):
+    """Persistent view for viewing members of a specific record group."""
+    
+    def __init__(self, record_name: str = ""):
+        super().__init__(timeout=None)
+        self.record_name = record_name
+        self.current_page = 0
+        self.members_per_page = 15
+        
+    async def create_embed(self, guild_id, guild_name):
+        try:
+            members = RecordsAdapter.get_record_members(guild_id, self.record_name)
+        except Exception as e:
+            print(f"Error fetching record members: {e}")
+            members = []
+            
+        total_pages = max(1, (len(members) - 1) // self.members_per_page + 1)
+        
+        embed = discord.Embed(
+            title=f"📁 Record: {self.record_name}",
+            description=(
+                f"Viewing participants and data for the **{self.record_name}** group.\n\n"
+                "**Group Participants:**\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            ),
+            color=0x5865F2
+        )
+        
+        embed.set_author(
+            name="RECORD ACCESS • DETAILS",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+        )
+        
+        # Pagination
+        start_idx = self.current_page * self.members_per_page
+        end_idx = start_idx + self.members_per_page
+        page_members = members[start_idx:end_idx]
+        
+        if page_members:
+            member_list = ""
+            for idx, m in enumerate(page_members, start=start_idx + 1):
+                nick = m.get('nickname', 'Unknown')
+                fid = m.get('fid', 'N/A')
+                flv = int(m.get('furnace_lv', 0))
+                member_list += f"**{idx:02d}.** 👤 {nick}\n└ 🆔 `ID: {fid}` | ⚔️ `FL: {flv}`\n\n"
+            embed.description += member_list
+        else:
+            embed.description += "*No members found in this record.*"
+            
+        embed.set_footer(
+            text=f"Page {self.current_page + 1}/{total_pages} • {guild_name} x Magnus🚀",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+        )
+        
+        return embed
+
+    @discord.ui.button(emoji="⬅️", style=discord.ButtonStyle.secondary, row=0, custom_id="persistent_record_prev")
+    async def prev_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            members = RecordsAdapter.get_record_members(interaction.guild.id, self.record_name)
+            if self.current_page > 0:
+                self.current_page -= 1
+                embed = await self.create_embed(interaction.guild.id, interaction.guild.name)
+                await interaction.response.edit_message(embed=embed, view=self)
+            else:
+                await interaction.response.defer()
+        except Exception as e:
+            print(f"Error in PersistentRecordDetailView.prev: {e}")
+
+    @discord.ui.button(emoji="➡️", style=discord.ButtonStyle.secondary, row=0, custom_id="persistent_record_next")
+    async def next_page(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            members = RecordsAdapter.get_record_members(interaction.guild.id, self.record_name)
+            total_pages = max(1, (len(members) - 1) // self.members_per_page + 1)
+            if self.current_page < total_pages - 1:
+                self.current_page += 1
+                embed = await self.create_embed(interaction.guild.id, interaction.guild.name)
+                await interaction.response.edit_message(embed=embed, view=self)
+            else:
+                await interaction.response.defer()
+        except Exception as e:
+            print(f"Error in PersistentRecordDetailView.next: {e}")
+
+    @discord.ui.button(label="Refresh", emoji="🔄", style=discord.ButtonStyle.secondary, row=0, custom_id="persistent_record_detail_refresh")
+    async def refresh_detail(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            embed = await self.create_embed(interaction.guild.id, interaction.guild.name)
+            await interaction.response.edit_message(embed=embed, view=self)
+        except Exception as e:
+            print(f"Error refreshing detail: {e}")
+            await interaction.response.defer()
+
+
 async def setup(bot):
+
     await bot.add_cog(BotOperations(bot, sqlite3.connect('db/settings.sqlite'))) 
 
 

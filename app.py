@@ -1075,6 +1075,13 @@ async def setup_hook():
                         from cogs.bot_operations import PersistentMemberListView
                         alliance_id = metadata.get('alliance_id', 0)
                         view = PersistentMemberListView(alliance_id=alliance_id)
+                    elif view_type == 'recordlist':
+                        from cogs.bot_operations import PersistentRecordsView
+                        view = PersistentRecordsView()
+                    elif view_type == 'recorddetail':
+                        from cogs.bot_operations import PersistentRecordDetailView
+                        record_name = metadata.get('record_name', "")
+                        view = PersistentRecordDetailView(record_name=record_name)
                     
                     if view:
                         # Register view with bot
@@ -1122,8 +1129,13 @@ async def setup_hook():
         # Register BirthdayWishView
         from cogs.birthday_system import BirthdayWishView
         bot.add_view(BirthdayWishView(birthday_user_ids=[]))
-        bot.add_view(BirthdayWishView(birthday_user_ids=[]))
         logger.info("✅ Registered BirthdayWishView")
+
+        # Register Record Views
+        from cogs.bot_operations import PersistentRecordsView, PersistentRecordDetailView
+        bot.add_view(PersistentRecordsView())
+        bot.add_view(PersistentRecordDetailView(record_name=""))
+        logger.info("✅ Registered Record Views")
         
     except Exception as e:
         logger.error(f"❌ Failed to register persistent views: {e}")
@@ -4175,6 +4187,8 @@ async def register_view(interaction: discord.Interaction, channel: discord.TextC
                     discord.SelectOption(label="Birthday Wish", value="birthdaywish", emoji="🎉", description="Birthday wish message with gift button"),
                     discord.SelectOption(label="Gift Code", value="giftcode", emoji="🎁", description="Gift code redeem view"),
                     discord.SelectOption(label="Member List", value="memberlist", emoji="👥", description="Alliance member list view"),
+                    discord.SelectOption(label="Record List", value="recordlist", emoji="📋", description="Custom project record list"),
+                    discord.SelectOption(label="Record Detail", value="recorddetail", emoji="📁", description="Detailed view of a specific record"),
                 ]
                 super().__init__(placeholder="Select view type...", options=options, min_values=1, max_values=1)
             
@@ -4249,6 +4263,30 @@ async def register_view(interaction: discord.Interaction, channel: discord.TextC
                         from cogs.bot_operations import PersistentMemberListView
                         view = PersistentMemberListView(alliance_id=alliance_id)
                         metadata['alliance_id'] = alliance_id
+                    elif view_type == 'recordlist':
+                        from cogs.bot_operations import PersistentRecordsView
+                        view = PersistentRecordsView()
+                    elif view_type == 'recorddetail':
+                        # Extract record_name from embed title
+                        if not self.message_obj.embeds:
+                            await select_interaction.response.send_message("❌ Message has no embed. Cannot determine record_name.", ephemeral=True)
+                            return
+                        
+                        record_name = ""
+                        title = self.message_obj.embeds[0].title or ""
+                        if "Record: " in title:
+                            record_name = title.split("Record: ", 1)[1].strip()
+                        
+                        if not record_name:
+                            await select_interaction.response.send_message(
+                                "❌ Could not determine record_name from message title. Expected 'Record: [Name]'.",
+                                ephemeral=True
+                            )
+                            return
+                        
+                        from cogs.bot_operations import PersistentRecordDetailView
+                        view = PersistentRecordDetailView(record_name=record_name)
+                        metadata['record_name'] = record_name
                     
                     if view:
                         # Register view with bot

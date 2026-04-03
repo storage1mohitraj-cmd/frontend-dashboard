@@ -219,7 +219,7 @@ class WelcomeMenuView(discord.ui.View):
                 color=discord.Color.blue()
             )
             embed.set_image(url="attachment://welcome_demo.png")
-            embed.set_footer(text="Whiteout Survival | Magnus").strftime('%B %d, %Y')}")
+            embed.set_footer(text=f"Demo Preview ΓÇó {datetime.utcnow().strftime('%B %d, %Y')}")
             
             # Send demo message
             file = discord.File(image_buffer, filename="welcome_demo.png")
@@ -508,7 +508,7 @@ class WelcomeChannel(commands.Cog):
                 color=discord.Color.blue()
             )
             embed.set_image(url="attachment://welcome.png")
-            embed.set_footer(text="Whiteout Survival | Magnus").strftime('%B %d, %Y')}")
+            embed.set_footer(text=f"Member joined ΓÇó {datetime.utcnow().strftime('%B %d, %Y')}")
             
             # Send welcome message
             file = discord.File(image_buffer, filename="welcome.png")

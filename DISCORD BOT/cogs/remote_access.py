@@ -62,7 +62,10 @@ class RemoteAccess(commands.Cog):
                     color=0x00D9FF
                 )
                 
-                embed.set_footer(text="Whiteout Survival | Magnus")
+                embed.set_footer(
+                    text=f"Remote Access ΓÇó Requested by {interaction.user.display_name}",
+                    icon_url=interaction.user.display_avatar.url
+                )
 
                 # Create server selection dropdown
                 if len(guilds) <= 25:
@@ -159,7 +162,10 @@ class RemoteAccess(commands.Cog):
             if guild.icon:
                 embed.set_thumbnail(url=guild.icon.url)
             
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(
+                text=f"Server ID: {guild.id}",
+                icon_url=interaction.user.display_avatar.url
+            )
 
             view = discord.ui.View(timeout=300)
             
@@ -370,7 +376,7 @@ class RemoteAccess(commands.Cog):
                             inline=False
                         )
             
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text=f"Server ID: {guild.id}")
             
             # Back button
             view = discord.ui.View(timeout=300)
@@ -1012,7 +1018,7 @@ class RemoteAccess(commands.Cog):
                             )
                             
                             if self.footer_text.value:
-                                message_embed.set_footer(text="Whiteout Survival | Magnus")
+                                message_embed.set_footer(text=self.footer_text.value)
                             
                             # Send the embed
                             sent_message = await channel.send(embed=message_embed)
@@ -1100,7 +1106,10 @@ class RemoteAccess(commands.Cog):
                                 color=0xED4245
                             )
                             
-                            announcement_embed.set_footer(text="Whiteout Survival | Magnus")
+                            announcement_embed.set_footer(
+                                text=f"Sent by {modal_int.user.display_name}",
+                                icon_url=modal_int.user.display_avatar.url
+                            )
                             
                             # Prepare mention
                             mention_text = ""

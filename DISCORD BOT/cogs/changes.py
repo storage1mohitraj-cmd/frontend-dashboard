@@ -1253,7 +1253,7 @@ class RecentChangesView(discord.ui.View):
             )
 
         if self.total_pages > 1:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text=f"Page {self.current_page + 1} of {self.total_pages}")
 
         return embed
 
@@ -1306,7 +1306,7 @@ class RecentNicknameChangesView(discord.ui.View):
             )
 
         if self.total_pages > 1:
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text=f"Page {self.current_page + 1} of {self.total_pages}")
 
         return embed
 

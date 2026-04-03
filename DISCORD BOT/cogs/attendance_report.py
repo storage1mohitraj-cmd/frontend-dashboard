@@ -978,9 +978,9 @@ class AttendanceReport(commands.Cog):
             )
             
             if session_id:
-                embed.set_footer(text="Whiteout Survival | Magnus")")
+                embed.set_footer(text=f"Session ID: {session_id} | Sorted by Points (Highest to Lowest)")
             else:
-                embed.set_footer(text="Whiteout Survival | Magnus")")
+                embed.set_footer(text="Sorted by Points (Highest to Lowest)")
             
             # Create view with back and export buttons
             view = discord.ui.View(timeout=7200)

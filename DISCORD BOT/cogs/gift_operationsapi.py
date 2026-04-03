@@ -431,7 +431,7 @@ class GiftCodeAPI:
                                                 color=0x57F287,
                                                 timestamp=datetime.now()
                                             )
-                                            monitor_embed.set_footer(text="Whiteout Survival | Magnus")
+                                            monitor_embed.set_footer(text="Gift Code Monitor")
                                             await self.send_monitor_message(monitor_embed)
 
 
@@ -529,7 +529,7 @@ class GiftCodeAPI:
                                     color=0x5865F2,
                                     timestamp=datetime.now()
                                 )
-                                monitor_embed.set_footer(text="Whiteout Survival | Magnus")
+                                monitor_embed.set_footer(text="Gift Code Monitor")
                                 await self.send_monitor_message(monitor_embed)
                             
                             return True

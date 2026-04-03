@@ -130,9 +130,9 @@ def create_paginated_embeds(
         
         # Add page footer
         if total_pages > 1:
-            embed.set_footer(text="Whiteout Survival | Magnus")} of {len(results)} total")
+            embed.set_footer(text=f"Page {page_num + 1}/{total_pages} ΓÇó Showing {len(page_results)} of {len(results)} total")
         else:
-            embed.set_footer(text="Whiteout Survival | Magnus")} results")
+            embed.set_footer(text=f"Showing all {len(results)} results")
         
         embeds.append(embed)
     
@@ -215,7 +215,7 @@ def create_alliance_log_embeds(
         
         # Add page footer
         if total_pages > 1:
-            embed.set_footer(text="Whiteout Survival | Magnus")} of {len(ids_list)} FIDs")
+            embed.set_footer(text=f"Page {page_num + 1}/{total_pages} ΓÇó Showing {len(page_fids)} of {len(ids_list)} FIDs")
         
         embeds.append(embed)
     

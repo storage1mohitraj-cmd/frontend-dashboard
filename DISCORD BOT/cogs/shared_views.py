@@ -262,7 +262,7 @@ class CategorySelect(discord.ui.Select):
                 color=0x00d9ff
             )
             embed.set_thumbnail(url="https://i.postimg.cc/Fzq03CJf/a463d7c7-7fc7-47fc-b24d-1324383ee2ff-removebg-preview.png")
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Select a category to view detailed commands")
         
         elif category == "fun_games":
             embed = discord.Embed(
@@ -311,7 +311,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Fun & Games Module")
         
         elif category == "giftcodes":
             embed = discord.Embed(
@@ -357,7 +357,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Gift Codes & Rewards Module")
         
         elif category == "music":
             embed = discord.Embed(
@@ -549,7 +549,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Music Player Module")
         
         elif category == "reminders":
             embed = discord.Embed(
@@ -587,7 +587,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Reminders & Time Module")
         
         elif category == "community":
             embed = discord.Embed(
@@ -644,7 +644,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Community & Stats Module")
         
         elif category == "alliance":
             embed = discord.Embed(
@@ -700,7 +700,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Alliance Management Module")
         
         elif category == "config":
             embed = discord.Embed(
@@ -758,7 +758,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Server Configuration Module")
         
         elif category == "autotranslate":
             embed = discord.Embed(
@@ -825,7 +825,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Auto-Translate Module")
         
         elif category == "utility":
             embed = discord.Embed(
@@ -859,7 +859,7 @@ class CategorySelect(discord.ui.Select):
                 ),
                 inline=False
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="ΓÜí Whiteout Survival Bot // Utility & Tools Module")
         
         try:
             await interaction.response.edit_message(embed=embed)
@@ -1464,7 +1464,7 @@ class BirthdayDashboardView(discord.ui.View):
                     embed.add_field(name=f"{item['user'].display_name}", value=f"📅 {month_name} {item['day']} ({days_text})", inline=False)
                 
                 if len(upcoming) > 10:
-                    embed.set_footer(text="Whiteout Survival | Magnus")} upcoming birthdays")
+                    embed.set_footer(text=f"Showing 10 of {len(upcoming)} upcoming birthdays")
                 
                 await button_interaction.followup.send(embed=embed, ephemeral=True)
             else:

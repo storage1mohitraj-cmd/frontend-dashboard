@@ -192,7 +192,7 @@ class PlayerIDModal(discord.ui.Modal, title="🎮 Step 3: Player Information"):
             embed.add_field(name="✨ Traits", value=f"`{', '.join(self.traits)}`", inline=True)
             embed.add_field(name="🎮 Player ID", value=f"`{player_id}`", inline=True)
             embed.add_field(name="📊 Current Stats", value=f"**{player_name}** • FC {furnace_level} • State {state_id}", inline=False)
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Your player ID is saved! I'll fetch fresh data whenever you ask about your game stats.")
             
             await interaction.followup.send(embed=embed)
             
@@ -301,7 +301,7 @@ class PersonaliseChatCog(commands.Cog):
                 ),
                 color=0x3498db
             )
-            embed.set_footer(text="Whiteout Survival | Magnus")
+            embed.set_footer(text="Click the dropdown below to get started!")
             
             # Create Step 1 view
             view = PronounSelectView(user_id)

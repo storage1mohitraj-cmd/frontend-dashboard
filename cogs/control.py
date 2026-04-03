@@ -254,7 +254,7 @@ class Control(commands.Cog):
             value=f"✨ Members checked: {checked_users}/{total_users}",
             inline=False
         )
-        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+        embed.set_footer(text="ΓÜí Automatic Alliance Control System")
         
         message = None
         if auto_value == 1:
@@ -457,7 +457,7 @@ class Control(commands.Cog):
                     description="\n\n".join(current_chunk),
                     color=color
                 )
-                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                embed.set_footer(text="Alliance Control System")
                 await channel.send(embed=embed)
                 current_chunk = [desc]
                 current_length = desc_length
@@ -471,7 +471,7 @@ class Control(commands.Cog):
                 description="\n\n".join(current_chunk),
                 color=color
             )
-            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            embed.set_footer(text=footer)
             await channel.send(embed=embed)
 
     async def schedule_alliance_check(self, channel, alliance_id, current_interval):

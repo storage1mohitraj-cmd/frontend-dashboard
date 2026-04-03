@@ -317,9 +317,15 @@ class FIDCommands(commands.Cog):
                                 )
 
                             if len(members) > 25:
-                                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                                embed.set_footer(
+                                    text=f"Displaying 25 of {len(members)} members ΓÇó Stored in MongoDB",
+                                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                                )
                             else:
-                                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                                embed.set_footer(
+                                    text=f"Displaying 25 of {len(members)} members ΓÇó Stored in MongoDB",
+                                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                                )
 
 
                             # Send to channel (not ephemeral)
@@ -391,9 +397,15 @@ class FIDCommands(commands.Cog):
 
                                     # Footer with page info and sort order
                                     if total_pages > 1:
-                                        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                                        embed.set_footer(
+                                            text=f"Page {self.current_page + 1}/{total_pages} ΓÇó Stored in MongoDB",
+                                            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                                        )
                                     else:
-                                        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                                        embed.set_footer(
+                                            text=f"Page {self.current_page + 1}/{total_pages} ΓÇó Stored in MongoDB",
+                                            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                                        )
 
                                     return embed
 
@@ -537,13 +549,22 @@ class FIDCommands(commands.Cog):
                                             if avatar_url:
                                                 try:
                                                     profile_embed.set_image(url=avatar_url)
-                                                    profile_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                                                    profile_embed.set_footer(
+                                                        text="Stored in MongoDB",
+                                                        icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                                                    )
                                                     print(f"DEBUG: Avatar set successfully for {fid}")
                                                 except Exception as e:
                                                     print(f"DEBUG: Error setting avatar: {e}")
-                                                    profile_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                                                    profile_embed.set_footer(
+                                                        text="Stored in MongoDB",
+                                                        icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                                                    )
                                             else:
-                                                profile_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                                                profile_embed.set_footer(
+                                                    text="Stored in MongoDB",
+                                                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                                                )
                                                 print(f"DEBUG: No avatar URL available for {fid}")
                                             
                                             await select_interaction.followup.send(
@@ -628,7 +649,10 @@ class FIDCommands(commands.Cog):
                     inline=False
                 )
                 
-                initial_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                initial_embed.set_footer(
+                    text="Secured by Discord Interaction Gateway",
+                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445660030815961209/discord-logo-png_seeklogo-481205_1.png?ex=69312752&is=692fd5d2&hm=5d6d7961ff5e1d3837308cbea9c5f0baa4a5cdf59af9009e49ba67b864963fe6"
+                )
 
                 # Send button to trigger modal
                 view = ShowListView(alliance_id, message.guild.id, message.channel)
@@ -743,11 +767,10 @@ class FIDCommands(commands.Cog):
         except:
             alliance_name = f"Alliance {alliance_id}"
         
-        result_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+        result_embed.set_footer(text=f"Alliance: {alliance_name} (ID: {alliance_id})")
         
         await message.channel.send(embed=result_embed)
 
 
 async def setup(bot):
     await bot.add_cog(FIDCommands(bot))
-

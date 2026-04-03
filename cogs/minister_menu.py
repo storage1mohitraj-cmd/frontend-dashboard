@@ -825,7 +825,7 @@ class MinisterMenu(commands.Cog):
             description="\n".join(booking_lines),
             color=discord.Color.blue()
         )
-        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+        embed.set_footer(text=f"Total bookings: {len(bookings)}/48")
         
         await interaction.followup.send(embed=embed, ephemeral=True)
     

@@ -222,7 +222,10 @@ class StartView(discord.ui.View):
                 inline=False
             )
             
-            auth_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            auth_embed.set_footer(
+                text="Secured by Discord Interaction Gateway",
+                icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445660030815961209/discord-logo-png_seeklogo-481205_1.png?ex=69312752&is=692fd5d2&hm=5d6d7961ff5e1d3837308cbea9c5f0baa4a5cdf59af9009e49ba67b864963fe6"
+            )
             
             # Send authentication embed with button
             view = AllianceAuthView(interaction.guild.id, interaction.guild.name, self.bot)
@@ -405,7 +408,10 @@ class StartView(discord.ui.View):
                 inline=False
             )
             
-            auth_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            auth_embed.set_footer(
+                text="Secured by Discord Interaction Gateway",
+                icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445660030815961209/discord-logo-png_seeklogo-481205_1.png?ex=69312752&is=692fd5d2&hm=5d6d7961ff5e1d3837308cbea9c5f0baa4a5cdf59af9009e49ba67b864963fe6"
+            )
             
             # Send authentication embed with button
             view = GiftCodeAuthView(interaction.guild.id, interaction.guild.name, self.bot)
@@ -532,7 +538,7 @@ class StartView(discord.ui.View):
                 color=0x00d9ff
             )
             embed.set_thumbnail(url="https://i.postimg.cc/Fzq03CJf/a463d7c7-7fc7-47fc-b24d-1324383ee2ff-removebg-preview.png")
-            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            embed.set_footer(text="Select a category to view detailed commands")
             
             view = sv.InteractiveHelpView()
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
@@ -882,7 +888,7 @@ class StartView(discord.ui.View):
                 ),
                 color=discord.Color.green()
             )
-            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            embed.set_footer(text="≡ƒÄ» Have fun playing!")
             await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
         except Exception as e:
             logger.error(f"Error in games button: {e}")

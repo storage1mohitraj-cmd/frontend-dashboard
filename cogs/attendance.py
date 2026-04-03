@@ -2203,7 +2203,7 @@ class Attendance(commands.Cog):
                 ),
                 color=discord.Color.green()
             )
-            success_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            success_embed.set_footer(text=f"Marked by {interaction.user.name}")
             
             # Create a simple back button
             back_view = self._create_back_view(lambda i: self.show_attendance_menu(i))

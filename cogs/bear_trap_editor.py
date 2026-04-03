@@ -154,7 +154,7 @@ class EmbedDataView(discord.ui.View):
             color=self.color,
         )
         if self.footer:
-            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            embed.set_footer(text=self.footer)
         if self.author:
             embed.set_author(name=self.author)
         if self.image_url:
@@ -851,7 +851,7 @@ class NotificationEditor(commands.Cog):
                 color=color,
             )
             if footer:
-                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                embed.set_footer(text=footer)
             if author:
                 embed.set_author(name=author)
             if image_url:

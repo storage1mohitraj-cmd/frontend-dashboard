@@ -144,7 +144,7 @@ class MemberOperationsView(discord.ui.View):
                 ),
                 color=discord.Color.green()
             )
-            select_embed.set_footer(text="Whiteout Survival | Member Management")
+            self.cog._set_embed_footer(select_embed, interaction.guild)
 
             alliances_with_counts = []
             for aid, name in alliances:
@@ -181,7 +181,7 @@ class MemberOperationsView(discord.ui.View):
                 return
 
             select_embed = discord.Embed(title="🗑️ Alliance Selection - Member Deletion", color=discord.Color.red())
-            select_embed.set_footer(text="Whiteout Survival | Member Removal")
+            self.cog._set_embed_footer(select_embed, interaction.guild)
             
             alliances_with_counts = []
             for aid, name in alliances:
@@ -213,7 +213,7 @@ class MemberOperationsView(discord.ui.View):
                 return
 
             select_embed = discord.Embed(title="👥 Alliance Selection - View Members", color=discord.Color.blue())
-            select_embed.set_footer(text="Whiteout Survival | Member List")
+            self.cog._set_embed_footer(select_embed, interaction.guild)
             
             alliances_with_counts = []
             for aid, name in alliances:
@@ -249,7 +249,7 @@ class MemberOperationsView(discord.ui.View):
                 return
 
             select_embed = discord.Embed(title="🔄 Alliance Selection - Source for Transfer", color=discord.Color.orange())
-            select_embed.set_footer(text="Whiteout Survival | Member Transfer")
+            self.cog._set_embed_footer(select_embed, interaction.guild)
             
             alliances_with_counts = []
             for aid, name in alliances:
@@ -300,6 +300,14 @@ class AllianceMemberOperations(commands.Cog):
 
         # Initialize login handler for centralized API management
         self.login_handler = LoginHandler()
+
+    def _set_embed_footer(self, embed: discord.Embed, guild: Optional[discord.Guild] = None):
+        """Sets the standardized footer for embeds with original branding."""
+        server_name = guild.name if guild else "Magnus"
+        embed.set_footer(
+            text=f"Whiteout Survival || {server_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+        )
 
     def log_message(self, message: str):
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
@@ -417,7 +425,7 @@ class AllianceMemberOperations(commands.Cog):
             ),
             color=discord.Color.blue()
         )
-        embed.set_footer(text="Whiteout Survival | Management")
+        self._set_embed_footer(embed, interaction.guild)
         view = MemberOperationsView(self, interaction.user.id)
         await interaction.response.edit_message(embed=embed, view=view)
 

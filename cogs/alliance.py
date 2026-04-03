@@ -2366,7 +2366,11 @@ class Alliance(commands.Cog):
 
     def _set_embed_footer(self, embed: discord.Embed, guild: Optional[discord.Guild] = None):
         """Set the standard footer for alliance monitoring embeds"""
-        embed.set_footer(text="Alliance Monitoring System")
+        server_name = guild.name if guild else "ICE"
+        embed.set_footer(
+            text=f"Whiteout Survival || {server_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+        )
     
     def _initialize_monitoring_tables(self):
         """Create necessary database tables if they don't exist"""

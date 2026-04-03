@@ -30,6 +30,14 @@ class BotOperations(commands.Cog):
         self.c_alliance = self.alliance_db.cursor()
         self.setup_database()
 
+    def _set_embed_footer(self, embed: discord.Embed, guild: Union[discord.Guild, None] = None):
+        """Sets the standardized footer for embeds with original branding."""
+        server_name = guild.name if guild else "Magnus"
+        embed.set_footer(
+            text=f"Whiteout Survival || {server_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+        )
+
     def get_current_version(self):
         """Get current version from version file"""
         try:
@@ -148,10 +156,7 @@ class BotOperations(commands.Cog):
                     ),
                     color=0x2B2D31
                 )
-                embed.set_footer(
-                    text=f"{interaction.guild.name} x Magnus🚀",
-                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
-                )
+                self._set_embed_footer(embed, interaction.guild)
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -3527,10 +3532,7 @@ class BotOperations(commands.Cog):
                     ),
                     color=0x2B2D31
                 )
-                embed.set_footer(
-                    text=f"{interaction.guild.name} x Magnus🚀",
-                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
-                )
+                self._set_embed_footer(embed, interaction.guild)
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -5573,10 +5575,7 @@ class BotOperations(commands.Cog):
                     value=f"{interaction.user.mention}",
                     inline=True
                 )
-                dashboard_embed.set_footer(
-                    text=f"{interaction.guild.name} x Magnus🚀",
-                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
-                )
+                self._set_embed_footer(dashboard_embed, interaction.guild)
 
                 dashboard_view = discord.ui.View()
                 dashboard_view.add_item(discord.ui.Button(
@@ -5729,10 +5728,7 @@ class BotOperations(commands.Cog):
                             value=f"{modal_interaction.user.mention}",
                             inline=True
                         )
-                        dashboard_embed.set_footer(
-                            text=f"{self.guild_name} x Magnus🚀",
-                            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
-                        )
+                        self._set_embed_footer(dashboard_embed, modal_interaction.guild)
 
                         dashboard_view = discord.ui.View()
                         dashboard_view.add_item(discord.ui.Button(
@@ -5989,8 +5985,8 @@ class PersistentMemberListView(discord.ui.View):
         footer_text += " • Stored in MongoDB"
         
         embed.set_footer(
-                            text=footer_text,
-                            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+            text=f"{footer_text} • Whiteout Survival || {alliance_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
                         )
         
         return embed
@@ -6220,8 +6216,8 @@ class PersistentMemberListView(discord.ui.View):
                             print(f"Error setting avatar: {e}")
                     
                     profile_embed.set_footer(
-                        text="Stored in MongoDB",
-                        icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+                        text=f"Stored in MongoDB • Whiteout Survival || {self.alliance_name} ❄️",
+                        icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
                     )
                     
                     await select_interaction.response.send_message(embed=profile_embed, ephemeral=True)
@@ -6287,8 +6283,8 @@ class PersistentRecordsView(discord.ui.View):
             embed.description += "*No records found. Create one using the menu below!*"
         
         embed.set_footer(
-            text=f"{guild_name} x Magnus🚀",
-            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+            text=f"Whiteout Survival || {guild_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
         )
         
         return embed, records
@@ -6388,8 +6384,8 @@ class PersistentRecordDetailView(discord.ui.View):
             embed.description += "*No members found in this record.*"
             
         embed.set_footer(
-            text=f"Page {self.current_page + 1}/{total_pages} • {guild_name} x Magnus🚀",
-            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
+            text=f"Page {self.current_page + 1}/{total_pages} • Whiteout Survival || {guild_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
         )
         
         return embed

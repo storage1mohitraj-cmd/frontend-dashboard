@@ -45,6 +45,14 @@ class LogSystem(commands.Cog):
         except:
             pass
 
+    def _set_embed_footer(self, embed: discord.Embed, guild: discord.Guild):
+        """Set the standard footer for log system embeds"""
+        server_name = guild.name if guild else "ICE"
+        embed.set_footer(
+            text=f"Whiteout Survival || {server_name} ❄️",
+            icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+        )
+
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
         if not interaction.type == discord.InteractionType.component:
@@ -80,6 +88,8 @@ class LogSystem(commands.Cog):
                     ),
                     color=discord.Color.blue()
                 )
+                self._set_embed_footer(log_embed, interaction.guild)
+
 
                 view = discord.ui.View()
                 view.add_item(discord.ui.Button(
@@ -168,6 +178,8 @@ class LogSystem(commands.Cog):
                     ),
                     color=discord.Color.blue()
                 )
+                self._set_embed_footer(alliance_embed, interaction.guild)
+
 
                 view = AllianceSelectView(alliances_with_counts, self)
                 view.callback = lambda i: alliance_callback(i, view)
@@ -187,6 +199,7 @@ class LogSystem(commands.Cog):
                             ),
                             color=discord.Color.blue()
                         )
+                        self._set_embed_footer(channel_embed, select_interaction.guild)
 
                         async def channel_select_callback(channel_interaction: discord.Interaction):
                             try:
@@ -210,6 +223,8 @@ class LogSystem(commands.Cog):
                                     ),
                                     color=discord.Color.green()
                                 )
+                                self._set_embed_footer(success_embed, channel_interaction.guild)
+
 
                                 await channel_interaction.response.edit_message(
                                     embed=success_embed,
@@ -317,6 +332,7 @@ class LogSystem(commands.Cog):
                     ),
                     color=discord.Color.red()
                 )
+                self._set_embed_footer(remove_embed, interaction.guild)
 
                 view = AllianceSelectView(alliances_with_counts, self)
 
@@ -340,6 +356,7 @@ class LogSystem(commands.Cog):
                             ),
                             color=discord.Color.yellow()
                         )
+                        self._set_embed_footer(confirm_embed, interaction.guild)
 
                         confirm_view = discord.ui.View()
                         
@@ -360,6 +377,8 @@ class LogSystem(commands.Cog):
                                     ),
                                     color=discord.Color.green()
                                 )
+                                self._set_embed_footer(success_embed, button_interaction.guild)
+
 
                                 await button_interaction.response.edit_message(
                                     embed=success_embed,
@@ -379,6 +398,7 @@ class LogSystem(commands.Cog):
                                 description="The log channel removal has been cancelled.",
                                 color=discord.Color.red()
                             )
+                            self._set_embed_footer(cancel_embed, button_interaction.guild)
                             await button_interaction.response.edit_message(
                                 embed=cancel_embed,
                                 view=None
@@ -473,6 +493,8 @@ class LogSystem(commands.Cog):
                     description="Current log channel assignments:\n\n",
                     color=discord.Color.blue()
                 )
+                self._set_embed_footer(list_embed, interaction.guild)
+
 
                 for alliance_id, channel_id in log_entries:
                     self.alliance_cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (alliance_id,))

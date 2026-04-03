@@ -989,7 +989,7 @@ class BotOperations(commands.Cog):
                         embed.set_thumbnail(url=clock_thumbnail)
                     
                     if len(member_chunks) > 1:
-                        embed.set_footer(text=f"Page {page + 1}/{len(member_chunks)}")
+                                embed.set_footer(text=f"Page {page + 1}/{len(member_chunks)}")
                     
                     embeds.append(embed)
                 
@@ -2232,7 +2232,7 @@ class BotOperations(commands.Cog):
                                     description=f"Removing **{len(fid_list)}** member(s) from **{self.record_name}**...\n\n```\nPlease wait while we process your request.\n```",
                                     color=0x5865F2
                                 )
-                                        processing_embed.set_footer(text=f"Processing 0/{len(fid_list)} FIDs...")
+                                processing_embed.set_footer(text=f"Processing 0/{len(fid_list)} FIDs...")
                                 
                                 await modal_interaction.response.send_message(embed=processing_embed, ephemeral=True)
                                 
@@ -2265,7 +2265,7 @@ class BotOperations(commands.Cog):
                                             description=f"**{self.record_name}**\n\n```\n[{progress_bar}] {int((idx/len(fid_list))*100)}%\n```\n✅ Success: {success_count} | ❌ Failed: {fail_count}",
                                             color=0x5865F2
                                         )
-                                                progress_embed.set_footer(text=f"Processing {idx}/{len(fid_list)} FIDs...")
+                                        progress_embed.set_footer(text=f"Processing {idx}/{len(fid_list)} FIDs...")
                                         
                                         await modal_interaction.edit_original_response(embed=progress_embed)
                                 
@@ -3715,7 +3715,7 @@ class BotOperations(commands.Cog):
                                 inline=False
                             )
                         
-                                            result_embed.set_footer(text=f"Showing 20 of {len(results)} results")
+                        result_embed.set_footer(text=f"Showing 20 of {len(results)} results")
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                 
@@ -3863,7 +3863,7 @@ class BotOperations(commands.Cog):
                                 inline=False
                             )
                         
-                                            result_embed.set_footer(text=f"Showing 20 of {len(results)} results")
+                        result_embed.set_footer(text=f"Showing 20 of {len(results)} results")
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                 
@@ -6383,7 +6383,7 @@ class PersistentMemberListView(discord.ui.View):
             footer_text += f" • Filtered by {self.active_filter}"
         footer_text += " • Stored in MongoDB"
         
-                        embed.set_footer(
+        embed.set_footer(
                             text=footer_text,
                             icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png"
                         )

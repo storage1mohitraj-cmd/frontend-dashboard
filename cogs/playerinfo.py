@@ -144,7 +144,7 @@ class PlayerInfoCog(commands.Cog):
                     description=f"```\n{self._thinking_animation.generate_binary_frame(24)}\n```\n*{self._thinking_animation.generate_status_text()}*",
                     color=0x9b59b6
                 )
-                thinking_embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+                self._set_embed_footer(thinking_embed, message)
                 thinking_embed.set_thumbnail(url="https://i.postimg.cc/fLLWWSKq/ezgif-278f9fa56d75db.gif")
                 thinking_msg = await message.reply(embed=thinking_embed, mention_author=False)
             except Exception as e:
@@ -303,17 +303,7 @@ class PlayerInfoCog(commands.Cog):
 
             
 
-            try:
-                if WATERMARK_URL:
-                    p3 = urllib.parse.urlparse(WATERMARK_URL)
-                    if p3.scheme in ("http", "https") and p3.netloc:
-                        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
-                    else:
-                        embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
-                else:
-                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
-            except Exception:
-                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            self._set_embed_footer(embed, message)
 
             try:
                 # Delete thinking message and send actual player info
@@ -599,7 +589,7 @@ class PlayerInfoCog(commands.Cog):
         
         if js is None:
             embed.description = "No valid response from API."
-            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            self._set_embed_footer(embed, interaction)
         elif js.get("code") != 0:
             api_msg_raw = js.get('msg') or ''
             api_msg = str(api_msg_raw).lower().replace('_', ' ')
@@ -608,7 +598,7 @@ class PlayerInfoCog(commands.Cog):
                 embed.description = "Player not found — check the 9-digit player ID and try again."
             else:
                 embed.description = f"API error: {api_msg_raw}"
-            embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            self._set_embed_footer(embed, interaction)
         else:
             # Success
             data = js.get('data', {})
@@ -709,13 +699,7 @@ class PlayerInfoCog(commands.Cog):
                 pass
 
             # Footer
-            try:
-                if WATERMARK_URL and _is_valid_url(WATERMARK_URL):
-                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
-                else:
-                    embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
-            except Exception:
-                embed.set_footer(text="Whiteout Survival | Magnus", icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1445459239131680859/images_7_1.png")
+            self._set_embed_footer(embed, interaction)
 
         # Update message
         try:

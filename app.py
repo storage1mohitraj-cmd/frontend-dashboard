@@ -1461,8 +1461,8 @@ async def on_message(message: discord.Message):
         if message.guild:
             content_lower = message.content.lower().strip()
             
-            # Check for dice/roll keywords
-            if any(keyword in content_lower for keyword in ['dice', 'roll']):
+            # Check for dice/roll keywords with word boundaries to avoid matching "scroll", "troll", etc.
+            if re.search(r'\b(dice|roll)\b', content_lower):
                 # Trigger the dice text command
                 try:
                     ctx = await bot.get_context(message)
@@ -1478,8 +1478,8 @@ async def on_message(message: discord.Message):
                 except Exception as e:
                     logger.error(f"Error triggering dice command: {e}")
             
-            # Check for giftcode keyword
-            elif 'giftcode' in content_lower:
+            # Check for giftcode keyword with word boundaries
+            elif re.search(r'\b(giftcode)\b', content_lower):
                 # Show gift codes when user types "giftcode"
                 try:
                     # Import here to avoid circular imports

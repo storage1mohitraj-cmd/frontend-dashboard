@@ -25,7 +25,7 @@ from discord.ext import commands
 import urllib.parse
 from thinking_animation import ThinkingAnimation
 from command_animator import command_animation
-from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter
+from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter, AutoRedeemChannelsAdapter
 
 # Player API endpoint and secret (keep this in sync with your other code)
 API_URL = "https://wos-giftcode-api.centurygame.com/api/player"
@@ -99,7 +99,19 @@ class PlayerInfoCog(commands.Cog):
             guild_id = message.guild.id
             channel_id = message.channel.id
 
-            # Check manage_giftcode auto-redeem channel
+            # ── Check manage_giftcode auto-redeem channel ────────────────────
+            # MongoDB is the primary store; SQLite is the fallback.
+            # We must mirror the exact lookup order that manage_giftcode.py
+            # uses in its own on_message handler so we never miss a hit.
+            try:
+                if mongo_enabled() and AutoRedeemChannelsAdapter:
+                    channel_config = AutoRedeemChannelsAdapter.get_channel(guild_id)
+                    if channel_config and channel_config.get('channel_id') == channel_id:
+                        return True
+            except Exception:
+                pass
+
+            # SQLite fallback (channel may not yet be synced to Mongo)
             try:
                 with sqlite3.connect('db/giftcode.sqlite') as db:
                     cur = db.cursor()
@@ -112,7 +124,7 @@ class PlayerInfoCog(commands.Cog):
             except Exception:
                 pass
 
-            # Check id_channel registration channels
+            # ── Check id_channel registration channels ───────────────────────
             try:
                 with sqlite3.connect('db/id_channel.sqlite') as db:
                     cur = db.cursor()

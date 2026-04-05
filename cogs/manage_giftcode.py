@@ -230,30 +230,19 @@ class ManageGiftCode(commands.Cog):
         self.session = aiohttp.ClientSession()
         self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
 
-        # NOTE: _sync_mongo_to_sqlite_on_startup calls bot.wait_until_ready() internally.
-        # Awaiting it directly here would deadlock setup_hook (which runs before on_ready).
-        # Run it as a background task so setup_hook can finish and the bot can connect.
+        # Sync MongoDB to SQLite on startup
         asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
 
         # Start background workers
         self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
-        self.api_check_task.start()
+        
+        # Start API check task
+        if not self.api_check_task.is_running():
+            self.api_check_task.start()
 
         # Trigger startup check for existing codes
         asyncio.create_task(self.process_existing_codes_on_startup())
-        self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
-
-        # NOTE: _sync_mongo_to_sqlite_on_startup calls bot.wait_until_ready() internally.
-        # Awaiting it directly here would deadlock setup_hook (which runs before on_ready).
-        # Run it as a background task so setup_hook can finish and the bot can connect.
-        asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
-
-        # Start background workers
-        self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
-        self.api_check_task.start()
-
-        # Trigger startup check for existing codes
-        asyncio.create_task(self.process_existing_codes_on_startup())
+        self.logger.info("ManageGiftCode: Background tasks started.")
 
     async def cog_unload(self):
         """Called when the cog is unloaded. Performs cleanup."""
@@ -1595,6 +1584,10 @@ class ManageGiftCode(commands.Cog):
                     return
 
                 self.logger.info(f"✅ All {len(members_data)} members have already redeemed code {giftcode} for guild {guild_id}")
+                
+                # CRITICAL: Mark guild as completed so we don't spam this skip message again!
+                await self._mark_guild_completed(guild_id, giftcode)
+
                 # Send a message to the channel
                 try:
                     skip_embed = discord.Embed(
@@ -2345,7 +2338,9 @@ class ManageGiftCode(commands.Cog):
                     # For now, let's just allow it if it was marked processed but we want to be safe.
                     # Actually, a better check: if the date in API is different/newer than stored date.
                     stored_date = db_codes_data[code_up]['date']
-                    if stored_date and date and date != stored_date:
+                    # ONLY re-trigger if the date is actually different AND it hasn't been successfully processed yet
+                    # This prevents re-triggering just because of minor API date drifts for active codes
+                    if stored_date and date and date != stored_date and not db_codes_data[code_up]['processed']:
                         self.logger.info(f"♻️ Re-issued code detected: {code} (Old Date: {stored_date}, New Date: {date}). Re-triggering auto-redeem.")
                         new_codes.append((code, date))
                         # Reset processed flag in DB so it actually runs
@@ -2408,12 +2403,8 @@ class ManageGiftCode(commands.Cog):
             self.giftcode_db.commit()
             self.logger.info(f"Committed {len(new_codes)} new codes to database")
             
-            # Notify global admins
+            # Notify global admins (this already calls trigger_auto_redeem_for_new_codes)
             await self.notify_admins_new_codes(new_codes)
-            
-            # CRITICAL: Trigger auto-redeem for the new codes
-            self.logger.info(f"🔔 Triggering auto-redeem for {len(new_codes)} new codes from API...")
-            await self.trigger_auto_redeem_for_new_codes(new_codes)
             
         except Exception as e:
             self.logger.exception(f"Error in API check task: {e}")
@@ -2914,6 +2905,18 @@ class ManageGiftCode(commands.Cog):
         except Exception as e:
             self.logger.error(f"Failed to fetch completed guilds for code {code}: {e}")
             return set()
+
+    async def _mark_guild_completed(self, guild_id, code):
+        """Mark a guild as completed for a specific gift code in SQLite."""
+        try:
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO auto_redeem_completed_guilds (guild_id, giftcode, status, completed_at) VALUES (?, ?, ?, ?)",
+                (guild_id, code, "completed", datetime.now().isoformat())
+            )
+            self.giftcode_db.commit()
+            self.logger.info(f"✅ Marked guild {guild_id} as completed for code {code} (SQLite)")
+        except Exception as e:
+            self.logger.error(f"❌ Failed to mark guild {guild_id} as completed in SQLite: {e}")
 
     async def wait_for_code_completion(self, code, expected_jobs):
         """Wait until the number of completed jobs for a code reaches the expected count."""
@@ -6921,292 +6924,7 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error fetching codes from API: {e}")
             return []
 
-    @tasks.loop(seconds=60)  # Check every minute
-    async def api_check_task(self):
-        """Periodically check API for new gift codes"""
-        try:
-            self.logger.info("Starting API check for new gift codes")
-            
-            # Fetch codes from API
-            api_codes = await self.fetch_codes_from_api()
-            
-            if not api_codes:
-                self.logger.warning("No codes fetched from API - API might be empty or down")
-                return
-            
-            self.logger.info(f"Successfully fetched {len(api_codes)} codes from API")
-            
-            # Also fetch from MongoDB if enabled
-            db_codes_data = {} # code.upper() -> {'date': date, 'processed': bool}
-            
-            # Fetch from SQLite
-            self.cursor.execute("SELECT giftcode, date, auto_redeem_processed FROM gift_codes")
-            for row in self.cursor.fetchall():
-                db_codes_data[str(row[0]).upper()] = {'date': row[1], 'processed': bool(row[2])}
-            
-            if mongo_enabled() and GiftCodesAdapter:
-                try:
-                    # GiftCodesAdapter.get_all_with_status() returns list of dicts
-                    mongo_codes = GiftCodesAdapter.get_all_with_status()
-                    if mongo_codes:
-                        for c in mongo_codes:
-                            code_up = str(c.get('giftcode', '')).upper()
-                            if code_up:
-                                db_codes_data[code_up] = {
-                                    'date': c.get('date'),
-                                    'processed': bool(c.get('auto_redeem_processed', False))
-                                }
-                except Exception as e:
-                    self.logger.error(f"Failed to fetch codes from Mongo: {e}")
 
-            self.logger.info(f"Found {len(db_codes_data)} existing codes in database(s)")
-            
-            # Find new codes
-            new_codes = []
-            for code, date in api_codes:
-                code_up = str(code).upper()
-                if code_up not in db_codes_data:
-                    new_codes.append((code, date))
-                else:
-                    stored_date = db_codes_data[code_up]['date']
-                    if stored_date and date and date != stored_date:
-                        self.logger.info(f"♻️ Re-issued code detected: {code} (Old Date: {stored_date}, New Date: {date}). Re-triggering auto-redeem.")
-                        new_codes.append((code, date))
-                        # Reset processed flag in DB so it actually runs
-                        try:
-                            # Update SQLite
-                            self.cursor.execute("UPDATE gift_codes SET auto_redeem_processed = 0, date = ? WHERE giftcode = ?", (date, code))
-                            # Update MongoDB
-                            if mongo_enabled() and GiftCodesAdapter:
-                                try:
-                                    db = _get_db()
-                                    db['gift_codes'].update_one({'_id': code}, {'$set': {'auto_redeem_processed': False, 'date': date}})
-                                except Exception as me:
-                                    self.logger.error(f"Failed to reset Mongo processed status for {code}: {me}")
-                        except Exception as e:
-                            self.logger.error(f"Failed to reset re-issued code {code}: {e}")
-            
-            if not new_codes:
-                self.logger.info(f"No new codes found. All {len(api_codes)} API codes already in database and processed")
-                return
-            
-            self.logger.info(f"Found {len(new_codes)} codes to process (new or re-issued)!")
-            
-            # Add new codes to database with auto_redeem_processed = 0
-            for code, date in new_codes:
-                try:
-                    # Insert into SQLite
-                    self.cursor.execute(
-                        "INSERT OR IGNORE INTO gift_codes (giftcode, date, validation_status, added_at, auto_redeem_processed) VALUES (?, ?, ?, ?, ?)",
-                        (code, date, "validated", datetime.now(), 0)
-                    )
-                    self.logger.info(f"Added new code to SQLite: {code}")
-                    
-                    # CRITICAL: Also insert into MongoDB if enabled
-                    if mongo_enabled() and GiftCodesAdapter and _get_db:
-                        try:
-                            # Insert the code with auto_redeem_processed = False
-                            db = _get_db()
-                            if db:
-                                db[GiftCodesAdapter.COLL].update_one(
-                                    {'_id': code},
-                                    {
-                                        '$set': {
-                                            'date': date,
-                                            'validation_status': 'validated',
-                                            'auto_redeem_processed': False,
-                                            'created_at': datetime.utcnow().isoformat(),
-                                            'updated_at': datetime.utcnow().isoformat()
-                                        }
-                                    },
-                                    upsert=True
-                                )
-                                self.logger.info(f"✅ Added new code to MongoDB: {code}")
-                        except Exception as mongo_err:
-                            self.logger.error(f"⚠️ Failed to add code {code} to MongoDB: {mongo_err}")
-                    
-                except Exception as e:
-                    self.logger.error(f"Error inserting code {code}: {e}")
-            
-            self.giftcode_db.commit()
-            self.logger.info(f"Committed {len(new_codes)} new codes to database")
-            
-            # Notify global admins
-            await self.notify_admins_new_codes(new_codes)
-            
-            # CRITICAL: Trigger auto-redeem for the new codes
-            self.logger.info(f"🔔 Triggering auto-redeem for {len(new_codes)} new codes from API...")
-            await self.trigger_auto_redeem_for_new_codes(new_codes)
-            
-        except Exception as e:
-            self.logger.exception(f"Error in API check task: {e}")
-    
-    @api_check_task.before_loop
-    async def before_api_check(self):
-        """Wait for bot to be ready before starting API checks"""
-        await self.bot.wait_until_ready()
-        self.logger.info("Gift code API check task started")
-        
-        # Cleanup members with null/empty FIDs from all guilds
-        self.logger.info("🧹 Cleaning up members with null/empty FIDs...")
-        try:
-            # Note: AutoRedeemMembersAdapter might have its own cleanup, or we manually do it
-            if mongo_enabled() and _get_db:
-                db = _get_db()
-                if db:
-                    res = db['auto_redeem_members'].delete_many({'fid': {'$in': [None, '', 'None', 'none']}})
-                    if res.deleted_count > 0:
-                        self.logger.info(f"✅ Removed {res.deleted_count} invalid members from auto-redeem lists in MongoDB")
-        except Exception as e:
-            self.logger.error(f"Failed to cleanup null members: {e}")
-        
-        # Sync auto-redeem settings from SQLite to MongoDB (for migration on first startup)
-        await self.sync_auto_redeem_settings_to_mongo()
-        
-        # Sync gift codes from MongoDB to SQLite (CRITICAL for Render persistence)
-        await self.sync_gift_codes_from_mongo_to_sqlite()
-        
-        # Process any existing unprocessed codes on startup
-        await self.process_existing_codes_on_startup()
-
-    async def sync_auto_redeem_settings_to_mongo(self):
-        """Sync auto-redeem settings from SQLite to MongoDB on startup."""
-        try:
-            if not mongo_enabled() or not AutoRedeemSettingsAdapter:
-                return
-            
-            self.cursor.execute("SELECT guild_id, enabled, updated_by, updated_at FROM auto_redeem_settings WHERE enabled = 1")
-            sqlite_settings = self.cursor.fetchall()
-            
-            for row in sqlite_settings:
-                guild_id = row[0]
-                AutoRedeemSettingsAdapter.set_enabled(guild_id, True, row[2] or 0)
-        except Exception as e:
-            self.logger.error(f"Error syncing settings to mongo: {e}")
-
-    async def sync_gift_codes_from_mongo_to_sqlite(self):
-        """Sync gift codes from MongoDB to SQLite on startup."""
-        try:
-            if not mongo_enabled() or not GiftCodesAdapter:
-                return
-
-            mongo_codes = GiftCodesAdapter.get_all()
-            if not mongo_codes:
-                return
-            
-            for code_data in mongo_codes:
-                try:
-                    code = code_data.get('giftcode') or code_data.get('_id')
-                    date = code_data.get('date', '')
-                    processed = 1 if code_data.get('auto_redeem_processed', False) else 0
-                    
-                    self.cursor.execute(
-                        "INSERT OR REPLACE INTO gift_codes (giftcode, date, auto_redeem_processed, validation_status) VALUES (?, ?, ?, ?)",
-                        (code, date, processed, code_data.get('validation_status', 'validated'))
-                    )
-                except Exception:
-                    continue
-            self.giftcode_db.commit()
-        except Exception as e:
-            self.logger.error(f"Error syncing codes from mongo: {e}")
-
-    async def process_existing_codes_on_startup(self):
-        """Find codes that are marked as unprocessed and trigger auto-redeem for them."""
-        try:
-            self.logger.info("🔍 Checking for unprocessed codes on startup...")
-            self.cursor.execute("SELECT giftcode, date FROM gift_codes WHERE auto_redeem_processed = 0")
-            unprocessed = self.cursor.fetchall()
-            
-            if unprocessed:
-                self.logger.info(f"🔔 Found {len(unprocessed)} unprocessed codes. Triggering auto-redeem...")
-                # We do this after a small delay to ensure bot is fully stable
-                await asyncio.sleep(10)
-                await self.trigger_auto_redeem_for_new_codes(unprocessed)
-            else:
-                self.logger.info("✅ All existing codes are already processed.")
-        except Exception as e:
-            self.logger.error(f"Error in process_existing_codes_on_startup: {e}")
-
-    async def trigger_auto_redeem_for_new_codes(self, new_codes, is_recheck=False):
-        """Trigger auto-redeem for all guilds with auto-redeem enabled"""
-        try:
-            self.logger.info(f"📥 Triggering auto-redeem for {len(new_codes)} codes")
-            
-            enabled_guilds = []
-            self.cursor.execute("SELECT guild_id FROM auto_redeem_settings WHERE enabled = 1")
-            enabled_guilds = self.cursor.fetchall()
-            
-            if not enabled_guilds:
-                self.logger.warning("No guilds have auto-redeem enabled.")
-                return
-
-            for code, date in new_codes:
-                await self._process_single_code(code, date, enabled_guilds, is_recheck)
-        except Exception as e:
-            self.logger.exception(f"Error in trigger_auto_redeem_for_new_codes: {e}")
-
-    async def _process_single_code(self, code, date, enabled_guilds, is_recheck):
-        """Process a single gift code for all enabled guilds."""
-        try:
-            already_processed = await self._is_code_already_processed(code)
-            if already_processed and not is_recheck:
-                return
-
-            for (guild_id,) in enabled_guilds:
-                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
-            
-            await self.wait_for_code_completion(code, len(enabled_guilds))
-        except Exception as e:
-            self.logger.exception(f"Error processing single code {code}: {e}")
-
-    async def _is_code_already_processed(self, code):
-        """Check if a code is marked as fully processed in MongoDB or SQLite."""
-        self.cursor.execute("SELECT auto_redeem_processed FROM gift_codes WHERE giftcode = ?", (code,))
-        result = self.cursor.fetchone()
-        return result and result[0]
-
-    async def wait_for_code_completion(self, code, expected_jobs):
-        """Wait until the number of completed jobs for a code reaches the expected count."""
-        if expected_jobs <= 0: return
-
-        self._pending_jobs_per_code[code] = expected_jobs
-        self._completion_events[code] = asyncio.Event()
-
-        try:
-            await asyncio.wait_for(self._completion_events[code].wait(), timeout=3600)
-            await self._mark_code_done(code)
-        except asyncio.TimeoutError:
-            self.logger.error(f"Timeout waiting for code {code}")
-        finally:
-            self._pending_jobs_per_code.pop(code, None)
-            self._completion_events.pop(code, None)
-
-    async def _decrement_pending_jobs(self, code):
-        """Decrement pending jobs and set event if all jobs for a code are done."""
-        if code in self._pending_jobs_per_code:
-            self._pending_jobs_per_code[code] -= 1
-            if self._pending_jobs_per_code[code] <= 0:
-                if code in self._completion_events:
-                    self._completion_events[code].set()
-
-    async def _mark_code_done(self, code):
-        """Mark code as processed in DBs."""
-        if mongo_enabled() and GiftCodesAdapter:
-            try:
-                GiftCodesAdapter.mark_code_processed(code)
-            except Exception: pass
-        
-        self.cursor.execute("UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?", (code,))
-        self.giftcode_db.commit()
-
-    async def mark_code_invalid(self, code):
-        """Mark a code as invalid globally."""
-        if mongo_enabled() and GiftCodesAdapter:
-            try: GiftCodesAdapter.update_status(code, 'invalid')
-            except Exception: pass
-                
-        self.cursor.execute("UPDATE gift_codes SET validation_status = 'invalid', auto_redeem_processed = 1 WHERE giftcode = ?", (code,))
-        self.giftcode_db.commit()
 
 
 async def setup(bot):

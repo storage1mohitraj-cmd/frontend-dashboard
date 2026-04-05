@@ -623,19 +623,46 @@ class ManageGiftCode(commands.Cog):
             """)
             
             # Auto redeem completed guilds table - track per-guild code processing to prevent restart loops
+            # Standardize on case-insensitive gift codes
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS auto_redeem_completed_guilds (
                     guild_id INTEGER,
-                    giftcode TEXT,
+                    giftcode TEXT COLLATE NOCASE,
+                    status TEXT DEFAULT 'completed',
                     completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (guild_id, giftcode)
                 )
             """)
             
+            # Add missing columns to auto_redeem_completed_guilds if they don't exist
+            try:
+                self.cursor.execute("ALTER TABLE auto_redeem_completed_guilds ADD COLUMN status TEXT")
+            except sqlite3.OperationalError:
+                pass
+            
+            try:
+                self.cursor.execute("ALTER TABLE auto_redeem_completed_guilds ADD COLUMN completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+            except sqlite3.OperationalError:
+                pass
+            
             self.giftcode_db.commit()
             self.logger.info("Gift code database tables initialized")
         except Exception as e:
             self.logger.error(f"Error setting up gift code database: {e}")
+
+    async def _mark_guild_completed(self, guild_id, giftcode):
+        """Mark a guild as having completed processing for a specific gift code (Case-Insensitive)."""
+        try:
+            # Always store standardized uppercase
+            code_up = giftcode.upper()
+            self.cursor.execute(
+                "INSERT OR IGNORE INTO auto_redeem_completed_guilds (guild_id, giftcode, status, completed_at) VALUES (?, ?, ?, ?)",
+                (guild_id, code_up, "completed", datetime.now().isoformat())
+            )
+            self.giftcode_db.commit()
+            self.logger.info(f"✅ Marked guild {guild_id} as completed for code {code_up}")
+        except Exception as e:
+            self.logger.error(f"Failed to mark guild completion for {giftcode}: {e}")
     
     # ===== Auto-Redeem Member Management Helper Class =====
     class AutoRedeemDB:
@@ -1445,19 +1472,37 @@ class ManageGiftCode(commands.Cog):
             giftcode: Gift code to redeem
             is_recheck: Whether to bypass all completion caches (manual trigger)
         """
+        # Ensure we always work with uppercase gift codes for consistency
+        code_up = str(giftcode).upper()
+
+        # --- EARLY EXIT: Case-Insensitive Completion Check ---
+        # This ensures we NEVER trigger twice for the same guild/code pair, regardless of casing.
+        # If it's a recheck/manual trigger, we bypass this check
+        if not is_recheck:
+            try:
+                self.cursor.execute(
+                    "SELECT 1 FROM auto_redeem_completed_guilds WHERE guild_id = ? AND giftcode = ?",
+                    (guild_id, code_up)
+                )
+                if self.cursor.fetchone():
+                    self.logger.info(f"⏭️ [SILENT SKIP] Guild {guild_id} already completed processing for code {code_up}")
+                    return
+            except Exception as e:
+                self.logger.error(f"Error checking completion status for {code_up}: {e}")
+
         # Reset stop signal for this guild
         self.stop_signals[guild_id] = False
         
         # Check if redemption already in progress for this guild/code combination
-        redemption_key = (guild_id, giftcode)
+        redemption_key = (guild_id, code_up)
         
         async with self._redemption_lock:
             if redemption_key in self._active_redemptions:
-                self.logger.warning(f"⚠️ Auto-redeem already in progress for guild {guild_id} with code {giftcode}, skipping duplicate")
+                self.logger.warning(f"⚠️ Auto-redeem already in progress for guild {guild_id} with code {code_up}, skipping duplicate")
                 return
             # Mark this redemption as active
             self._active_redemptions.add(redemption_key)
-            self.logger.info(f"🔒 Locked auto-redeem for guild {guild_id} with code {giftcode} (Recheck: {is_recheck})")
+            self.logger.info(f"🔒 Locked auto-redeem for guild {guild_id} with code {code_up} (Recheck: {is_recheck})")
         
         try:
             # Check if auto redeem is enabled - try MongoDB first, fallback to SQLite
@@ -1580,13 +1625,13 @@ class ManageGiftCode(commands.Cog):
                 # If is_recheck is True, we don't send any message if there's no work to do
                 # (Manual triggers should now have members, so this is just a safety)
                 if is_recheck:
-                    self.logger.info(f"✅ Silent skip: All {len(members_data)} members have already redeemed code {giftcode} for guild {guild_id}")
+                    self.logger.info(f"✅ Silent skip: All {len(members_data)} members have already redeemed code {code_up} for guild {guild_id}")
                     return
 
-                self.logger.info(f"✅ All {len(members_data)} members have already redeemed code {giftcode} for guild {guild_id}")
+                self.logger.info(f"✅ All {len(members_data)} members have already redeemed code {code_up} for guild {guild_id}")
                 
                 # CRITICAL: Mark guild as completed so we don't spam this skip message again!
-                await self._mark_guild_completed(guild_id, giftcode)
+                await self._mark_guild_completed(guild_id, code_up)
 
                 # Send a message to the channel
                 try:
@@ -1595,7 +1640,7 @@ class ManageGiftCode(commands.Cog):
                         description=(
                             f"```ansi\n"
                             f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                            f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
+                            f"\u001b[1;37mGift Code: {code_up}\u001b[0m\n"
                             f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
                             f"```\n"
                             f"✅ **All {len(members_data)} members have already redeemed this code!**\n"
@@ -1652,7 +1697,7 @@ class ManageGiftCode(commands.Cog):
                         return
                     # Process the member
                     status, success, already_redeemed, failed = await self._redeem_for_member(
-                        guild_id, fid, nickname, furnace_lv, giftcode
+                        guild_id, fid, nickname, furnace_lv, code_up
                     )
                     
                     # Update counters
@@ -1676,7 +1721,7 @@ class ManageGiftCode(commands.Cog):
                                 description=(
                                     f"```ansi\n"
                                     f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                    f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
+                                    f"\u001b[1;37mGift Code: {code_up}\u001b[0m\n"
                                     f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
                                     f"```\n"
                                     f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
@@ -1723,26 +1768,18 @@ class ManageGiftCode(commands.Cog):
             
             self.logger.info(f"Auto-redeem completed for guild {guild_id}: {success_count} success, {already_redeemed_count} already redeemed, {failed_count} failed")
             
-            # --- NEW: Save completion state per-guild to survive bot restarts ---
-            try:
-                self.cursor.execute(
-                    "INSERT OR IGNORE INTO auto_redeem_completed_guilds (guild_id, giftcode) VALUES (?, ?)",
-                    (guild_id, giftcode)
-                )
-                self.giftcode_db.commit()
-                self.logger.info(f"✅ Recorded completion for guild {guild_id} and code {giftcode} in SQLite")
-            except Exception as sql_e:
-                self.logger.error(f"Failed to record guild completion in SQLite: {sql_e}")
+            # Record completion state per-guild to survive bot restarts
+            await self._mark_guild_completed(guild_id, code_up)
             
         except Exception as e:
             self.logger.exception(f"Error in process_auto_redeem: {e}")
         finally:
             # Always release the lock
             async with self._redemption_lock:
-                redemption_key = (guild_id, giftcode)
+                redemption_key = (guild_id, code_up)
                 if redemption_key in self._active_redemptions:
                     self._active_redemptions.discard(redemption_key)
-                    self.logger.info(f"🔓 Unlocked auto-redeem for guild {guild_id} with code {giftcode}")
+                    self.logger.info(f"🔓 Released auto-redeem lock for guild {guild_id} with code {code_up}")
             
             # NOTE: Code is NOT marked as processed here to allow multiple guilds to process the same code
             # Code will be marked as processed by trigger_auto_redeem_for_new_codes after all guilds finish
@@ -2881,16 +2918,17 @@ class ManageGiftCode(commands.Cog):
 
     async def _is_code_already_processed(self, code):
         """Check if a code is marked as fully processed in MongoDB or SQLite."""
+        code_up = str(code).upper()
         if mongo_enabled() and GiftCodesAdapter:
             try:
-                code_data = GiftCodesAdapter.get_code(code)
+                code_data = GiftCodesAdapter.get_code(code_up)
                 if code_data and code_data.get('auto_redeem_processed', False):
                     return True
             except Exception as e:
                 self.logger.warning(f"Failed to check code status in MongoDB: {e}")
         
         try:
-            self.cursor.execute("SELECT auto_redeem_processed FROM gift_codes WHERE giftcode = ?", (code,))
+            self.cursor.execute("SELECT auto_redeem_processed FROM gift_codes WHERE giftcode = ?", (code_up,))
             result = self.cursor.fetchone()
             return result and result[0]
         except Exception as e:
@@ -2900,23 +2938,13 @@ class ManageGiftCode(commands.Cog):
     async def _get_completed_guilds(self, code):
         """Get a set of guild IDs that have already completed redemption for a code."""
         try:
-            self.cursor.execute("SELECT guild_id FROM auto_redeem_completed_guilds WHERE giftcode = ?", (code,))
+            code_up = str(code).upper()
+            self.cursor.execute("SELECT guild_id FROM auto_redeem_completed_guilds WHERE giftcode = ?", (code_up,))
             return {row[0] for row in self.cursor.fetchall()}
         except Exception as e:
             self.logger.error(f"Failed to fetch completed guilds for code {code}: {e}")
             return set()
 
-    async def _mark_guild_completed(self, guild_id, code):
-        """Mark a guild as completed for a specific gift code in SQLite."""
-        try:
-            self.cursor.execute(
-                "INSERT OR IGNORE INTO auto_redeem_completed_guilds (guild_id, giftcode, status, completed_at) VALUES (?, ?, ?, ?)",
-                (guild_id, code, "completed", datetime.now().isoformat())
-            )
-            self.giftcode_db.commit()
-            self.logger.info(f"✅ Marked guild {guild_id} as completed for code {code} (SQLite)")
-        except Exception as e:
-            self.logger.error(f"❌ Failed to mark guild {guild_id} as completed in SQLite: {e}")
 
     async def wait_for_code_completion(self, code, expected_jobs):
         """Wait until the number of completed jobs for a code reaches the expected count."""
@@ -2948,13 +2976,14 @@ class ManageGiftCode(commands.Cog):
 
     async def _mark_code_done(self, code):
         """Internal helper to mark code as processed in DBs without waiting for queue."""
+        code_up = code.upper()
         # Mark in MongoDB if available
         mongo_marked = False
         if mongo_enabled() and GiftCodesAdapter:
             try:
-                GiftCodesAdapter.mark_code_processed(code)
+                GiftCodesAdapter.mark_code_processed(code_up)
                 mongo_marked = True
-                self.logger.info(f"✅ Marked {code} as processed in MongoDB")
+                self.logger.info(f"✅ Marked {code_up} as processed in MongoDB")
             except Exception as e:
                 self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
         
@@ -2963,27 +2992,28 @@ class ManageGiftCode(commands.Cog):
         try:
             self.cursor.execute(
                 "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
-                (code,)
+                (code_up,)
             )
             self.giftcode_db.commit()
             sqlite_marked = True
-            self.logger.info(f"✅ Marked {code} as processed in SQLite")
+            self.logger.info(f"✅ Marked {code_up} as processed in SQLite")
         except Exception as e:
             self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
 
     async def mark_code_invalid(self, code):
         """Mark a code as invalid/expired globally and stop processing it."""
-        self.logger.warning(f"🚫 Marking code {code} as INVALID/EXPIRED globally")
+        code_up = code.upper()
+        self.logger.warning(f"🚫 Marking code {code_up} as INVALID/EXPIRED globally")
         
         # Mark in MongoDB
         if mongo_enabled() and GiftCodesAdapter:
             try:
                 # Use our new method!
                 if hasattr(GiftCodesAdapter, 'mark_code_invalid'):
-                    GiftCodesAdapter.mark_code_invalid(code)
+                    GiftCodesAdapter.mark_code_invalid(code_up)
                 else:
-                    GiftCodesAdapter.update_status(code, 'invalid')
-                self.logger.info(f"✅ Marked {code} as invalid in MongoDB")
+                    GiftCodesAdapter.update_status(code_up, 'invalid')
+                self.logger.info(f"✅ Marked {code_up} as invalid in MongoDB")
             except Exception as e:
                 self.logger.error(f"❌ Failed to mark code invalid in MongoDB: {e}")
                 
@@ -2991,56 +3021,361 @@ class ManageGiftCode(commands.Cog):
         try:
             self.cursor.execute(
                 "UPDATE gift_codes SET validation_status = 'invalid', auto_redeem_processed = 1 WHERE giftcode = ?",
-                (code,)
+                (code_up,)
             )
             self.giftcode_db.commit()
-            self.logger.info(f"✅ Marked {code} as invalid in SQLite")
+            self.logger.info(f"✅ Marked {code_up} as invalid in SQLite")
         except Exception as e:
             self.logger.error(f"❌ Failed to mark code invalid in SQLite: {e}")
             
         # Clear from pending jobs
-        self._pending_jobs_per_code.pop(code, None)
+        self._pending_jobs_per_code.pop(code_up, None)
 
-    async def _mark_code_when_queue_empty(self, code):
-        """DEPRECATED: Use _decrement_pending_jobs instead for faster updates."""
-        # Keeping for compatibility but making it a no-op
-        pass
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        """Monitor configured channels for FID codes"""
+        # Ignore bot messages
+        if message.author.bot:
+            return
+            
+        # Ignore DM messages
+        if not message.guild:
+            return
+        
+        # Check if message is in a monitored channel
         try:
-            self.logger.info(f"⏳ Waiting for auto-redeem queue to finish before marking {code} as processed...")
-            await self.auto_redeem_queue.join()
+            # Import at method level to avoid scope issues
+            from db.mongo_adapters import mongo_enabled, AutoRedeemChannelsAdapter
             
-            self.logger.info(f"🏁 Queue empty! Marking code {code} as 100% processed globally.")
+            monitored_channel_id = None
             
-            # Mark in MongoDB if available
-            mongo_marked = False
-            if mongo_enabled() and GiftCodesAdapter:
+            # Check MongoDB first
+            if mongo_enabled() and AutoRedeemChannelsAdapter:
                 try:
-                    GiftCodesAdapter.mark_code_processed(code)
-                    mongo_marked = True
-                    self.logger.info(f"✅ Marked {code} as processed in MongoDB")
+                    channel_config = AutoRedeemChannelsAdapter.get_channel(message.guild.id)
+                    if channel_config:
+                        monitored_channel_id = channel_config.get('channel_id')
+                        self.logger.debug(f"Found monitored channel {monitored_channel_id} in MongoDB for guild {message.guild.id}")
                 except Exception as e:
-                    self.logger.error(f"❌ Failed to mark code in MongoDB: {e}")
+                    self.logger.warning(f"Failed to get channel from MongoDB: {e}")
             
-            # Mark in SQLite for consistency
-            sqlite_marked = False
-            try:
+            # Fallback to SQLite if MongoDB didn't return a result
+            if monitored_channel_id is None:
                 self.cursor.execute(
-                    "UPDATE gift_codes SET auto_redeem_processed = 1 WHERE giftcode = ?",
-                    (code,)
+                    "SELECT channel_id FROM auto_redeem_channels WHERE guild_id = ?",
+                    (message.guild.id,)
                 )
-                self.giftcode_db.commit()
-                sqlite_marked = True
-                self.logger.info(f"✅ Marked {code} as processed in SQLite")
-            except Exception as e:
-                self.logger.error(f"❌ Failed to mark code in SQLite: {e}")
-                
-            if not mongo_marked and not sqlite_marked:
-                self.logger.error(f"❌ CRITICAL: Failed to mark {code} as processed in ANY database!")
-            else:
-                self.logger.info(f"🎉 Successfully marked {code} as processed (MongoDB: {mongo_marked}, SQLite: {sqlite_marked})")
-                
+                result = self.cursor.fetchone()
+                if result:
+                    monitored_channel_id = result[0]
+                    self.logger.debug(f"Found monitored channel {monitored_channel_id} in SQLite for guild {message.guild.id}")
+                    
+                    # Sync to MongoDB if found in SQLite but not in MongoDB
+                    if mongo_enabled() and AutoRedeemChannelsAdapter:
+                        try:
+                            AutoRedeemChannelsAdapter.set_channel(
+                                message.guild.id,
+                                monitored_channel_id,
+                                message.author.id
+                            )
+                            self.logger.info(f"Synced channel config to MongoDB for guild {message.guild.id}")
+                        except Exception as e:
+                            self.logger.warning(f"Failed to sync channel to MongoDB: {e}")
+            
+            # Check if current channel is the monitored channel
+            if not monitored_channel_id or monitored_channel_id != message.channel.id:
+                return  # Not a monitored channel
+            
+            # Extract 9-digit codes from message
+            import re
+            fid_pattern = r'\b\d{9}\b'
+            fids = re.findall(fid_pattern, message.content)
+            
+            if not fids:
+                return  # No FIDs found
+            
+            self.logger.info(f"Detected {len(fids)} FID(s) in monitored channel {message.channel.id} (guild {message.guild.id}): {fids}")
+            
+            # Process each FID
+            for fid in fids:
+                try:
+                    self.logger.debug(f"Processing FID {fid} from user {message.author.id}")
+                    
+                    # Check if already exists
+                    if self.AutoRedeemDB.member_exists(self, message.guild.id, fid):
+                        self.logger.info(f"FID {fid} already exists in auto-redeem list for guild {message.guild.id}")
+                        await message.reply(
+                            f"⚠️ {message.author.mention} Your FID `{fid}` is already in the auto-redeem list!",
+                            delete_after=10
+                        )
+                        continue
+                    
+                    # Fetch player data from API
+                    self.logger.debug(f"Fetching player data for FID {fid}")
+                    player_data = await self.fetch_player_data(fid)
+                    
+                    if not player_data:
+                        self.logger.warning(f"Invalid FID {fid} - API returned no data")
+                        await message.reply(
+                            f"❌ {message.author.mention} Invalid FID `{fid}`. Please check and try again.",
+                            delete_after=15
+                        )
+                        continue
+                    
+                    # Add to auto-redeem list
+                    member_data = {
+                        'nickname': player_data['nickname'],
+                        'furnace_lv': player_data['furnace_lv'],
+                        'avatar_image': player_data.get('avatar_image', ''),
+                        'added_by': message.author.id
+                    }
+                    
+                    self.logger.debug(f"Adding FID {fid} ({player_data['nickname']}) to auto-redeem list")
+                    success = self.AutoRedeemDB.add_member(
+                        self,
+                        message.guild.id,
+                        fid,
+                        member_data
+                    )
+                    
+                    if success:
+                        formatted_fc = self.format_furnace_level(player_data['furnace_lv'])
+                        embed = discord.Embed(
+                            title="✨ Auto-Redeem Registered",
+                            description=f"✅ **{player_data['nickname']}** is now enrolled for automated gift codes.",
+                            color=0x2ecc71
+                        )
+                        embed.add_field(name="Player ID", value=f"`{fid}`", inline=True)
+                        embed.add_field(name="Furnace", value=f"`{formatted_fc}`", inline=True)
+                        embed.add_field(name="🚀 Auto-Processing", value="`Initializing...`", inline=False)
+                        
+                        # Add player avatar if available
+                        avatar = player_data.get('avatar_image')
+                        if avatar and str(avatar).startswith('http'):
+                            embed.set_thumbnail(url=avatar)
+                        
+                        self._set_embed_footer(embed, message.guild)
+                        
+                        sent_msg = await message.reply(embed=embed)
+                        self.logger.info(f"✅ Successfully auto-added {player_data['nickname']} ({fid}) from channel in guild {message.guild.id}")
+                        
+                        # Start immediate redemption process for active codes
+                        async def process_initial_redemptions():
+                            try:
+                                # Get all valid/active gift codes from unified source
+                                active_codes_map = await self.get_active_gift_codes_consolidated()
+                                active_codes = list(active_codes_map.keys())
+                                
+                                if not active_codes:
+                                    embed.set_field_at(2, name="🚀 Auto-Processing", value="`No active codes found to redeem.`", inline=False)
+                                    await sent_msg.edit(embed=embed)
+                                    return
+
+                                total = len(active_codes)
+                                embed.set_field_at(2, name="🚀 Auto-Processing", value=f"`Checking {total} active codes...`", inline=False)
+                                await sent_msg.edit(embed=embed)
+                                
+                                redeemed = 0
+                                already = 0
+                                failed = 0
+                                
+                                # Process each code
+                                for i, code in enumerate(active_codes):
+                                    embed.set_field_at(2, name="🚀 Auto-Processing", value=f"`Processing code {i+1}/{total}:` **`{code}`**", inline=False)
+                                    await sent_msg.edit(embed=embed)
+                                    
+                                    # Use the core redemption method
+                                    status, s_count, a_count, f_count = await self._redeem_for_member(
+                                        message.guild.id, 
+                                        fid, 
+                                        player_data['nickname'], 
+                                        player_data['furnace_lv'], 
+                                        code
+                                    )
+                                    
+                                    redeemed += s_count
+                                    already += a_count
+                                    failed += f_count
+                                    
+                                    # Small delay between codes to be safe with rate limits
+                                    await asyncio.sleep(1)
+                                
+                                # Final update
+                                embed.set_field_at(2, name="🚀 Redemption Results", value=(
+                                    f"✅ Success: `{redeemed}`\n"
+                                    f"ℹ️ Already Claimed: `{already}`\n"
+                                    f"❌ Failed: `{failed}`"
+                                ), inline=False)
+                                embed.title = "✨ Auto-Redeem Complete"
+                                await sent_msg.edit(embed=embed)
+                                
+                            except Exception as e:
+                                self.logger.error(f"Error in initial redemption process for FID {fid}: {e}")
+                                embed.set_field_at(2, name="🚀 Auto-Processing", value="`⚠️ Error during batch redemption.`", inline=False)
+                                try: await sent_msg.edit(embed=embed)
+                                except: pass
+                        
+                        # Run in background
+                        asyncio.create_task(process_initial_redemptions())
+                    else:
+                        self.logger.error(f"Failed to add ID {fid} to database for guild {message.guild.id}")
+                        await message.reply(
+                            f"❌ {message.author.mention} Failed to add ID `{fid}`. It may already exist.",
+                            delete_after=10
+                        )
+                        
+                except Exception as e:
+                    self.logger.error(f"Error processing ID {fid} from channel: {e}", exc_info=True)
+                    await message.reply(
+                        f"❌ {message.author.mention} An error occurred while processing ID `{fid}`.",
+                        delete_after=10
+                    )
+                    
         except Exception as e:
-            self.logger.error(f"❌ Error waiting for queue to mark {code}: {e}")
+            self.logger.error(f"Error in on_message FID detection: {e}", exc_info=True)
+
+    @commands.command(name="stop_auto_redeem", aliases=["stop_redeem"])
+    async def stop_auto_redeem_text(self, ctx):
+        """Stop the ongoing auto-redeem process for this server"""
+        if not await self.check_admin_permission(ctx.author.id):
+            await ctx.reply("❌ Only administrators can use this command.", delete_after=5)
+            return
+            
+        guild_id = ctx.guild.id
+        
+        # Set stop signal to halt current execution
+        self.stop_signals[guild_id] = True
+        
+        # PERSISTENCE: Disable auto-redeem in database to prevent future runs
+        # Update MongoDB first
+        _mongo_enabled = globals().get('mongo_enabled', lambda: False)
+        mongo_saved = False
+        if _mongo_enabled() and AutoRedeemSettingsAdapter:
+            try:
+                self.logger.info(f"📊 MongoDB: Saving auto-redeem DISABLED for guild {guild_id} (via STOP command)...")
+                AutoRedeemSettingsAdapter.set_enabled(
+                    guild_id,
+                    False,
+                    ctx.author.id
+                )
+                mongo_saved = True
+            except Exception as e:
+                self.logger.error(f"❌ MongoDB: Failed to save auto redeem settings: {e}")
+        
+        # Also update SQLite for backward compatibility
+        try:
+            self.cursor.execute("""
+                INSERT OR REPLACE INTO auto_redeem_settings 
+                (guild_id, enabled, updated_by, updated_at)
+                VALUES (?, 0, ?, ?)
+            """, (guild_id, ctx.author.id, datetime.now()))
+            self.giftcode_db.commit()
+        except Exception as e:
+            self.logger.error(f"❌ SQLite: Failed to save auto redeem settings: {e}")
+            
+        # Check if any redemption is active
+        active_count = 0
+        current_active = []
+        async with self._redemption_lock:
+            for gid, code in self._active_redemptions:
+                if gid == guild_id:
+                    active_count += 1
+                    current_active.append(code)
+        
+        if active_count > 0:
+            codes_str = ", ".join(current_active)
+            await ctx.reply(f"🛑 **Stopping Auto-Redeem**\n\nSignal sent to stop redemption for code(s): `{codes_str}`.\nProcesses should halt shortly.")
+            self.logger.info(f"Stop signal sent for guild {guild_id} by {ctx.author}")
+        else:
+            await ctx.reply("ℹ️ No auto-redeem process is currently running for this server.")
+
+    @commands.hybrid_command(name="force_ice_clean", description="Force clean up duplicate ICE alliance members", with_app_command=True)
+    @commands.has_permissions(administrator=True)
+    async def force_ice_clean(self, ctx: commands.Context):
+        await ctx.defer()
+        
+        try:
+            from db.mongo_adapters import _get_db, AutoRedeemMembersAdapter
+            from datetime import datetime
+            
+            db_main = _get_db()
+            alliance = db_main['alliance__alliance_list'].find_one({'name': 'ICE'})
+            if not alliance:
+                await ctx.send('ERROR: ICE alliance not found')
+                return
+            
+            guild_id = alliance.get('discord_server_id')
+            if not guild_id:
+                await ctx.send('ERROR: Guild ID not found for ICE')
+                return
+            
+            search_gid = [int(guild_id), str(guild_id)]
+            unique_members_data = {}
+            docs_to_delete = []
+            total_found = 0
+            
+            for db in AutoRedeemMembersAdapter._get_target_dbs():
+                coll = db['auto_redeem_members']
+                # Force list conversion to block synchronous iteration
+                docs = list(coll.find({'guild_id': {'$in': search_gid}}))
+                total_found += len(docs)
+                
+                for doc in docs:
+                    doc_id = doc['_id']
+                    if 'fid' in doc and doc['fid'] and str(doc['fid']).lower() != 'none':
+                        fid = str(doc['fid']).strip()
+                        if fid not in unique_members_data:
+                            unique_members_data[fid] = doc
+                        else:
+                            docs_to_delete.append((db.name, doc_id))
+                    elif 'members' in doc and isinstance(doc['members'], list):
+                        for m in doc['members']:
+                            mfid = m.get('fid')
+                            if mfid and str(mfid).lower() != 'none':
+                                mfid = str(mfid).strip()
+                                if mfid not in unique_members_data:
+                                    unique_members_data[mfid] = {
+                                        'guild_id': int(guild_id),
+                                        'fid': mfid,
+                                        'nickname': m.get('nickname', 'Unknown'),
+                                        'furnace_lv': int(m.get('furnace_lv', 0)),
+                                        'avatar_image': m.get('avatar_image', ''),
+                                        'added_by': int(m.get('added_by', 0)),
+                                        'added_at': m.get('added_at', datetime.utcnow().isoformat())
+                                    }
+                        docs_to_delete.append((db.name, doc_id))
+
+            msg = f'Found {total_found} docs. Identified {len(unique_members_data)} unique FIDs.\n'
+            msg += f'Docs to delete: {len(docs_to_delete)}\n'
+            
+            if docs_to_delete:
+                deleted = 0
+                for db_name, doc_id in docs_to_delete:
+                    for d in AutoRedeemMembersAdapter._get_target_dbs():
+                        if d.name == db_name:
+                            res = d['auto_redeem_members'].delete_one({'_id': doc_id})
+                            deleted += res.deleted_count
+                            break
+                msg += f'Deleted {deleted} duplicate/legacy docs.\n'
+                
+                main_coll = db_main['auto_redeem_members']
+                upserted = 0
+                for fid, data in unique_members_data.items():
+                    data.pop('_id', None)
+                    res = main_coll.update_one(
+                        {'guild_id': int(guild_id), 'fid': str(fid)},
+                        {'$set': data},
+                        upsert=True
+                    )
+                    if res.upserted_id or res.modified_count > 0:
+                        upserted += 1
+                msg += f'Upserted {upserted} unique members.\n'
+            
+            await ctx.send(msg)
+            self.logger.info(msg)
+        except Exception as e:
+            self.logger.error(f'Error in cleanup_ice: {e}')
+            await ctx.send(f'Error: {e}')
     
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction):
@@ -6312,620 +6647,40 @@ class ManageGiftCode(commands.Cog):
                                 
                                 @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, emoji="❌")
                                 async def cancel(self, btn_interaction: discord.Interaction, button: discord.ui.Button):
-                                    embed = discord.Embed(
-                                        title="❌ Deletion Cancelled",
-                                        description="The code was not deleted.",
-                                        color=0x5865F2
-                                    )
-                                    await btn_interaction.response.edit_message(embed=embed, view=None)
+                                    await btn_interaction.response.send_message("❌ Deletion cancelled.", ephemeral=True)
+                                    try:
+                                        await btn_interaction.message.delete()
+                                    except:
+                                        pass
                             
-                            # Show confirmation dialog
-                            confirm_embed = discord.Embed(
-                                title="⚠️ Confirm Code Deletion",
-                                description=(
-                                    f"Are you sure you want to **permanently delete** this code?\n\n"
-                                    f"**Code:** `{selected_code}`\n\n"
-                                    "⚠️ **This action cannot be undone!**\n"
-                                    "The code will be removed from both MongoDB and SQLite databases."
-                                ),
-                                color=0xED4245
+                            view = ConfirmDeleteView(selected_code, self.cog)
+                            await select_interaction.response.send_message(
+                                f"⚠️ **Are you sure** you want to delete gift code `{selected_code}`?\n"
+                                "This will remove it from all active redemption lists.",
+                                view=view,
+                                ephemeral=True
                             )
-                            
-                            confirm_view = ConfirmDeleteView(selected_code, self.cog)
-                            await select_interaction.response.edit_message(embed=confirm_embed, view=confirm_view)
-                        
                         except Exception as e:
-                            self.cog.logger.exception(f"Error in delete confirmation: {e}")
+                            self.cog.logger.error(f"Error in confirm_delete: {e}")
                             try:
-                                await select_interaction.followup.send(
-                                    f"❌ An error occurred: {str(e)}",
-                                    ephemeral=True
-                                )
+                                await select_interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
                             except:
                                 pass
-                
+
                 view = CodeDeleteSelectView(recent_codes, self)
-                
                 embed = discord.Embed(
                     title="🗑️ Delete Gift Code",
-                    description=(
-                        f"**Total Codes:** {len(all_codes)}\n"
-                        f"**Showing:** {len(recent_codes)} most recent\n\n"
-                        "Select a code below to permanently delete it.\n\n"
-                        "⚠️ **Warning:** Deleted codes cannot be recovered!\n"
-                        "*You will be asked to confirm before deletion.*"
-                    ),
+                    description="Select a code below to permanently delete it from the database.",
                     color=0xED4245
                 )
-                embed.set_footer(text="Whiteout Survival | Gift Code Management")
-                
                 await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-                
             except Exception as e:
-                self.logger.exception(f"Error in delete code: {e}")
+                self.logger.exception(f"Error in delete code menu: {e}")
                 try:
-                    await interaction.followup.send(
-                        f"❌ An error occurred: {str(e)}",
-                        ephemeral=True
-                    )
+                    await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
                 except:
                     pass
             return
-
-
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        """Monitor configured channels for FID codes"""
-        # Ignore bot messages
-        if message.author.bot:
-            return
-            
-        # Ignore DM messages
-        if not message.guild:
-            return
-        
-        # Check if message is in a monitored channel
-        try:
-            # Import at method level to avoid scope issues
-            from db.mongo_adapters import mongo_enabled, AutoRedeemChannelsAdapter
-            
-            monitored_channel_id = None
-            
-            # Check MongoDB first
-            if mongo_enabled() and AutoRedeemChannelsAdapter:
-                try:
-                    channel_config = AutoRedeemChannelsAdapter.get_channel(message.guild.id)
-                    if channel_config:
-                        monitored_channel_id = channel_config.get('channel_id')
-                        self.logger.debug(f"Found monitored channel {monitored_channel_id} in MongoDB for guild {message.guild.id}")
-                except Exception as e:
-                    self.logger.warning(f"Failed to get channel from MongoDB: {e}")
-            
-            # Fallback to SQLite if MongoDB didn't return a result
-            if monitored_channel_id is None:
-                self.cursor.execute(
-                    "SELECT channel_id FROM auto_redeem_channels WHERE guild_id = ?",
-                    (message.guild.id,)
-                )
-                result = self.cursor.fetchone()
-                if result:
-                    monitored_channel_id = result[0]
-                    self.logger.debug(f"Found monitored channel {monitored_channel_id} in SQLite for guild {message.guild.id}")
-                    
-                    # Sync to MongoDB if found in SQLite but not in MongoDB
-                    if mongo_enabled() and AutoRedeemChannelsAdapter:
-                        try:
-                            AutoRedeemChannelsAdapter.set_channel(
-                                message.guild.id,
-                                monitored_channel_id,
-                                message.author.id
-                            )
-                            self.logger.info(f"Synced channel config to MongoDB for guild {message.guild.id}")
-                        except Exception as e:
-                            self.logger.warning(f"Failed to sync channel to MongoDB: {e}")
-            
-            # Check if current channel is the monitored channel
-            if not monitored_channel_id or monitored_channel_id != message.channel.id:
-                return  # Not a monitored channel
-            
-            # Extract 9-digit codes from message
-            fid_pattern = r'\b\d{9}\b'
-            fids = re.findall(fid_pattern, message.content)
-            
-            if not fids:
-                return  # No FIDs found
-            
-            self.logger.info(f"Detected {len(fids)} FID(s) in monitored channel {message.channel.id} (guild {message.guild.id}): {fids}")
-            
-            # Process each FID
-            for fid in fids:
-                try:
-                    self.logger.debug(f"Processing FID {fid} from user {message.author.id}")
-                    
-                    # Check if already exists
-                    if self.AutoRedeemDB.member_exists(self, message.guild.id, fid):
-                        self.logger.info(f"FID {fid} already exists in auto-redeem list for guild {message.guild.id}")
-                        await message.reply(
-                            f"⚠️ {message.author.mention} Your FID `{fid}` is already in the auto-redeem list!",
-                            delete_after=10
-                        )
-                        continue
-                    
-                    # Fetch player data from API
-                    self.logger.debug(f"Fetching player data for FID {fid}")
-                    player_data = await self.fetch_player_data(fid)
-                    
-                    if not player_data:
-                        self.logger.warning(f"Invalid FID {fid} - API returned no data")
-                        await message.reply(
-                            f"❌ {message.author.mention} Invalid FID `{fid}`. Please check and try again.",
-                            delete_after=15
-                        )
-                        continue
-                    
-                    # Add to auto-redeem list
-                    member_data = {
-                        'nickname': player_data['nickname'],
-                        'furnace_lv': player_data['furnace_lv'],
-                        'avatar_image': player_data.get('avatar_image', ''),
-                        'added_by': message.author.id
-                    }
-                    
-                    self.logger.debug(f"Adding FID {fid} ({player_data['nickname']}) to auto-redeem list")
-                    success = self.AutoRedeemDB.add_member(
-                        self,
-                        message.guild.id,
-                        fid,
-                        member_data
-                    )
-                    
-                    if success:
-                        formatted_fc = self.format_furnace_level(player_data['furnace_lv'])
-                        embed = discord.Embed(
-                            title="✨ Auto-Redeem Registered",
-                            description=f"✅ **{player_data['nickname']}** is now enrolled for automated gift codes.",
-                            color=0x2ecc71
-                        )
-                        embed.add_field(name="Player ID", value=f"`{fid}`", inline=True)
-                        embed.add_field(name="Furnace", value=f"`{formatted_fc}`", inline=True)
-                        embed.add_field(name="🚀 Auto-Processing", value="`Initializing...`", inline=False)
-                        
-                        # Add player avatar if available
-                        avatar = player_data.get('avatar_image')
-                        if avatar and str(avatar).startswith('http'):
-                            embed.set_thumbnail(url=avatar)
-                        
-                        self._set_embed_footer(embed, message.guild)
-                        
-                        sent_msg = await message.reply(embed=embed)
-                        self.logger.info(f"✅ Successfully auto-added {player_data['nickname']} ({fid}) from channel in guild {message.guild.id}")
-                        
-                        # Start immediate redemption process for active codes
-                        async def process_initial_redemptions():
-                            try:
-                                # Get all valid/active gift codes from unified source
-                                active_codes_map = await self.get_active_gift_codes_consolidated()
-                                active_codes = list(active_codes_map.keys())
-                                
-                                if not active_codes:
-                                    embed.set_field_at(2, name="🚀 Auto-Processing", value="`No active codes found to redeem.`", inline=False)
-                                    await sent_msg.edit(embed=embed)
-                                    return
-
-                                total = len(active_codes)
-                                embed.set_field_at(2, name="🚀 Auto-Processing", value=f"`Checking {total} active codes...`", inline=False)
-                                await sent_msg.edit(embed=embed)
-                                
-                                redeemed = 0
-                                already = 0
-                                failed = 0
-                                
-                                # Process each code
-                                for i, code in enumerate(active_codes):
-                                    embed.set_field_at(2, name="🚀 Auto-Processing", value=f"`Processing code {i+1}/{total}:` **`{code}`**", inline=False)
-                                    await sent_msg.edit(embed=embed)
-                                    
-                                    # Use the core redemption method
-                                    status, s_count, a_count, f_count = await self._redeem_for_member(
-                                        message.guild.id, 
-                                        fid, 
-                                        player_data['nickname'], 
-                                        player_data['furnace_lv'], 
-                                        code
-                                    )
-                                    
-                                    redeemed += s_count
-                                    already += a_count
-                                    failed += f_count
-                                    
-                                    # Small delay between codes to be safe with rate limits
-                                    await asyncio.sleep(1)
-                                
-                                # Final update
-                                embed.set_field_at(2, name="🚀 Redemption Results", value=(
-                                    f"✅ Success: `{redeemed}`\n"
-                                    f"ℹ️ Already Claimed: `{already}`\n"
-                                    f"❌ Failed: `{failed}`"
-                                ), inline=False)
-                                embed.title = "✨ Auto-Redeem Complete"
-                                await sent_msg.edit(embed=embed)
-                                
-                            except Exception as e:
-                                self.logger.error(f"Error in initial redemption process for FID {fid}: {e}")
-                                embed.set_field_at(2, name="🚀 Auto-Processing", value="`⚠️ Error during batch redemption.`", inline=False)
-                                try: await sent_msg.edit(embed=embed)
-                                except: pass
-                        
-                        # Run in background
-                        asyncio.create_task(process_initial_redemptions())
-                    else:
-                        self.logger.error(f"Failed to add ID {fid} to database for guild {message.guild.id}")
-                        await message.reply(
-                            f"❌ {message.author.mention} Failed to add ID `{fid}`. It may already exist.",
-                            delete_after=10
-                        )
-                        
-                except Exception as e:
-                    self.logger.error(f"Error processing ID {fid} from channel: {e}", exc_info=True)
-                    await message.reply(
-                        f"❌ {message.author.mention} An error occurred while processing ID `{fid}`.",
-                        delete_after=10
-                    )
-                    
-        except Exception as e:
-            self.logger.error(f"Error in on_message FID detection: {e}", exc_info=True)
-    
-
-    @commands.command(name="stop_auto_redeem", aliases=["stop_redeem"])
-    async def stop_auto_redeem_text(self, ctx):
-        """Stop the ongoing auto-redeem process for this server"""
-        if not await self.check_admin_permission(ctx.author.id):
-            await ctx.reply("❌ Only administrators can use this command.", delete_after=5)
-            return
-            
-        guild_id = ctx.guild.id
-        
-        # Set stop signal to halt current execution
-        self.stop_signals[guild_id] = True
-        
-        # PERSISTENCE: Disable auto-redeem in database to prevent future runs
-        # Update MongoDB first
-        _mongo_enabled = globals().get('mongo_enabled', lambda: False)
-        mongo_saved = False
-        if _mongo_enabled() and AutoRedeemSettingsAdapter:
-            try:
-                self.logger.info(f"📊 MongoDB: Saving auto-redeem DISABLED for guild {guild_id} (via STOP command)...")
-                AutoRedeemSettingsAdapter.set_enabled(
-                    guild_id,
-                    False,
-                    ctx.author.id
-                )
-                mongo_saved = True
-            except Exception as e:
-                self.logger.error(f"❌ MongoDB: Failed to save auto redeem settings: {e}")
-        
-        # Also update SQLite for backward compatibility
-        try:
-            self.cursor.execute("""
-                INSERT OR REPLACE INTO auto_redeem_settings 
-                (guild_id, enabled, updated_by, updated_at)
-                VALUES (?, 0, ?, ?)
-            """, (guild_id, ctx.author.id, datetime.now()))
-            self.giftcode_db.commit()
-        except Exception as e:
-            self.logger.error(f"❌ SQLite: Failed to save auto redeem settings: {e}")
-            
-        # Check if any redemption is active
-        active_count = 0
-        current_active = []
-        async with self._redemption_lock:
-            for gid, code in self._active_redemptions:
-                if gid == guild_id:
-                    active_count += 1
-                    current_active.append(code)
-        
-        if active_count > 0:
-            codes_str = ", ".join(current_active)
-            await ctx.reply(f"🛑 **Stopping Auto-Redeem**\n\nSignal sent to stop redemption for code(s): `{codes_str}`.\nProcesses should halt shortly.")
-            self.logger.info(f"Stop signal sent for guild {guild_id} by {ctx.author}")
-        else:
-            await ctx.reply("ℹ️ No auto-redeem process is currently running for this server.")
-    @commands.hybrid_command(name="force_ice_clean", description="Force clean up duplicate ICE alliance members", with_app_command=True)
-    @commands.has_permissions(administrator=True)
-    async def force_ice_clean(self, ctx: commands.Context):
-        await ctx.defer()
-        
-        try:
-            from db.mongo_adapters import _get_db, AutoRedeemMembersAdapter
-            from datetime import datetime
-            
-            db_main = _get_db()
-            alliance = db_main['alliance__alliance_list'].find_one({'name': 'ICE'})
-            if not alliance:
-                await ctx.send('ERROR: ICE alliance not found')
-                return
-            
-            guild_id = alliance.get('discord_server_id')
-            if not guild_id:
-                await ctx.send('ERROR: Guild ID not found for ICE')
-                return
-            
-            search_gid = [int(guild_id), str(guild_id)]
-            unique_members_data = {}
-            docs_to_delete = []
-            total_found = 0
-            
-            for db in AutoRedeemMembersAdapter._get_target_dbs():
-                coll = db['auto_redeem_members']
-                # Force list conversion to block synchronous iteration
-                docs = list(coll.find({'guild_id': {'$in': search_gid}}))
-                total_found += len(docs)
-                
-                for doc in docs:
-                    doc_id = doc['_id']
-                    if 'fid' in doc and doc['fid'] and str(doc['fid']).lower() != 'none':
-                        fid = str(doc['fid']).strip()
-                        if fid not in unique_members_data:
-                            unique_members_data[fid] = doc
-                        else:
-                            docs_to_delete.append((db.name, doc_id))
-                    elif 'members' in doc and isinstance(doc['members'], list):
-                        for m in doc['members']:
-                            mfid = m.get('fid')
-                            if mfid and str(mfid).lower() != 'none':
-                                mfid = str(mfid).strip()
-                                if mfid not in unique_members_data:
-                                    unique_members_data[mfid] = {
-                                        'guild_id': int(guild_id),
-                                        'fid': mfid,
-                                        'nickname': m.get('nickname', 'Unknown'),
-                                        'furnace_lv': int(m.get('furnace_lv', 0)),
-                                        'avatar_image': m.get('avatar_image', ''),
-                                        'added_by': int(m.get('added_by', 0)),
-                                        'added_at': m.get('added_at', datetime.utcnow().isoformat())
-                                    }
-                        docs_to_delete.append((db.name, doc_id))
-
-            msg = f'Found {total_found} docs. Identified {len(unique_members_data)} unique FIDs.\n'
-            msg += f'Docs to delete: {len(docs_to_delete)}\n'
-            
-            if docs_to_delete:
-                deleted = 0
-                for db_name, doc_id in docs_to_delete:
-                    for d in AutoRedeemMembersAdapter._get_target_dbs():
-                        if d.name == db_name:
-                            res = d['auto_redeem_members'].delete_one({'_id': doc_id})
-                            deleted += res.deleted_count
-                            break
-                msg += f'Deleted {deleted} duplicate/legacy docs.\n'
-                
-                main_coll = db_main['auto_redeem_members']
-                upserted = 0
-                for fid, data in unique_members_data.items():
-                    data.pop('_id', None)
-                    res = main_coll.update_one(
-                        {'guild_id': int(guild_id), 'fid': str(fid)},
-                        {'$set': data},
-                        upsert=True
-                    )
-                    if res.upserted_id or res.modified_count > 0:
-                        upserted += 1
-                msg += f'Upserted {upserted} unique members.\n'
-            
-            await ctx.send(msg)
-            self.logger.info(msg)
-            
-        except Exception as e:
-            self.logger.error(f'Error in cleanup_ice: {e}')
-            await ctx.send(f'Error: {e}')
-
-
-    async def _auto_redeem_worker_loop(self):
-        """Background worker that processes auto-redeems sequentially to prevent global memory spikes."""
-        await self.bot.wait_until_ready()
-        self.logger.info("👷 Auto-redeem queue worker started")
-        
-        while True:
-            try:
-                # Wait for a job
-                job = await self.auto_redeem_queue.get()
-                guild_id, code, is_recheck = job
-                self.current_job = (guild_id, code)
-                
-                self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code} (Recheck: {is_recheck})")
-                
-                try:
-                    # Await the actual process (runs sequentially for this worker)
-                    await self.process_auto_redeem(guild_id, code, is_recheck=is_recheck)
-                except Exception as e:
-                    self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code}: {e}")
-                finally:
-                    self.current_job = None
-                    self.processed_jobs_count += 1
-                    # Mark this task as done and update pending count for faster status reporting
-                    self.auto_redeem_queue.task_done()
-                    await self._decrement_pending_jobs(code)
-                    
-                    # Small delay between guilds to let memory/network settle
-                    await asyncio.sleep(2.0)
-                    
-            except asyncio.CancelledError:
-                self.logger.info("🛑 Auto-redeem worker stopped.")
-                break
-            except Exception as e:
-                self.current_job = None
-                self.logger.error(f"❌ [WORKER] Critical error in queue loop: {e}")
-                await asyncio.sleep(5.0)
-
-    async def _safe_edit_message(self, interaction: discord.Interaction, **kwargs):
-        """Safely edit an interaction message, falling back to followup if already acknowledged."""
-        try:
-            await interaction.response.edit_message(**kwargs)
-        except discord.errors.HTTPException as e:
-            if e.code == 40060:  # Interaction already acknowledged
-                try:
-                    await interaction.followup.send(ephemeral=True, **kwargs)
-                except Exception as fe:
-                    self.logger.warning(f"Followup also failed after 40060: {fe}")
-            else:
-                raise
-
-    async def _sync_mongo_to_sqlite_on_startup(self):
-        """At startup, pull ALL member/settings data from MongoDB into SQLite for robustness."""
-        await self.bot.wait_until_ready()
-        if not mongo_enabled():
-            return
-        
-        try:
-            self.logger.info("🔄 [STARTUP] Syncing MongoDB auto-redeem data to SQLite...")
-            db = _get_db()
-            
-            # --- Members (handle both V1 array-style and V2 flat docs) ---
-            synced_members = 0
-            skipped = 0
-            try:
-                all_member_docs = list(db['auto_redeem_members'].find({}))
-                self.logger.info(f"📊 [STARTUP] Found {len(all_member_docs)} member docs in MongoDB")
-                
-                for doc in all_member_docs:
-                    try:
-                        guild_id = int(doc.get('guild_id', 0))
-                        if not guild_id:
-                            skipped += 1
-                            continue
-                        
-                        fid = doc.get('fid')
-                        
-                        if fid and str(fid).strip() and str(fid).strip().lower() != 'none':
-                            # V2 flat doc - direct member
-                            fid_str = str(fid).strip()
-                            raw_nick = doc.get('nickname', 'Unknown')
-                            if isinstance(raw_nick, dict): raw_nick = raw_nick.get('nickname', 'Unknown')
-                            nickname = str(raw_nick) if raw_nick else 'Unknown'
-                            furnace_lv = int(doc.get('furnace_lv', 0) or 0)
-                            avatar_image = doc.get('avatar_image', '') or ''
-                            added_by = doc.get('added_by')
-                            added_at = str(doc.get('added_at', '') or '')
-                            self.cursor.execute("""
-                                INSERT OR REPLACE INTO auto_redeem_members
-                                (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            """, (guild_id, fid_str, nickname, furnace_lv, avatar_image, added_by, added_at))
-                            synced_members += 1
-                        
-                        elif 'members' in doc and isinstance(doc['members'], list):
-                            # V1 array-style doc - embedded members list
-                            for member in doc['members']:
-                                try:
-                                    m_fid = member.get('fid')
-                                    if not m_fid or str(m_fid).strip().lower() == 'none':
-                                        continue
-                                    m_fid_str = str(m_fid).strip()
-                                    raw_nick = member.get('nickname', 'Unknown')
-                                    if isinstance(raw_nick, dict): raw_nick = raw_nick.get('nickname', 'Unknown')
-                                    m_nick = str(raw_nick) if raw_nick else 'Unknown'
-                                    m_fl = int(member.get('furnace_lv', 0) or 0)
-                                    m_avatar = member.get('avatar_image', '') or ''
-                                    m_added_by = member.get('added_by')
-                                    m_added_at = str(member.get('added_at', '') or '')
-                                    self.cursor.execute("""
-                                        INSERT OR REPLACE INTO auto_redeem_members
-                                        (guild_id, fid, nickname, furnace_lv, avatar_image, added_by, added_at)
-                                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                                    """, (guild_id, m_fid_str, m_nick, m_fl, m_avatar, m_added_by, m_added_at))
-                                    synced_members += 1
-                                except Exception as inner_e:
-                                    self.logger.warning(f"Failed to sync V1 member: {inner_e}")
-                                    
-                    except Exception as me:
-                        self.logger.warning(f"Failed to sync member doc to SQLite: {me}")
-                
-                self.giftcode_db.commit()
-                self.logger.info(f"✅ [STARTUP] Synced {synced_members} member records from MongoDB to SQLite (skipped {skipped})")
-            except Exception as e:
-                self.logger.error(f"❌ [STARTUP] Member sync failed: {e}")
-
-            # --- Settings ---
-            synced_settings = 0
-            try:
-                if AutoRedeemSettingsAdapter:
-                    all_settings = AutoRedeemSettingsAdapter.get_all_settings()
-                    for s in (all_settings or []):
-                        try:
-                            guild_id = int(s.get('guild_id', 0))
-                            enabled = 1 if s.get('enabled', False) else 0
-                            updated_by = s.get('updated_by')
-                            updated_at = str(s.get('updated_at', '') or '')
-                            if not guild_id:
-                                continue
-                            self.cursor.execute("""
-                                INSERT OR REPLACE INTO auto_redeem_settings
-                                (guild_id, enabled, updated_by, updated_at)
-                                VALUES (?, ?, ?, ?)
-                            """, (guild_id, enabled, updated_by, updated_at))
-                            synced_settings += 1
-                        except Exception as se:
-                            self.logger.warning(f"Failed to sync settings for guild {s.get('guild_id')}: {se}")
-                    self.giftcode_db.commit()
-                    self.logger.info(f"✅ [STARTUP] Synced {synced_settings} guild settings from MongoDB to SQLite")
-            except Exception as e:
-                self.logger.error(f"❌ [STARTUP] Settings sync failed: {e}")
-
-        except Exception as e:
-            self.logger.error(f"❌ [STARTUP] MongoDB→SQLite sync failed: {e}")
-
-    async def fetch_codes_from_api(self):
-        """Fetch gift codes from the API"""
-        try:
-            connector = aiohttp.TCPConnector(ssl=self.ssl_context)
-            async with aiohttp.ClientSession(connector=connector) as session:
-                headers = {
-                    'X-API-Key': self.api_key,
-                    'Content-Type': 'application/json'
-                }
-                
-                await self._wait_for_rate_limit()
-                
-                async with session.get(self.api_url, headers=headers) as response:
-                    if response.status != 200:
-                        self.logger.error(f"API request failed with status {response.status}")
-                        return []
-                    
-                    response_text = await response.text()
-                    result = json.loads(response_text)
-                    
-                    if 'error' in result or 'detail' in result:
-                        error_msg = result.get('error', result.get('detail', 'Unknown error'))
-                        self.logger.error(f"API returned error: {error_msg}")
-                        return []
-                    
-                    api_giftcodes = result.get('codes', [])
-                    self.logger.info(f"Fetched {len(api_giftcodes)} codes from API")
-                    
-                    # Parse codes
-                    valid_codes = []
-                    for code_line in api_giftcodes:
-                        parts = code_line.strip().split()
-                        if len(parts) != 2:
-                            continue
-                        
-                        code, date_str = parts
-                        if not re.match("^[a-zA-Z0-9]+$", code):
-                            continue
-                        
-                        try:
-                            date_obj = datetime.strptime(date_str, "%d.%m.%Y")
-                            valid_codes.append((code, date_obj.strftime("%Y-%m-%d")))
-                        except ValueError:
-                            continue
-                    
-                    return valid_codes
-        except Exception as e:
-            self.logger.exception(f"Error fetching codes from API: {e}")
-            return []
-
-
-
 
 async def setup(bot):
     await bot.add_cog(ManageGiftCode(bot))

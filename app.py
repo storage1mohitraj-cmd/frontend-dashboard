@@ -263,6 +263,7 @@ def ensure_db_tables():
         c.execute('''CREATE TABLE IF NOT EXISTS auto_redeem_settings (
             guild_id INTEGER PRIMARY KEY,
             enabled INTEGER DEFAULT 0,
+            priority INTEGER DEFAULT 999,
             updated_by INTEGER,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )''')

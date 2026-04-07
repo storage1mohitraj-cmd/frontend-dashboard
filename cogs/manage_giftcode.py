@@ -158,6 +158,14 @@ class ManageGiftCode(commands.Cog):
                 self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN auto_redeem_processed INTEGER DEFAULT 0")
                 self.giftcode_db.commit()
                 self.logger.info("Schema migration successful.")
+                
+            self.cursor.execute("PRAGMA table_info(auto_redeem_settings)")
+            settings_cols = [col[1] for col in self.cursor.fetchall()]
+            if 'priority' not in settings_cols:
+                self.logger.info("Schema migration: Adding 'priority' column to auto_redeem_settings table...")
+                self.cursor.execute("ALTER TABLE auto_redeem_settings ADD COLUMN priority INTEGER DEFAULT 999")
+                self.giftcode_db.commit()
+                self.logger.info("Schema migration priority successful.")
         except Exception as e:
             self.logger.error(f"Error checking/migrating schema: {e}")
         
@@ -2849,8 +2857,9 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error in trigger_auto_redeem_for_new_codes: {e}")
 
     async def _get_enabled_guilds(self):
-        """Fetch all guilds with auto-redeem enabled from BOTH MongoDB and SQLite, then deduplicate."""
-        enabled_guilds_set = set()
+        """Fetch all guilds with auto-redeem enabled from BOTH MongoDB and SQLite, then deduplicate AND SORT by priority."""
+        import random
+        enabled_guilds_dict = {}
         
         # 1. Try MongoDB
         if mongo_enabled() and AutoRedeemSettingsAdapter and hasattr(AutoRedeemSettingsAdapter, 'get_all_settings'):
@@ -2858,27 +2867,39 @@ class ManageGiftCode(commands.Cog):
                 self.logger.info("📊 Checking MongoDB for enabled guilds...")
                 all_settings = AutoRedeemSettingsAdapter.get_all_settings()
                 if all_settings:
-                    mongo_enabled_guilds = [int(s['guild_id']) for s in all_settings if s.get('enabled', False)]
-                    self.logger.info(f"✅ MongoDB: Found {len(mongo_enabled_guilds)} enabled guilds")
-                    for gid in mongo_enabled_guilds:
-                        enabled_guilds_set.add(gid)
+                    mongo_count = 0
+                    for s in all_settings:
+                        if s.get('enabled', False):
+                            gid = int(s['guild_id'])
+                            priority = s.get('priority', 999)
+                            enabled_guilds_dict[gid] = priority
+                            mongo_count += 1
+                    self.logger.info(f"✅ MongoDB: Found {mongo_count} enabled guilds")
             except Exception as e:
                 self.logger.error(f"❌ MongoDB get_all_settings failed: {e}")
         
         # 2. Try SQLite (Always check SQLite as backup/source)
         try:
             self.logger.info("📂 Checking SQLite for enabled guilds...")
-            self.cursor.execute("SELECT guild_id FROM auto_redeem_settings WHERE enabled = 1")
+            self.cursor.execute("SELECT guild_id, priority FROM auto_redeem_settings WHERE enabled = 1")
             sqlite_rows = self.cursor.fetchall()
             self.logger.info(f"✅ SQLite: Found {len(sqlite_rows)} enabled guilds")
             for row in sqlite_rows:
-                enabled_guilds_set.add(int(row[0]))
+                gid = int(row[0])
+                if gid not in enabled_guilds_dict:
+                    enabled_guilds_dict[gid] = int(row[1]) if len(row) > 1 and row[1] is not None else 999
         except Exception as e:
             self.logger.error(f"❌ SQLite query failed: {e}")
         
+        # Sort by priority ascending, then randomize among the same priority
+        # enabled_guilds_dict = {guild_id: priority}
+        # We'll map them as (priority, random_float, guild_id)
+        sortable_list = [(priority, random.random(), gid) for gid, priority in enabled_guilds_dict.items()]
+        sortable_list.sort() # Sorts by priority first, then random
+        
         # Convert back to expected format: list of tuples [(gid,), ...]
-        final_list = [(gid,) for gid in enabled_guilds_set]
-        self.logger.info(f"📊 TOTAL UNIQUE ENABLED GUILDS: {len(final_list)}")
+        final_list = [(item[2],) for item in sortable_list]
+        self.logger.info(f"📊 TOTAL UNIQUE ENABLED GUILDS (Sorted): {len(final_list)}")
         return final_list
 
     async def _process_single_code(self, code, date, enabled_guilds, is_recheck):

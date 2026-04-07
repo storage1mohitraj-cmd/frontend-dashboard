@@ -1313,6 +1313,7 @@ class AutoRedeemSettingsAdapter:
                 return None
             return {
                 'enabled': bool(doc.get('enabled', False)),
+                'priority': int(doc.get('priority', 999)),
                 'updated_by': int(doc.get('updated_by', 0)),
                 'updated_at': doc.get('updated_at')
             }
@@ -1335,7 +1336,10 @@ class AutoRedeemSettingsAdapter:
                         'updated_by': int(updated_by),
                         'updated_at': now
                     },
-                    '$setOnInsert': {'created_at': now}
+                    '$setOnInsert': {
+                        'created_at': now,
+                        'priority': 999
+                    }
                 },
                 upsert=True
             )
@@ -1343,6 +1347,34 @@ class AutoRedeemSettingsAdapter:
             return True
         except Exception as e:
             logger.error(f'Failed to set auto redeem settings for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    def set_priority(guild_id: int, priority: int, updated_by: int) -> bool:
+        """Set auto redeem priority for a guild"""
+        try:
+            db = _get_db_main()
+            now = datetime.utcnow().isoformat()
+            db[AutoRedeemSettingsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'priority': int(priority),
+                        'updated_by': int(updated_by),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {
+                        'created_at': now,
+                        'enabled': False
+                    }
+                },
+                upsert=True
+            )
+            logger.info(f'Set auto redeem priority={priority} for guild {guild_id}')
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set auto redeem priority for guild {guild_id}: {e}')
             return False
 
     @staticmethod
@@ -1355,6 +1387,7 @@ class AutoRedeemSettingsAdapter:
                 {
                     'guild_id': int(d.get('guild_id', d.get('_id'))),
                     'enabled': bool(d.get('enabled', False)),
+                    'priority': int(d.get('priority', 999)),
                     'updated_by': int(d.get('updated_by', 0)),
                     'updated_at': d.get('updated_at'),
                     'created_at': d.get('created_at')
@@ -1375,6 +1408,7 @@ class AutoRedeemSettingsAdapter:
                 return None
             return {
                 'enabled': bool(doc.get('enabled', False)),
+                'priority': int(doc.get('priority', 999)),
                 'updated_by': int(doc.get('updated_by', 0)),
                 'updated_at': doc.get('updated_at')
             }
@@ -1397,13 +1431,43 @@ class AutoRedeemSettingsAdapter:
                         'updated_by': int(updated_by),
                         'updated_at': now
                     },
-                    '$setOnInsert': {'created_at': now}
+                    '$setOnInsert': {
+                        'created_at': now,
+                        'priority': 999
+                    }
                 },
                 upsert=True
             )
             return True
         except Exception as e:
             logger.error(f'Failed to set auto redeem settings (async) for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def set_priority_async(guild_id: int, priority: int, updated_by: int) -> bool:
+        """Set auto redeem priority state for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AutoRedeemSettingsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'priority': int(priority),
+                        'updated_by': int(updated_by),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {
+                        'created_at': now,
+                        'enabled': False
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set auto redeem priority (async) for guild {guild_id}: {e}')
             return False
 
     @staticmethod
@@ -1417,6 +1481,7 @@ class AutoRedeemSettingsAdapter:
                 {
                     'guild_id': int(d.get('guild_id', d.get('_id'))),
                     'enabled': bool(d.get('enabled', False)),
+                    'priority': int(d.get('priority', 999)),
                     'updated_by': int(d.get('updated_by', 0)),
                     'updated_at': d.get('updated_at'),
                     'created_at': d.get('created_at')

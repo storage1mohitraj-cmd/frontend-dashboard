@@ -5225,6 +5225,129 @@ class BotOperations(commands.Cog):
                         ephemeral=True
                     )
 
+        elif custom_id == "set_auto_redeem_order":
+            try:
+                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
+                result = self.settings_cursor.fetchone()
+                if (not result or result[0] != 1) and not await is_bot_owner(self.bot, interaction.user.id):
+                    await interaction.response.send_message("❌ Only global administrators can configure the auto-redeem server ordering.", ephemeral=True)
+                    return
+
+                from db.mongo_adapters import AutoRedeemSettingsAdapter
+                from db_utils import get_db_connection
+                
+                all_settings_str = "No auto-redeem settings found."
+                try:
+                    all_mongo = AutoRedeemSettingsAdapter.get_all_settings() if hasattr(AutoRedeemSettingsAdapter, 'get_all_settings') else []
+                    
+                    combined = {}
+                    with get_db_connection('giftcode.sqlite') as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT guild_id, enabled, priority FROM auto_redeem_settings")
+                        for row in cursor.fetchall():
+                            if int(row[1]) == 1:
+                                priority = int(row[2]) if len(row) > 2 and row[2] is not None else 999
+                                combined[int(row[0])] = {"priority": priority}
+                                
+                    for s in all_mongo:
+                        if s.get('enabled'):
+                            combined[int(s['guild_id'])] = {"priority": s.get('priority', 999)}
+                    
+                    if combined:
+                        lines = []
+                        for gid, data in sorted(combined.items(), key=lambda x: x[1]['priority']):
+                            guild = self.bot.get_guild(gid)
+                            g_name = guild.name if guild else str(gid)
+                            lines.append(f"• **Priority {data['priority']}** : {g_name} (`{gid}`)")
+                        all_settings_str = "\n".join(lines)
+                except Exception as e:
+                    print(f"Error fetching auto-redeem settings order: {e}")
+                    
+                embed = discord.Embed(
+                    title="⚙️ Auto-Redeem Priority Settings",
+                    description=(
+                        "Priority determines which server receives gift codes first during Auto Redeem.\n"
+                        "Servers with a **lower number** run first (e.g., priority `1` runs before `999`).\n"
+                        "Servers with the same priority run in a random order.\n\n"
+                        "**Current Enabled Servers:**\n"
+                        f"{all_settings_str}"
+                    ),
+                    color=discord.Color.blue()
+                )
+                
+                view = discord.ui.View()
+                view.add_item(discord.ui.Button(
+                    label="Change Server Priority",
+                    style=discord.ButtonStyle.success,
+                    custom_id="change_autoredeem_priority"
+                ))
+                view.add_item(discord.ui.Button(
+                    label="Back",
+                    style=discord.ButtonStyle.secondary,
+                    custom_id="bot_operations"
+                ))
+                
+                await interaction.response.edit_message(embed=embed, view=view)
+            except Exception as e:
+                print(f"set_auto_redeem_order error: {e}")
+                if not interaction.response.is_done():
+                    await interaction.response.send_message("❌ Error loading settings.", ephemeral=True)
+                    
+        elif custom_id == "change_autoredeem_priority":
+            try:
+                self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
+                result = self.settings_cursor.fetchone()
+                if (not result or result[0] != 1) and not await is_bot_owner(self.bot, interaction.user.id):
+                    return
+                
+                class PriorityModal(discord.ui.Modal, title="Set Server Priority"):
+                    guild_id = discord.ui.TextInput(
+                        label="Server ID (Guild ID)",
+                        placeholder="e.g. 1234567890",
+                        max_length=25,
+                        required=True
+                    )
+                    priority = discord.ui.TextInput(
+                        label="Priority Number",
+                        placeholder="Lower number = Earlier (e.g. 1)",
+                        default="999",
+                        max_length=4,
+                        required=True
+                    )
+                    
+                    async def on_submit(self, modal_int: discord.Interaction):
+                        try:
+                            gid = int(self.guild_id.value.strip())
+                            prio = int(self.priority.value.strip())
+                            
+                            from db.mongo_adapters import AutoRedeemSettingsAdapter
+                            from config import mongo_enabled
+                            from db_utils import get_db_connection
+                            
+                            # MongoDB
+                            if mongo_enabled() and AutoRedeemSettingsAdapter and hasattr(AutoRedeemSettingsAdapter, 'set_priority'):
+                                AutoRedeemSettingsAdapter.set_priority(gid, prio, modal_int.user.id)
+                            
+                            # SQLite
+                            with get_db_connection('giftcode.sqlite') as conn:
+                                cursor = conn.cursor()
+                                cursor.execute(
+                                    "UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?",
+                                    (prio, modal_int.user.id, gid)
+                                )
+                                conn.commit()
+                            
+                            await modal_int.response.send_message(f"✅ Set priority for server `{gid}` to **{prio}**.", ephemeral=True)
+                        except ValueError:
+                            await modal_int.response.send_message("❌ Invalid input. Please enter valid numbers.", ephemeral=True)
+                        except Exception as e:
+                            print(f"Priority modal error: {e}")
+                            await modal_int.response.send_message("❌ Database error occurred.", ephemeral=True)
+                            
+                await interaction.response.send_modal(PriorityModal())
+            except Exception as e:
+                print(f"change_autoredeem_priority error: {e}")
+
         elif custom_id == "check_updates":
             try:
                 self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
@@ -5421,6 +5544,13 @@ class BotOperations(commands.Cog):
                 emoji="🌐",
                 style=discord.ButtonStyle.success,
                 custom_id="remote_access",
+                row=4
+            ))
+            view.add_item(discord.ui.Button(
+                label="Set Auto-Redeem Order",
+                emoji="⚙️",
+                style=discord.ButtonStyle.primary,
+                custom_id="set_auto_redeem_order",
                 row=4
             ))
             view.add_item(discord.ui.Button(

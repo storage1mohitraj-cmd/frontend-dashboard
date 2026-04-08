@@ -2785,6 +2785,16 @@ class ManageGiftCode(commands.Cog):
     async def notify_admins_new_codes(self, new_codes):
         """Notify global administrators about new gift codes"""
         try:
+            # Trigger auto-redeem for all guilds that have it enabled
+            await self.trigger_auto_redeem_for_new_codes(new_codes)
+
+            # Trigger immediate auto-posting to configured channels
+            try:
+                await giftcode_poster.run_now_and_report(self.bot)
+                self.logger.info("🚀 Triggered immediate gift code auto-posting")
+            except Exception as e:
+                self.logger.error(f"Error triggering immediate auto-posting: {e}")
+
             # Get global admin IDs
             self.settings_cursor.execute("SELECT id FROM admin WHERE is_initial = 1")
             admin_ids = self.settings_cursor.fetchall()
@@ -2817,19 +2827,9 @@ class ManageGiftCode(commands.Cog):
                             self.logger.info(f"Notified admin {admin_id[0]} about new code {code}")
                     except Exception as e:
                         self.logger.error(f"Error notifying admin {admin_id[0]}: {e}")
-            
-            # Trigger auto-redeem for all guilds that have it enabled
-            await self.trigger_auto_redeem_for_new_codes(new_codes)
-
-            # Trigger immediate auto-posting to configured channels
-            try:
-                await giftcode_poster.run_now_and_report(self.bot)
-                self.logger.info("🚀 Triggered immediate gift code auto-posting")
-            except Exception as e:
-                self.logger.error(f"Error triggering immediate auto-posting: {e}")
         
         except Exception as e:
-            self.logger.exception(f"Error notifying admins: {e}")
+            self.logger.exception(f"Error notifying admins/triggering auto-redeem: {e}")
     
     async def trigger_auto_redeem_for_new_codes(self, new_codes, is_recheck=False):
         """Trigger auto-redeem for all guilds with auto-redeem enabled"""

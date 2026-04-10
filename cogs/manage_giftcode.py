@@ -3115,10 +3115,13 @@ class ManageGiftCode(commands.Cog):
                     # Check if already exists
                     if await self.AutoRedeemDB.member_exists_async(self, message.guild.id, fid):
                         self.logger.info(f"FID {fid} already exists in auto-redeem list for guild {message.guild.id}")
-                        await message.reply(
-                            f"⚠️ {message.author.mention} Your FID `{fid}` is already in the auto-redeem list!",
-                            delete_after=10
+                        embed = discord.Embed(
+                            title="⚠️ Already Registered",
+                            description=f"{message.author.mention} Your Player ID `{fid}` is already enrolled for automated gift codes in this server.",
+                            color=0xF1C40F
                         )
+                        self._set_embed_footer(embed, message.guild)
+                        await message.reply(embed=embed)
                         continue
                     
                     # Fetch player data from API

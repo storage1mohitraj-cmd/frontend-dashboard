@@ -1093,16 +1093,6 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 cog_instance.logger.error(f"Error in member_exists_async: {e}")
                 return False
-                
-                # Fallback to SQLite
-                cog_instance.cursor.execute(
-                    "SELECT 1 FROM auto_redeem_members WHERE guild_id = ? AND fid = ? LIMIT 1",
-                    (guild_id, fid)
-                )
-                return cog_instance.cursor.fetchone() is not None
-            except Exception as e:
-                cog_instance.logger.error(f"Error checking auto-redeem member: {e}")
-                return False
         
         @staticmethod
         def sync_members_from_sqlite(cog_instance, guild_id=None):
@@ -3123,7 +3113,7 @@ class ManageGiftCode(commands.Cog):
                     self.logger.debug(f"Processing FID {fid} from user {message.author.id}")
                     
                     # Check if already exists
-                    if self.AutoRedeemDB.member_exists(self, message.guild.id, fid):
+                    if await self.AutoRedeemDB.member_exists_async(self, message.guild.id, fid):
                         self.logger.info(f"FID {fid} already exists in auto-redeem list for guild {message.guild.id}")
                         await message.reply(
                             f"⚠️ {message.author.mention} Your FID `{fid}` is already in the auto-redeem list!",
@@ -4452,7 +4442,7 @@ class ManageGiftCode(commands.Cog):
                         
                         for fid, custom_nickname in fid_entries:
                             # Check if already exists
-                            if self.cog.AutoRedeemDB.member_exists(self.cog, modal_interaction.guild.id, fid):
+                            if await self.cog.AutoRedeemDB.member_exists_async(self.cog, modal_interaction.guild.id, fid):
                                 results.append(f"❌ Already exists: `{fid}`")
                                 fail_count += 1
                                 continue

@@ -886,7 +886,12 @@ class RemoteAccess(commands.Cog):
                 description=(
                     f"**Sending to:** {channel.mention}\n"
                     f"**Server:** {guild.name}\n\n"
-                    "Select the type of message you want to send:"
+                    "Select the type of message you want to send:\n\n"
+                    "📝 **Plain Text** — raw message\n"
+                    "🔔 **Tag User & Send** — pick a member → real @mention\n"
+                    "📣 **Tag Role & Send** — pick a role → real role ping\n"
+                    "🎨 **Embed** — rich embed card\n"
+                    "📢 **Announcement** — @everyone / @here / role ping"
                 ),
                 color=0x5865F2
             )
@@ -956,7 +961,255 @@ class RemoteAccess(commands.Cog):
             
             plain_button.callback = send_plain_text
             view.add_item(plain_button)
-            
+
+            # ── Tag User & Send ──────────────────────────────────────────────
+            tag_user_button = discord.ui.Button(
+                label="Tag User & Send",
+                emoji="🔔",
+                style=discord.ButtonStyle.success,
+                custom_id="send_tag_user"
+            )
+
+            async def send_tag_user(button_int: discord.Interaction):
+                """Step 1: pick a member from the server, then type your message."""
+                try:
+                    # Fetch up to 25 non-bot members, sorted by display name
+                    members = sorted(
+                        [m for m in guild.members if not m.bot],
+                        key=lambda m: m.display_name.lower()
+                    )[:25]
+
+                    if not members:
+                        await button_int.response.send_message(
+                            "❌ No members found in this server.",
+                            ephemeral=True
+                        )
+                        return
+
+                    member_options = [
+                        discord.SelectOption(
+                            label=m.display_name[:90],
+                            value=str(m.id),
+                            description=f"@{m.name}" + (f"#{m.discriminator}" if m.discriminator != "0" else ""),
+                            emoji="👤"
+                        )
+                        for m in members
+                    ]
+
+                    member_select = discord.ui.Select(
+                        placeholder="Select a member to tag...",
+                        options=member_options,
+                        custom_id="select_member_to_tag"
+                    )
+
+                    async def member_chosen(sel_int: discord.Interaction):
+                        member_id = int(sel_int.data["values"][0])
+                        target_member = guild.get_member(member_id)
+                        if not target_member:
+                            await sel_int.response.send_message("❌ Member not found.", ephemeral=True)
+                            return
+
+                        from discord.ui import Modal, TextInput
+
+                        class TagUserMessageModal(Modal, title=f"Message to @{target_member.display_name}"):
+                            message_content = TextInput(
+                                label="Message Content",
+                                placeholder=f"Message to send after tagging {target_member.display_name}...",
+                                required=True,
+                                max_length=1900,
+                                style=discord.TextStyle.paragraph
+                            )
+
+                            async def on_submit(self, modal_int: discord.Interaction):
+                                try:
+                                    await modal_int.response.defer(ephemeral=True)
+                                    full_content = f"{target_member.mention} {self.message_content.value}"
+                                    sent_message = await channel.send(
+                                        content=full_content,
+                                        allowed_mentions=discord.AllowedMentions(users=True)
+                                    )
+                                    success_embed = discord.Embed(
+                                        title="✅ Message Sent",
+                                        description=(
+                                            f"**Channel:** {channel.mention}\n"
+                                            f"**Tagged:** {target_member.mention}\n"
+                                            f"**Server:** {guild.name}\n"
+                                            f"**Message ID:** `{sent_message.id}`"
+                                        ),
+                                        color=0x57F287
+                                    )
+                                    success_embed.add_field(
+                                        name="🔗 Jump to Message",
+                                        value=f"[Click here]({sent_message.jump_url})",
+                                        inline=False
+                                    )
+                                    await modal_int.followup.send(embed=success_embed, ephemeral=True)
+                                except discord.Forbidden:
+                                    await modal_int.followup.send(
+                                        "❌ I don't have permission to send messages in this channel.",
+                                        ephemeral=True
+                                    )
+                                except Exception as e:
+                                    print(f"Tag user send error: {e}")
+                                    await modal_int.followup.send(
+                                        f"❌ An error occurred: {str(e)}", ephemeral=True
+                                    )
+
+                        modal = TagUserMessageModal()
+                        await sel_int.response.send_modal(modal)
+
+                    member_select.callback = member_chosen
+
+                    tag_view = discord.ui.View(timeout=120)
+                    tag_view.add_item(member_select)
+
+                    tag_embed = discord.Embed(
+                        title="🔔 Tag User & Send",
+                        description=(
+                            f"**Sending to:** {channel.mention}\n\n"
+                            "Select the member you want to tag in your message.\n"
+                            "After selecting, you'll be able to type your message."
+                        ),
+                        color=0x57F287
+                    )
+
+                    await button_int.response.edit_message(embed=tag_embed, view=tag_view)
+
+                except Exception as e:
+                    print(f"Tag user flow error: {e}")
+                    import traceback; traceback.print_exc()
+                    if not button_int.response.is_done():
+                        await button_int.response.send_message(
+                            f"❌ An error occurred: {str(e)}", ephemeral=True
+                        )
+
+            tag_user_button.callback = send_tag_user
+            view.add_item(tag_user_button)
+
+            # ── Tag Role & Send ──────────────────────────────────────────────
+            tag_role_button = discord.ui.Button(
+                label="Tag Role & Send",
+                emoji="📣",
+                style=discord.ButtonStyle.success,
+                custom_id="send_tag_role"
+            )
+
+            async def send_tag_role(button_int: discord.Interaction):
+                """Step 1: pick a role from the server, then type your message."""
+                try:
+                    # Get pingable roles (exclude @everyone and managed/bot roles), sorted
+                    roles = sorted(
+                        [r for r in guild.roles if not r.is_default() and not r.managed],
+                        key=lambda r: -r.position
+                    )[:25]
+
+                    if not roles:
+                        await button_int.response.send_message(
+                            "❌ No pingable roles found in this server.",
+                            ephemeral=True
+                        )
+                        return
+
+                    role_options = [
+                        discord.SelectOption(
+                            label=r.name[:90],
+                            value=str(r.id),
+                            description=f"{len(r.members)} member(s)",
+                            emoji="📣"
+                        )
+                        for r in roles
+                    ]
+
+                    role_select = discord.ui.Select(
+                        placeholder="Select a role to ping...",
+                        options=role_options,
+                        custom_id="select_role_to_ping"
+                    )
+
+                    async def role_chosen(sel_int: discord.Interaction):
+                        role_id = int(sel_int.data["values"][0])
+                        target_role = guild.get_role(role_id)
+                        if not target_role:
+                            await sel_int.response.send_message("❌ Role not found.", ephemeral=True)
+                            return
+
+                        from discord.ui import Modal, TextInput
+
+                        class TagRoleMessageModal(Modal, title=f"Message to @{target_role.name}"):
+                            message_content = TextInput(
+                                label="Message Content",
+                                placeholder=f"Message to send after pinging {target_role.name}...",
+                                required=True,
+                                max_length=1900,
+                                style=discord.TextStyle.paragraph
+                            )
+
+                            async def on_submit(self, modal_int: discord.Interaction):
+                                try:
+                                    await modal_int.response.defer(ephemeral=True)
+                                    full_content = f"{target_role.mention} {self.message_content.value}"
+                                    sent_message = await channel.send(
+                                        content=full_content,
+                                        allowed_mentions=discord.AllowedMentions(roles=True)
+                                    )
+                                    success_embed = discord.Embed(
+                                        title="✅ Message Sent",
+                                        description=(
+                                            f"**Channel:** {channel.mention}\n"
+                                            f"**Pinged Role:** {target_role.mention}\n"
+                                            f"**Server:** {guild.name}\n"
+                                            f"**Message ID:** `{sent_message.id}`"
+                                        ),
+                                        color=0x57F287
+                                    )
+                                    success_embed.add_field(
+                                        name="🔗 Jump to Message",
+                                        value=f"[Click here]({sent_message.jump_url})",
+                                        inline=False
+                                    )
+                                    await modal_int.followup.send(embed=success_embed, ephemeral=True)
+                                except discord.Forbidden:
+                                    await modal_int.followup.send(
+                                        "❌ I don't have permission to send messages / mention roles in this channel.",
+                                        ephemeral=True
+                                    )
+                                except Exception as e:
+                                    print(f"Tag role send error: {e}")
+                                    await modal_int.followup.send(
+                                        f"❌ An error occurred: {str(e)}", ephemeral=True
+                                    )
+
+                        modal = TagRoleMessageModal()
+                        await sel_int.response.send_modal(modal)
+
+                    role_select.callback = role_chosen
+
+                    tag_role_view = discord.ui.View(timeout=120)
+                    tag_role_view.add_item(role_select)
+
+                    tag_role_embed = discord.Embed(
+                        title="📣 Tag Role & Send",
+                        description=(
+                            f"**Sending to:** {channel.mention}\n\n"
+                            "Select the role you want to ping in your message.\n"
+                            "After selecting, you'll be able to type your message."
+                        ),
+                        color=0x57F287
+                    )
+
+                    await button_int.response.edit_message(embed=tag_role_embed, view=tag_role_view)
+
+                except Exception as e:
+                    print(f"Tag role flow error: {e}")
+                    import traceback; traceback.print_exc()
+                    if not button_int.response.is_done():
+                        await button_int.response.send_message(
+                            f"❌ An error occurred: {str(e)}", ephemeral=True
+                        )
+
+            tag_role_button.callback = send_tag_role
+            view.add_item(tag_role_button)
+
             # Embed Message button
             embed_button = discord.ui.Button(
                 label="Embed Message",

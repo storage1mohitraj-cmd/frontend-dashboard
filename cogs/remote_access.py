@@ -971,50 +971,24 @@ class RemoteAccess(commands.Cog):
             )
 
             async def send_tag_user(button_int: discord.Interaction):
-                """Step 1: pick a member from the server, then type your message."""
+                """Step 1: pick a member from dropdown OR search by name/ID."""
                 try:
-                    # Fetch up to 25 non-bot members, sorted by display name
-                    members = sorted(
+                    all_members = sorted(
                         [m for m in guild.members if not m.bot],
                         key=lambda m: m.display_name.lower()
-                    )[:25]
-
-                    if not members:
-                        await button_int.response.send_message(
-                            "❌ No members found in this server.",
-                            ephemeral=True
-                        )
-                        return
-
-                    member_options = [
-                        discord.SelectOption(
-                            label=m.display_name[:90],
-                            value=str(m.id),
-                            description=f"@{m.name}" + (f"#{m.discriminator}" if m.discriminator != "0" else ""),
-                            emoji="👤"
-                        )
-                        for m in members
-                    ]
-
-                    member_select = discord.ui.Select(
-                        placeholder="Select a member to tag...",
-                        options=member_options,
-                        custom_id="select_member_to_tag"
                     )
+                    total_members = len(all_members)
+                    top_members = all_members[:25]
 
-                    async def member_chosen(sel_int: discord.Interaction):
-                        member_id = int(sel_int.data["values"][0])
-                        target_member = guild.get_member(member_id)
-                        if not target_member:
-                            await sel_int.response.send_message("❌ Member not found.", ephemeral=True)
-                            return
-
+                    # ── shared helper: open message modal for a resolved member ──
+                    async def open_message_modal_for(resp_obj, target_member: discord.Member):
+                        """Opens TagUserMessageModal. resp_obj must support send_modal."""
                         from discord.ui import Modal, TextInput
 
-                        class TagUserMessageModal(Modal, title=f"Message to @{target_member.display_name}"):
+                        class TagUserMessageModal(Modal, title=f"Message to @{target_member.display_name}"[:45]):
                             message_content = TextInput(
                                 label="Message Content",
-                                placeholder=f"Message to send after tagging {target_member.display_name}...",
+                                placeholder=f"Message after tagging {target_member.display_name}...",
                                 required=True,
                                 max_length=1900,
                                 style=discord.TextStyle.paragraph
@@ -1055,20 +1029,146 @@ class RemoteAccess(commands.Cog):
                                         f"❌ An error occurred: {str(e)}", ephemeral=True
                                     )
 
-                        modal = TagUserMessageModal()
-                        await sel_int.response.send_modal(modal)
+                        await resp_obj.send_modal(TagUserMessageModal())
+
+                    # ── dropdown for top-25 ──
+                    member_options = [
+                        discord.SelectOption(
+                            label=m.display_name[:90],
+                            value=str(m.id),
+                            description=f"@{m.name}" + (f"#{m.discriminator}" if m.discriminator != "0" else ""),
+                            emoji="👤"
+                        )
+                        for m in top_members
+                    ]
+
+                    member_select = discord.ui.Select(
+                        placeholder=f"Quick-pick (top 25 of {total_members} members)...",
+                        options=member_options,
+                        custom_id="select_member_to_tag"
+                    )
+
+                    async def member_chosen(sel_int: discord.Interaction):
+                        member_id = int(sel_int.data["values"][0])
+                        target_member = guild.get_member(member_id)
+                        if not target_member:
+                            await sel_int.response.send_message("❌ Member not found.", ephemeral=True)
+                            return
+                        await open_message_modal_for(sel_int.response, target_member)
 
                     member_select.callback = member_chosen
 
+                    # ── search button for members NOT in top-25 ──
+                    search_btn = discord.ui.Button(
+                        label="Search by Name / User ID",
+                        emoji="🔍",
+                        style=discord.ButtonStyle.secondary,
+                        custom_id="search_user_to_tag"
+                    )
+
+                    async def search_user(search_int: discord.Interaction):
+                        from discord.ui import Modal, TextInput
+
+                        class SearchUserModal(Modal, title="Search Member"):
+                            query = TextInput(
+                                label="Name, @username, Display Name, or User ID",
+                                placeholder="e.g.  John   or   john#1234   or   123456789012345678",
+                                required=True,
+                                max_length=100
+                            )
+
+                            async def on_submit(self, modal_int: discord.Interaction):
+                                raw = self.query.value.strip().lstrip("@")
+
+                                # 1. Try exact User ID
+                                target = None
+                                if raw.isdigit():
+                                    target = guild.get_member(int(raw))
+
+                                # 2. Try username#discriminator
+                                if not target and "#" in raw:
+                                    name_part, disc_part = raw.rsplit("#", 1)
+                                    target = discord.utils.get(
+                                        guild.members,
+                                        name=name_part,
+                                        discriminator=disc_part
+                                    )
+
+                                # 3. Case-insensitive display name or username search
+                                if not target:
+                                    raw_lower = raw.lower()
+                                    matches = [
+                                        m for m in guild.members
+                                        if not m.bot and (
+                                            raw_lower in m.display_name.lower()
+                                            or raw_lower in m.name.lower()
+                                        )
+                                    ]
+                                    if len(matches) == 1:
+                                        target = matches[0]
+                                    elif len(matches) > 1:
+                                        # Show a new dropdown with the matched members (up to 25)
+                                        match_options = [
+                                            discord.SelectOption(
+                                                label=m.display_name[:90],
+                                                value=str(m.id),
+                                                description=f"@{m.name}",
+                                                emoji="👤"
+                                            )
+                                            for m in matches[:25]
+                                        ]
+                                        match_select = discord.ui.Select(
+                                            placeholder=f"{len(matches)} match(es) found – pick one...",
+                                            options=match_options,
+                                            custom_id="select_searched_member"
+                                        )
+
+                                        async def pick_from_results(pick_int: discord.Interaction):
+                                            picked = guild.get_member(int(pick_int.data["values"][0]))
+                                            if not picked:
+                                                await pick_int.response.send_message("❌ Member not found.", ephemeral=True)
+                                                return
+                                            await open_message_modal_for(pick_int.response, picked)
+
+                                        match_select.callback = pick_from_results
+                                        result_view = discord.ui.View(timeout=120)
+                                        result_view.add_item(match_select)
+                                        result_embed = discord.Embed(
+                                            title=f"🔍 {len(matches)} result(s) for \"{raw}\"",
+                                            description="Select the correct member from the list below:",
+                                            color=0x5865F2
+                                        )
+                                        await modal_int.response.send_message(
+                                            embed=result_embed, view=result_view, ephemeral=True
+                                        )
+                                        return
+
+                                if not target:
+                                    await modal_int.response.send_message(
+                                        f"❌ No member found matching **{raw}**.\n"
+                                        "Try using the exact **User ID** (most reliable) or check the spelling.",
+                                        ephemeral=True
+                                    )
+                                    return
+
+                                # Single match – go straight to message modal
+                                await open_message_modal_for(modal_int.response, target)
+
+                        await search_int.response.send_modal(SearchUserModal())
+
+                    search_btn.callback = search_user
+
                     tag_view = discord.ui.View(timeout=120)
                     tag_view.add_item(member_select)
+                    tag_view.add_item(search_btn)
 
                     tag_embed = discord.Embed(
                         title="🔔 Tag User & Send",
                         description=(
                             f"**Sending to:** {channel.mention}\n\n"
-                            "Select the member you want to tag in your message.\n"
-                            "After selecting, you'll be able to type your message."
+                            f"**{total_members} members** in this server.\n"
+                            f"• Dropdown shows top **25** (alphabetical)\n"
+                            f"• Use **🔍 Search** to find anyone by name or User ID"
                         ),
                         color=0x57F287
                     )

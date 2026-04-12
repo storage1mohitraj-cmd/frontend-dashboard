@@ -1069,32 +1069,67 @@ class RemoteAccess(commands.Cog):
                     async def search_user(search_int: discord.Interaction):
                         from discord.ui import Modal, TextInput
 
-                        class SearchUserModal(Modal, title="Search Member"):
+                        class SearchAndSendModal(Modal, title="Search Member & Send Message"):
                             query = TextInput(
-                                label="Name, @username, Display Name, or User ID",
+                                label="Name, Display Name, or User ID",
                                 placeholder="e.g.  John   or   john#1234   or   123456789012345678",
                                 required=True,
                                 max_length=100
                             )
+                            message_content = TextInput(
+                                label="Message to send (after the tag)",
+                                placeholder="Type your message here...",
+                                required=True,
+                                max_length=1900,
+                                style=discord.TextStyle.paragraph
+                            )
 
                             async def on_submit(self, modal_int: discord.Interaction):
                                 raw = self.query.value.strip().lstrip("@")
+                                msg_text = self.message_content.value
 
-                                # 1. Try exact User ID
+                                # helper: send the tagged message directly
+                                async def send_to(target_member: discord.Member, resp):
+                                    try:
+                                        full_content = f"{target_member.mention} {msg_text}"
+                                        sent = await channel.send(
+                                            content=full_content,
+                                            allowed_mentions=discord.AllowedMentions(users=True)
+                                        )
+                                        ok_embed = discord.Embed(
+                                            title="✅ Message Sent",
+                                            description=(
+                                                f"**Channel:** {channel.mention}\n"
+                                                f"**Tagged:** {target_member.mention}\n"
+                                                f"**Server:** {guild.name}\n"
+                                                f"**Message ID:** `{sent.id}`"
+                                            ),
+                                            color=0x57F287
+                                        )
+                                        ok_embed.add_field(
+                                            name="🔗 Jump to Message",
+                                            value=f"[Click here]({sent.jump_url})",
+                                            inline=False
+                                        )
+                                        await resp.send(embed=ok_embed, ephemeral=True)
+                                    except discord.Forbidden:
+                                        await resp.send("❌ No permission to send in that channel.", ephemeral=True)
+                                    except Exception as ex:
+                                        await resp.send(f"❌ Error: {ex}", ephemeral=True)
+
+                                # 1. Exact User ID
                                 target = None
                                 if raw.isdigit():
                                     target = guild.get_member(int(raw))
 
-                                # 2. Try username#discriminator
+                                # 2. username#discriminator
                                 if not target and "#" in raw:
                                     name_part, disc_part = raw.rsplit("#", 1)
                                     target = discord.utils.get(
-                                        guild.members,
-                                        name=name_part,
-                                        discriminator=disc_part
+                                        guild.members, name=name_part, discriminator=disc_part
                                     )
 
-                                # 3. Case-insensitive display name or username search
+                                # 3. Partial display name / username (case-insensitive)
                                 if not target:
                                     raw_lower = raw.lower()
                                     matches = [
@@ -1107,7 +1142,7 @@ class RemoteAccess(commands.Cog):
                                     if len(matches) == 1:
                                         target = matches[0]
                                     elif len(matches) > 1:
-                                        # Show a new dropdown with the matched members (up to 25)
+                                        # Multiple matches → show a dropdown to pick, then send directly
                                         match_options = [
                                             discord.SelectOption(
                                                 label=m.display_name[:90],
@@ -1118,24 +1153,28 @@ class RemoteAccess(commands.Cog):
                                             for m in matches[:25]
                                         ]
                                         match_select = discord.ui.Select(
-                                            placeholder=f"{len(matches)} match(es) found – pick one...",
+                                            placeholder=f"{len(matches)} matches – pick the right one...",
                                             options=match_options,
                                             custom_id="select_searched_member"
                                         )
 
-                                        async def pick_from_results(pick_int: discord.Interaction):
+                                        async def pick_and_send(pick_int: discord.Interaction):
                                             picked = guild.get_member(int(pick_int.data["values"][0]))
                                             if not picked:
                                                 await pick_int.response.send_message("❌ Member not found.", ephemeral=True)
                                                 return
-                                            await open_message_modal_for(pick_int.response, picked)
+                                            await pick_int.response.defer(ephemeral=True)
+                                            await send_to(picked, pick_int.followup)
 
-                                        match_select.callback = pick_from_results
+                                        match_select.callback = pick_and_send
                                         result_view = discord.ui.View(timeout=120)
                                         result_view.add_item(match_select)
                                         result_embed = discord.Embed(
                                             title=f"🔍 {len(matches)} result(s) for \"{raw}\"",
-                                            description="Select the correct member from the list below:",
+                                            description=(
+                                                f"Select the correct member below.\n"
+                                                f"Your message will be sent immediately after selecting."
+                                            ),
                                             color=0x5865F2
                                         )
                                         await modal_int.response.send_message(
@@ -1146,15 +1185,19 @@ class RemoteAccess(commands.Cog):
                                 if not target:
                                     await modal_int.response.send_message(
                                         f"❌ No member found matching **{raw}**.\n"
-                                        "Try using the exact **User ID** (most reliable) or check the spelling.",
+                                        "Tips:\n"
+                                        "• Paste the **User ID** (18-digit number) for a guaranteed match\n"
+                                        "• Try a shorter part of the name\n"
+                                        "• Check spelling",
                                         ephemeral=True
                                     )
                                     return
 
-                                # Single match – go straight to message modal
-                                await open_message_modal_for(modal_int.response, target)
+                                # Single match → send right away
+                                await modal_int.response.defer(ephemeral=True)
+                                await send_to(target, modal_int.followup)
 
-                        await search_int.response.send_modal(SearchUserModal())
+                        await search_int.response.send_modal(SearchAndSendModal())
 
                     search_btn.callback = search_user
 

@@ -4284,7 +4284,7 @@ class ManageGiftCode(commands.Cog):
                             ),
                             color=0xFF5733
                         )
-                        self._set_embed_footer(embed, interaction.guild)
+                        self.cog._set_embed_footer(embed, select_interaction.guild)
                         
                         view = discord.ui.View()
                         
@@ -4528,7 +4528,7 @@ class ManageGiftCode(commands.Cog):
                             result_embed.add_field(name="📋 Details", value=results_text, inline=False)
                         
                         if len(results) > 20:
-                            result_self._set_embed_footer(embed, interaction.guild)
+                            self._set_embed_footer(embed, interaction.guild)
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                     
@@ -4694,7 +4694,7 @@ class ManageGiftCode(commands.Cog):
                             result_embed.add_field(name="📋 Details", value=results_text, inline=False)
                         
                         if len(results) > 20:
-                            result_self._set_embed_footer(embed, interaction.guild)
+                            self._set_embed_footer(embed, interaction.guild)
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                         
@@ -5213,7 +5213,7 @@ class ManageGiftCode(commands.Cog):
                             result_embed.add_field(name="📋 Details", value=results_text, inline=False)
                         
                         if len(results) > 20:
-                            result_self._set_embed_footer(embed, interaction.guild)
+                            self._set_embed_footer(embed, interaction.guild)
                         
                         await remove_interaction.edit_original_response(embed=result_embed)
 

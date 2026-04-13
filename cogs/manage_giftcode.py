@@ -2387,9 +2387,10 @@ class ManageGiftCode(commands.Cog):
                     
                     # Case 1: Code in DB but marked as NOT processed (e.g. from a partial run or recent detection)
                     if not is_processed:
-                        # Ensure we don't spam - maybe it's CURRENTLY in the queue?
-                        # trigger_auto_redeem_for_new_codes handles duplicates via its own set, 
-                        # but we can be extra safe here.
+                        # CRITICAL SAFETY: Don't re-trigger if it's already in the process of being redeemed
+                        if code_up in self._pending_jobs_per_code:
+                            continue
+                            
                         self.logger.info(f"🔄 Retrying unprocessed code: {code_up}")
                         new_codes.append((code, date))
                     
@@ -2922,7 +2923,12 @@ class ManageGiftCode(commands.Cog):
             
             already_processed = await self._is_code_already_processed(code_up)
             if already_processed and not is_recheck:
-                self.logger.info(f"⏭️ Skipping code {code_up} - already fully processed")
+                self.logger.info(f"⏭️ Skipping code {code_up} - already fully processed in DB")
+                return
+
+            # CRITICAL SAFETY: Don't start a second parallel process for the same code!
+            if code_up in self._pending_jobs_per_code and not is_recheck:
+                self.logger.info(f"⏭️ Skipping code {code_up} - already being processed by another task")
                 return
 
             if is_recheck:

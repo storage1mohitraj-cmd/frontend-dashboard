@@ -281,8 +281,8 @@ class ManageGiftCode(commands.Cog):
         
         while True:
             try:
-                # Wait for a job
                 job = await self.auto_redeem_queue.get()
+                guild_id, code, is_recheck = job
                 code_up = str(code).upper()
                 self.current_job = (guild_id, code_up)
                 
@@ -298,7 +298,8 @@ class ManageGiftCode(commands.Cog):
                     self.processed_jobs_count += 1
                     # Mark this task as done and update pending count for faster status reporting
                     self.auto_redeem_queue.task_done()
-                    await self._decrement_pending_jobs(code_up)
+                    if code_up:
+                        await self._decrement_pending_jobs(code_up)
                     
                     # Small delay between guilds to let memory/network settle
                     await asyncio.sleep(2.0)

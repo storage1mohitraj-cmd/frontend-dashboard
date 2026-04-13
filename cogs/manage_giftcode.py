@@ -283,22 +283,22 @@ class ManageGiftCode(commands.Cog):
             try:
                 # Wait for a job
                 job = await self.auto_redeem_queue.get()
-                guild_id, code, is_recheck = job
-                self.current_job = (guild_id, code)
+                code_up = str(code).upper()
+                self.current_job = (guild_id, code_up)
                 
-                self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code} (Recheck: {is_recheck})")
+                self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code_up} (Recheck: {is_recheck})")
                 
                 try:
                     # Await the actual process (runs sequentially for this worker)
-                    await self.process_auto_redeem(guild_id, code, is_recheck=is_recheck)
+                    await self.process_auto_redeem(guild_id, code_up, is_recheck=is_recheck)
                 except Exception as e:
-                    self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code}: {e}")
+                    self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code_up}: {e}")
                 finally:
                     self.current_job = None
                     self.processed_jobs_count += 1
                     # Mark this task as done and update pending count for faster status reporting
                     self.auto_redeem_queue.task_done()
-                    await self._decrement_pending_jobs(code)
+                    await self._decrement_pending_jobs(code_up)
                     
                     # Small delay between guilds to let memory/network settle
                     await asyncio.sleep(2.0)
@@ -2374,37 +2374,42 @@ class ManageGiftCode(commands.Cog):
 
             self.logger.info(f"Found {len(db_codes_data)} existing codes in database(s)")
             
-            # Find new codes
+            # Find codes that need processing (new or previously incomplete)
             new_codes = []
             for code, date in api_codes:
                 code_up = str(code).upper()
                 if code_up not in db_codes_data:
+                    self.logger.info(f"🆕 New code detected: {code_up}")
                     new_codes.append((code, date))
                 else:
-                    # Potential re-issue? 
-                    # If it was already processed but the API is still returning it with a NEW date 
-                    # or it's been marked processed a long time ago, we might want to re-trigger.
-                    # For now, let's just allow it if it was marked processed but we want to be safe.
-                    # Actually, a better check: if the date in API is different/newer than stored date.
+                    is_processed = db_codes_data[code_up]['processed']
                     stored_date = db_codes_data[code_up]['date']
-                    # ONLY re-trigger if the date is actually different AND it hasn't been successfully processed yet
-                    # This prevents re-triggering just because of minor API date drifts for active codes
-                    if stored_date and date and date != stored_date and not db_codes_data[code_up]['processed']:
-                        self.logger.info(f"♻️ Re-issued code detected: {code} (Old Date: {stored_date}, New Date: {date}). Re-triggering auto-redeem.")
+                    
+                    # Case 1: Code in DB but marked as NOT processed (e.g. from a partial run or recent detection)
+                    if not is_processed:
+                        # Ensure we don't spam - maybe it's CURRENTLY in the queue?
+                        # trigger_auto_redeem_for_new_codes handles duplicates via its own set, 
+                        # but we can be extra safe here.
+                        self.logger.info(f"🔄 Retrying unprocessed code: {code_up}")
                         new_codes.append((code, date))
-                        # Reset processed flag in DB so it actually runs
+                    
+                    # Case 2: Code in DB, marked processed, but date has changed in API (re-issue)
+                    elif stored_date and date and date != stored_date:
+                        self.logger.info(f"♻️ Re-issued code detected: {code_up} (Old Date: {stored_date}, New Date: {date}). Re-triggering.")
+                        new_codes.append((code, date))
+                        
+                        # Reset processed flag in databases so it actually runs again
                         try:
-                            # Update SQLite
-                            self.cursor.execute("UPDATE gift_codes SET auto_redeem_processed = 0, date = ? WHERE giftcode = ?", (date, code))
-                            # Update MongoDB
+                            self.cursor.execute("UPDATE gift_codes SET auto_redeem_processed = 0, date = ? WHERE giftcode = ?", (date, code_up))
                             if mongo_enabled() and GiftCodesAdapter:
                                 try:
-                                    db = get_mongo_db()
-                                    db['gift_codes'].update_one({'_id': code}, {'$set': {'auto_redeem_processed': False, 'date': date}})
+                                    db = _get_db()
+                                    if db:
+                                        db[GiftCodesAdapter.COLL].update_one({'_id': code_up}, {'$set': {'auto_redeem_processed': False, 'date': date}})
                                 except Exception as me:
-                                    self.logger.error(f"Failed to reset Mongo processed status for {code}: {me}")
+                                    self.logger.error(f"Failed to reset Mongo status for {code_up}: {me}")
                         except Exception as e:
-                            self.logger.error(f"Failed to reset re-issued code {code}: {e}")
+                            self.logger.error(f"Failed to reset SQLite status for {code_up}: {e}")
             
             if not new_codes:
                 self.logger.info(f"No new codes found. All {len(api_codes)} API codes already in database and processed")
@@ -2911,34 +2916,41 @@ class ManageGiftCode(commands.Cog):
     async def _process_single_code(self, code, date, enabled_guilds, is_recheck):
         """Process a single gift code for all enabled guilds."""
         try:
-            self.logger.info(f"--- START PROCESS SINGLE CODE: {code} ---")
+            # Always work with uppercase for internal tracking and DB consistency
+            code_up = str(code).upper()
+            self.logger.info(f"--- START PROCESS SINGLE CODE: {code_up} ---")
             
-            already_processed = await self._is_code_already_processed(code)
+            already_processed = await self._is_code_already_processed(code_up)
             if already_processed and not is_recheck:
-                self.logger.info(f"⏭️ Skipping code {code} - already fully processed")
+                self.logger.info(f"⏭️ Skipping code {code_up} - already fully processed")
                 return
 
             if is_recheck:
-                self.logger.info(f"🔄 Manual Trigger: Bypassing completion status for code {code}")
-                # For manual trigger, we process ALL enabled guilds, bypassing the 'completed' cache
+                self.logger.info(f"🔄 Manual Trigger: Bypassing completion status for code {code_up}")
                 pending_guilds = enabled_guilds
             else:
-                completed_guilds = await self._get_completed_guilds(code)
+                completed_guilds = await self._get_completed_guilds(code_up)
                 pending_guilds = [g for g in enabled_guilds if g[0] not in completed_guilds]
 
             if not pending_guilds:
-                self.logger.info(f"⏭️ Skipping code {code} - no pending guilds found among {len(enabled_guilds)} enabled guilds!")
-                # Force mark done if it's already done by all servers
-                await self._mark_code_done(code)
+                self.logger.info(f"⏭️ Skipping code {code_up} - no pending guilds found among {len(enabled_guilds)} enabled guilds!")
+                await self._mark_code_done(code_up)
                 return
 
-            self.logger.info(f"🎯 Processing code {code} for {len(pending_guilds)} guilds... (Total Enabled: {len(enabled_guilds)})")
+            self.logger.info(f"🎯 Processing code {code_up} for {len(pending_guilds)} guilds... (Total Enabled: {len(enabled_guilds)})")
+            
+            # CRITICAL: Initialize tracking BEFORE putting jobs into the queue to avoid race conditions
+            self._pending_jobs_per_code[code_up] = len(pending_guilds)
+            self._completion_events[code_up] = asyncio.Event()
             
             for (guild_id,) in pending_guilds:
-                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
+                self.auto_redeem_queue.put_nowait((guild_id, code_up, is_recheck))
             
             # Wait for all jobs for THIS code to complete
-            await self.wait_for_code_completion(code, len(pending_guilds))
+            await self.wait_for_code_completion(code_up, len(pending_guilds), already_initialized=True)
+
+        except Exception as e:
+            self.logger.exception(f"Error processing single code {code}: {e}")
 
         except Exception as e:
             self.logger.exception(f"Error processing single code {code}: {e}")
@@ -2973,33 +2985,36 @@ class ManageGiftCode(commands.Cog):
             return set()
 
 
-    async def wait_for_code_completion(self, code, expected_jobs):
+    async def wait_for_code_completion(self, code, expected_jobs, already_initialized=False):
         """Wait until the number of completed jobs for a code reaches the expected count."""
+        code_up = str(code).upper()
         if expected_jobs <= 0:
-            self.logger.info(f"No jobs for code {code} to wait for.")
+            self.logger.info(f"No jobs for code {code_up} to wait for.")
             return
 
-        self._pending_jobs_per_code[code] = expected_jobs
-        self._completion_events[code] = asyncio.Event()
+        if not already_initialized:
+            self._pending_jobs_per_code[code_up] = expected_jobs
+            self._completion_events[code_up] = asyncio.Event()
 
         try:
-            self.logger.info(f"⌛ Waiting for {expected_jobs} jobs to complete for code {code}...")
-            await asyncio.wait_for(self._completion_events[code].wait(), timeout=3600) # 1hr timeout
-            self.logger.info(f"🏁 All {expected_jobs} jobs for code {code} completed. Marking as fully processed.")
-            await self._mark_code_done(code)
+            self.logger.info(f"⌛ Waiting for {expected_jobs} jobs to complete for code {code_up}...")
+            await asyncio.wait_for(self._completion_events[code_up].wait(), timeout=3600) # 1hr timeout
+            self.logger.info(f"🏁 All {expected_jobs} jobs for code {code_up} completed. Marking as fully processed.")
+            await self._mark_code_done(code_up)
         except asyncio.TimeoutError:
-            self.logger.error(f"⌛️ Timeout waiting for code {code} to complete. It may be stuck.")
+            self.logger.error(f"⌛️ Timeout waiting for code {code_up} to complete. It may be stuck (Remaining: {self._pending_jobs_per_code.get(code_up, 'unknown')}).")
         finally:
-            self._pending_jobs_per_code.pop(code, None)
-            self._completion_events.pop(code, None)
+            self._pending_jobs_per_code.pop(code_up, None)
+            self._completion_events.pop(code_up, None)
 
     async def _decrement_pending_jobs(self, code):
         """Decrement pending jobs and set event if all jobs for a code are done."""
-        if code in self._pending_jobs_per_code:
-            self._pending_jobs_per_code[code] -= 1
-            if self._pending_jobs_per_code[code] <= 0:
-                if code in self._completion_events:
-                    self._completion_events[code].set()
+        code_up = str(code).upper()
+        if code_up in self._pending_jobs_per_code:
+            self._pending_jobs_per_code[code_up] -= 1
+            if self._pending_jobs_per_code[code_up] <= 0:
+                if code_up in self._completion_events:
+                    self._completion_events[code_up].set()
 
     async def _mark_code_done(self, code):
         """Internal helper to mark code as processed in DBs without waiting for queue."""

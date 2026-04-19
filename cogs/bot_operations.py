@@ -1219,160 +1219,198 @@ class BotOperations(commands.Cog):
                     pass
             return
         
-        if custom_id == "records_menu":
-            # Check if user has valid authentication session
-            try:
-                if not mongo_enabled() or not ServerAllianceAdapter or not AuthSessionsAdapter:
-                    await interaction.response.send_message(
-                        "❌ MongoDB not enabled. Cannot access Records.",
-                        ephemeral=True
-                    )
-                    return
-                
-                stored_password = ServerAllianceAdapter.get_password(interaction.guild.id)
-                if not stored_password:
-                    error_embed = discord.Embed(
-                        title="🔒 Access Denied",
-                        description="No password configured for management access.",
-                        color=0x2B2D31
-                    )
-                    error_embed.add_field(
-                        name="⚙️ Administrator Action Required",
-                        value="Contact a server administrator to set up password via:\n`/settings` → **Bot Operations** → **Set Member List Password**",
-                        inline=False
-                    )
-                    error_embed.add_field(
-                        name="💬 Need Help?",
-                        value="Contact the Global Admin for assistance with bot setup.",
-                        inline=False
-                    )
-                    
-                    # Create view with contact button
-                    class ContactAdminView(discord.ui.View):
-                        def __init__(self):
-                            super().__init__(timeout=None)
-                            # Add link button to contact global admin
-                            self.add_item(discord.ui.Button(
-                                label="Contact Global Admin",
-                                emoji="👤",
-                                style=discord.ButtonStyle.link,
-                                url="https://discord.com/users/850786361572720661"
-                            ))
-                    
-                    view = ContactAdminView()
-                    await interaction.response.send_message(embed=error_embed, view=view, ephemeral=True)
-                    return
-                
-                # Check if user has valid session
-                if not AuthSessionsAdapter.is_session_valid(
-                    interaction.guild.id,
-                    interaction.user.id,
-                    stored_password
-                ):
-                    await interaction.response.send_message(
-                        "❌ Authentication required. Please use `/manage` to authenticate first.",
-                        ephemeral=True
-                    )
-                    return
-
-                # Create Records submenu
-                embed = discord.Embed(
-                    title="📁 Records Management",
-                    description=(
-                        "```ansi\n"
-                        "\u001b[2;36m╔═══════════════════════════════════╗\n"
-                        "\u001b[2;36m║  \u001b[1;37mCUSTOM PLAYER RECORDS\u001b[0m\u001b[2;36m          ║\n"
-                        "\u001b[2;36m╚═══════════════════════════════════╝\u001b[0m\n"
-                        "```\n"
-                        "**Organize players into custom groups**\n\n"
-                        "Perfect for tracking:\n"
-                        "• Players who violate rules\n"
-                        "• Farm Accounts\n"
-                        "• Bear Trap teams\n"
-                        "• Special Operations\n"
-                    ),
+    async def records_menu(self, interaction: discord.Interaction):
+        """Handle the Records menu interaction safely across cogs"""
+        try:
+            # Determine appropriate response method
+            is_done = interaction.response.is_done()
+            
+            if not mongo_enabled() or not ServerAllianceAdapter or not AuthSessionsAdapter:
+                msg = "❌ MongoDB not enabled. Cannot access Records."
+                if is_done:
+                    await interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(msg, ephemeral=True)
+                return
+            
+            stored_password = ServerAllianceAdapter.get_password(interaction.guild.id)
+            if not stored_password:
+                error_embed = discord.Embed(
+                    title="🔒 Access Denied",
+                    description="No password configured for management access.",
                     color=0x2B2D31
                 )
-                embed.set_footer(
-                    text="Whiteout Survival | Records",
-                    icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+                error_embed.add_field(
+                    name="⚙️ Administrator Action Required",
+                    value="Contact a server administrator to set up password via:\n`/settings` → **Bot Operations** → **Set Member List Password**",
+                    inline=False
                 )
+                error_embed.add_field(
+                    name="💬 Need Help?",
+                    value="Contact the Global Admin for assistance with bot setup.",
+                    inline=False
+                )
+                
+                # Create view with contact button
+                class ContactAdminView(discord.ui.View):
+                    def __init__(self):
+                        super().__init__(timeout=None)
+                        self.add_item(discord.ui.Button(
+                            label="Contact Global Admin",
+                            emoji="👤",
+                            style=discord.ButtonStyle.link,
+                            url="https://discord.com/users/850786361572720661"
+                        ))
+                
+                view = ContactAdminView()
+                if is_done:
+                    await interaction.followup.send(embed=error_embed, view=view, ephemeral=True)
+                else:
+                    await interaction.response.send_message(embed=error_embed, view=view, ephemeral=True)
+                return
+            
+            # Check if user has valid session
+            if not AuthSessionsAdapter.is_session_valid(
+                interaction.guild.id,
+                interaction.user.id,
+                stored_password
+            ):
+                msg = "❌ Authentication required. Please use `/manage` to authenticate first."
+                if is_done:
+                    await interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(msg, ephemeral=True)
+                return
 
-                view = discord.ui.View()
-                view.add_item(discord.ui.Button(
-                    label="Create Record",
-                    emoji="📝",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_create",
-                    row=0
-                ))
-                view.add_item(discord.ui.Button(
-                    label="Add Members",
-                    emoji="➕",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_add",
-                    row=0
-                ))
-                view.add_item(discord.ui.Button(
-                    label="Remove Members",
-                    emoji="➖",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_remove",
-                    row=0
-                ))
-                view.add_item(discord.ui.Button(
-                    label="View Record",
-                    emoji="👁️",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_view",
-                    row=1
-                ))
-                view.add_item(discord.ui.Button(
-                    label="List Records",
-                    emoji="📋",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_list",
-                    row=1
-                ))
-                view.add_item(discord.ui.Button(
-                    label="Rename Record",
-                    emoji="✏️",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_rename",
-                    row=1
-                ))
-                view.add_item(discord.ui.Button(
-                    label="Delete Record",
-                    emoji="🗑️",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_delete",
-                    row=2
-                ))
-                view.add_item(discord.ui.Button(
-                    label="Custom Columns",
-                    emoji="⚙️",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="record_columns",
-                    row=2
-                ))
-                view.add_item(discord.ui.Button(
-                    label="◀ Back",
-                    emoji="🏠",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="return_to_manage",
-                    row=2
-                ))
+            # Create Records submenu
+            embed = discord.Embed(
+                title="📁 Records Management",
+                description=(
+                    "```ansi\n"
+                    "\u001b[2;36m╔═══════════════════════════════════╗\n"
+                    "\u001b[2;36m║  \u001b[1;37mCUSTOM PLAYER RECORDS\u001b[0m\u001b[2;36m          ║\n"
+                    "\u001b[2;36m╚═══════════════════════════════════╝\u001b[0m\n"
+                    "```\n"
+                    "**Organize players into custom groups**\n\n"
+                    "Perfect for tracking:\n"
+                    "• Players who violate rules\n"
+                    "• Farm Accounts\n"
+                    "• Bear Trap teams\n"
+                    "• Special Operations\n"
+                ),
+                color=0x2B2D31
+            )
+            embed.set_footer(
+                text="Whiteout Survival | Records",
+                icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+            )
 
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(
+                label="Create Record",
+                emoji="📝",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_create",
+                row=0
+            ))
+            view.add_item(discord.ui.Button(
+                label="Add Members",
+                emoji="➕",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_add",
+                row=0
+            ))
+            view.add_item(discord.ui.Button(
+                label="Remove Members",
+                emoji="➖",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_remove",
+                row=0
+            ))
+            view.add_item(discord.ui.Button(
+                label="View Record",
+                emoji="👁️",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_view",
+                row=1
+            ))
+            view.add_item(discord.ui.Button(
+                label="List Records",
+                emoji="📋",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_list",
+                row=1
+            ))
+            view.add_item(discord.ui.Button(
+                label="Rename Record",
+                emoji="✏️",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_rename",
+                row=1
+            ))
+            view.add_item(discord.ui.Button(
+                label="Delete Record",
+                emoji="🗑️",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_delete",
+                row=2
+            ))
+            view.add_item(discord.ui.Button(
+                label="Custom Columns",
+                emoji="⚙️",
+                style=discord.ButtonStyle.secondary,
+                custom_id="record_columns",
+                row=2
+            ))
+            view.add_item(discord.ui.Button(
+                label="◀ Back",
+                emoji="🏠",
+                style=discord.ButtonStyle.secondary,
+                custom_id="return_to_manage",
+                row=2
+            ))
+
+            if is_done:
+                await interaction.edit_original_response(embed=embed, view=view)
+            else:
                 await interaction.response.edit_message(embed=embed, view=view)
-                return
-            except Exception as e:
-                print(f"Records menu error: {e}")
-                await interaction.response.send_message(
-                    "❌ An error occurred while opening Records menu.",
-                    ephemeral=True
-                )
-                return
-        
+                
+        except Exception as e:
+            print(f"Records menu error: {e}")
+            import traceback
+            traceback.print_exc()
+            msg = "❌ An error occurred while opening Records menu."
+            if not interaction.response.is_done():
+                await interaction.response.send_message(msg, ephemeral=True)
+            else:
+                await interaction.followup.send(msg, ephemeral=True)
+
+    @commands.Cog.listener()
+    async def on_interaction(self, interaction: discord.Interaction):
+        if not interaction.type == discord.InteractionType.component:
+            return
+
+        custom_id = interaction.data.get("custom_id", "")
+
+        # Security: Parse user_id from custom_id if present
+        # This handles format: "original_id:user_id"
+        owner_id = None
+        if ":" in custom_id:
+            try:
+                real_id, owner_str = custom_id.rsplit(":", 1)
+                if owner_str.isdigit():
+                    owner_id = int(owner_str)
+                    if interaction.user.id != owner_id:
+                        await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+                        return
+                    custom_id = real_id
+            except (ValueError, IndexError):
+                pass
+
+        if custom_id == "records_menu":
+            await self.records_menu(interaction)
+            return
+
         # Handle back buttons to return to management dashboard
         if custom_id in ["back_to_manage", "return_to_manage"]:
             try:

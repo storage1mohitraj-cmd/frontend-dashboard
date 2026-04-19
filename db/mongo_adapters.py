@@ -2780,7 +2780,6 @@ class ServerAllianceAdapter:
             
             # Invalidate all existing auth sessions when password changes
             try:
-                from db.mongo_adapters import AuthSessionsAdapter
                 AuthSessionsAdapter.invalidate_all_sessions(guild_id)
             except Exception as session_error:
                 logger.warning(f'Failed to invalidate auth sessions for guild {guild_id}: {session_error}')
@@ -2872,8 +2871,8 @@ class ServerAllianceAdapter:
                 },
                 upsert=True
             )
+            # Invalidate all existing auth sessions when password changes
             try:
-                from db.mongo_adapters import AuthSessionsAdapter
                 await AuthSessionsAdapter.invalidate_all_sessions_async(guild_id)
             except Exception: pass
             return True

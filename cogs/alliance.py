@@ -644,6 +644,10 @@ class Alliance(commands.Cog):
                         owner_id = check_owner_id
                 except ValueError:
                     pass
+
+            # Skip interactions handled by BotOperations to avoid collisions
+            if custom_id == "records_menu" or (custom_id and custom_id.startswith("record_")):
+                return
             
             # Use helper method with automatic fallback
             admin = self._get_admin(user_id)

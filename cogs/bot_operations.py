@@ -5243,7 +5243,7 @@ class BotOperations(commands.Cog):
                         ephemeral=True
                     )
 
-        elif custom_id == "set_auto_redeem_order":
+        elif custom_id == "set_auto_redeem_order" or custom_id.startswith("autoredeem_page_"):
             try:
                 self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))
                 result = self.settings_cursor.fetchone()
@@ -5251,153 +5251,206 @@ class BotOperations(commands.Cog):
                     await interaction.response.send_message("❌ Only global administrators can configure the auto-redeem server ordering.", ephemeral=True)
                     return
 
-                from db.mongo_adapters import AutoRedeemSettingsAdapter
+                # Determine which page we're on
+                page = 0
+                if custom_id.startswith("autoredeem_page_"):
+                    try:
+                        page = int(custom_id.split("_")[-1])
+                    except Exception:
+                        page = 0
+
+                from db.mongo_adapters import AutoRedeemSettingsAdapter, mongo_enabled
                 from db_utils import get_db_connection
-                
-                all_settings_str = "No auto-redeem settings found."
+
+                combined = {}
                 try:
                     all_mongo = AutoRedeemSettingsAdapter.get_all_settings() if hasattr(AutoRedeemSettingsAdapter, 'get_all_settings') else []
-                    
-                    combined = {}
-                    with get_db_connection('giftcode.sqlite') as conn:
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT guild_id, enabled, priority FROM auto_redeem_settings")
-                        for row in cursor.fetchall():
-                            if int(row[1]) == 1:
-                                priority = int(row[2]) if len(row) > 2 and row[2] is not None else 999
-                                combined[int(row[0])] = {"priority": priority}
-                                
+                    try:
+                        with get_db_connection('giftcode.sqlite') as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("SELECT guild_id, enabled, priority FROM auto_redeem_settings")
+                            for row in cursor.fetchall():
+                                if int(row[1]) == 1:
+                                    priority = int(row[2]) if len(row) > 2 and row[2] is not None else 999
+                                    combined[int(row[0])] = {"priority": priority}
+                    except Exception:
+                        pass
                     for s in all_mongo:
                         if s.get('enabled'):
                             combined[int(s['guild_id'])] = {"priority": s.get('priority', 999)}
-                    
-                    if combined:
-                        lines = []
-                        # Sort by priority first, then by guild name
-                        def sort_key(item):
-                            gid, data = item
-                            guild = self.bot.get_guild(gid)
-                            g_name = guild.name if guild else str(gid)
-                            return (data['priority'], g_name.lower())
-                        
-                        sorted_combined = sorted(combined.items(), key=sort_key)
-                        
-                        for index, (gid, data) in enumerate(sorted_combined[:60], start=1):
-                            guild = self.bot.get_guild(gid)
-                            g_name = guild.name if guild else "Unknown Server"
-                            prio_str = f"**Priority {data['priority']}**" if data['priority'] != 999 else "*Default Priority (999)*"
-                            lines.append(f"> **{index}.** {g_name} (`{gid}`) — {prio_str}")
-                        
-                        if len(sorted_combined) > 60:
-                            lines.append(f"\n*...and {len(sorted_combined) - 60} more servers not shown.*")
-                            
-                        all_settings_str = "\n".join(lines)
                 except Exception as e:
-                    print(f"Error fetching auto-redeem settings order: {e}")
-                    
+                    print(f"Error fetching auto-redeem settings: {e}")
+
+                def sort_key(item):
+                    gid, data = item
+                    guild = self.bot.get_guild(gid)
+                    g_name = guild.name if guild else str(gid)
+                    return (data['priority'], g_name.lower())
+
+                sorted_combined = sorted(combined.items(), key=sort_key) if combined else []
+
+                # Build server_options list
+                server_options = []
+                for gid, data in sorted_combined:
+                    guild = self.bot.get_guild(gid)
+                    g_name = guild.name if guild else "Unknown Server"
+                    server_options.append((gid, g_name, data['priority']))
+
+                PAGE_SIZE = 25
+                total_pages = max(1, (len(server_options) + PAGE_SIZE - 1) // PAGE_SIZE)
+                page = max(0, min(page, total_pages - 1))
+                page_options = server_options[page * PAGE_SIZE:(page + 1) * PAGE_SIZE]
+
+                # Build embed description (show current page slice + page indicator)
+                lines = []
+                for index, (gid, data) in enumerate(sorted_combined[:75], start=1):
+                    guild = self.bot.get_guild(gid)
+                    g_name = guild.name if guild else "Unknown Server"
+                    prio_str = f"**#{data['priority']}**" if data['priority'] != 999 else "*default*"
+                    lines.append(f"> **{index}.** {g_name} — {prio_str}")
+                if len(sorted_combined) > 75:
+                    lines.append(f"\n*...and {len(sorted_combined) - 75} more servers*")
+
+                all_settings_str = "\n".join(lines) if lines else "No auto-redeem servers configured."
+
                 embed = discord.Embed(
                     title="⚙️ Auto-Redeem Priority Order",
                     description=(
-                        "Priority determines which server receives gift codes first during Auto Redeem.\n"
-                        "Servers with a **lower number** run first (e.g., priority `1` runs before `999`).\n"
-                        "Servers with the same priority run in a random order.\n\n"
-                        "**Current Execution Order:**\n"
-                        f"{all_settings_str}"
+                        "Servers with a **lower number** run first.\n"
+                        "Select a server from the dropdown to update its priority.\n\n"
+                        f"**Current Execution Order:**\n{all_settings_str}"
                     ),
                     color=discord.Color.from_rgb(43, 196, 138)
                 )
-                
-                view = discord.ui.View()
-                
-                # Create options list
-                server_options = []
-                if combined:
-                    for gid, data in sorted_combined:
-                        guild = self.bot.get_guild(gid)
-                        g_name = guild.name if guild else "Unknown Server"
-                        server_options.append((gid, g_name, data['priority']))
-                
-                if server_options:
-                    # Dynamically create the Select class to capture self (cog_instance)
+                embed.set_footer(text=f"Page {page + 1} / {total_pages}  •  {len(server_options)} servers enabled")
+
+                # Build view
+                view = discord.ui.View(timeout=None)
+
+                # Paginated Select
+                if page_options:
+                    cog_ref = self
+
                     class PriorityServerSelect(discord.ui.Select):
-                        def __init__(self, cog):
-                            self.cog = cog
+                        def __init__(self):
                             options = []
-                            for gid, name, prio in server_options[:25]:
-                                desc = f"Priority: {prio}" if prio != 999 else "Default (999)"
-                                options.append(discord.SelectOption(label=f"{name}"[:100], value=str(gid), description=desc))
-                            super().__init__(placeholder="Select a server to update priority...", min_values=1, max_values=1, options=options)
-                            
+                            for gid, name, prio in page_options:
+                                label = f"{name}"[:100]
+                                desc = f"Current priority: {prio}" if prio != 999 else "Current: Default (999)"
+                                options.append(discord.SelectOption(
+                                    label=label,
+                                    value=f"{gid}:{prio}",  # embed current priority in value
+                                    description=desc[:100]
+                                ))
+                            super().__init__(
+                                placeholder=f"Select server to update… (page {page+1}/{total_pages})",
+                                min_values=1, max_values=1,
+                                options=options
+                            )
+
                         async def callback(self, select_int: discord.Interaction):
-                            gid = int(self.values[0])
-                            
+                            parts = self.values[0].split(":")
+                            selected_gid = int(parts[0])
+                            current_prio = parts[1] if len(parts) > 1 else "999"
+
                             class PriorityUpdateModal(discord.ui.Modal, title="Update Server Priority"):
                                 priority = discord.ui.TextInput(
-                                    label="Priority Number",
+                                    label="New Priority Number",
                                     placeholder="Lower number = Earlier (e.g. 1)",
-                                    default="999",
+                                    default=current_prio,  # pre-fill with CURRENT priority
                                     max_length=4,
                                     required=True
                                 )
+
                                 async def on_submit(self, modal_int: discord.Interaction):
                                     try:
                                         prio = int(self.priority.value.strip())
+                                        if prio < 1:
+                                            await modal_int.response.send_message("❌ Priority must be at least 1.", ephemeral=True)
+                                            return
+
                                         from db.mongo_adapters import AutoRedeemSettingsAdapter, mongo_enabled
                                         from db_utils import get_db_connection
-                                        
+
                                         if mongo_enabled() and AutoRedeemSettingsAdapter and hasattr(AutoRedeemSettingsAdapter, 'set_priority'):
-                                            AutoRedeemSettingsAdapter.set_priority(gid, prio, modal_int.user.id)
-                                        
+                                            AutoRedeemSettingsAdapter.set_priority(selected_gid, prio, modal_int.user.id)
+
                                         try:
                                             with get_db_connection('giftcode.sqlite') as conn:
-                                                cursor = conn.cursor()
-                                                cursor.execute("SELECT priority FROM auto_redeem_settings WHERE guild_id = ?", (gid,))
-                                                row = cursor.fetchone()
-                                                if row:
-                                                    cursor.execute("UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?", (prio, modal_int.user.id, gid))
+                                                c = conn.cursor()
+                                                c.execute("SELECT guild_id FROM auto_redeem_settings WHERE guild_id = ?", (selected_gid,))
+                                                if c.fetchone():
+                                                    c.execute("UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?", (prio, modal_int.user.id, selected_gid))
                                                 else:
-                                                    cursor.execute("INSERT INTO auto_redeem_settings (guild_id, enabled, priority, updated_by) VALUES (?, 1, ?, ?)", (gid, prio, modal_int.user.id))
+                                                    c.execute("INSERT INTO auto_redeem_settings (guild_id, enabled, priority, updated_by) VALUES (?, 1, ?, ?)", (selected_gid, prio, modal_int.user.id))
                                                 conn.commit()
                                         except Exception as db_err:
                                             print(f"SQLite priority update error (ignoring): {db_err}")
-                                        
-                                        await modal_int.response.send_message(f"✅ Priority updated to **{prio}**.", ephemeral=True)
-                                        
-                                        # Refresh the view using the original select interaction
+
+                                        guild_obj = cog_ref.bot.get_guild(selected_gid)
+                                        gname = guild_obj.name if guild_obj else str(selected_gid)
+                                        await modal_int.response.send_message(f"✅ **{gname}** priority updated to **#{prio}**.", ephemeral=True)
+
+                                        # Refresh the view: rebuild and edit the message
                                         try:
-                                            await self.cog.set_auto_redeem_order(select_int)
+                                            select_int.data['custom_id'] = f"autoredeem_page_{page}"
+                                            await cog_ref.on_interaction(select_int)
                                         except Exception as e:
                                             print(f"Error refreshing UI: {e}")
                                     except ValueError:
-                                        await modal_int.response.send_message("❌ Invalid input. Please enter valid numbers.", ephemeral=True)
+                                        await modal_int.response.send_message("❌ Invalid number. Please enter a valid integer.", ephemeral=True)
                                     except Exception as e:
                                         print(f"Priority modal error: {e}")
-                                        await modal_int.response.send_message("❌ Database error occurred.", ephemeral=True)
+                                        await modal_int.response.send_message("❌ Failed to save. Please try again.", ephemeral=True)
 
                             await select_int.response.send_modal(PriorityUpdateModal())
 
-                    view.add_item(PriorityServerSelect(self))
+                    view.add_item(PriorityServerSelect())
 
+                # Pagination buttons (row 2)
+                if total_pages > 1:
+                    prev_btn = discord.ui.Button(
+                        label="◀ Prev",
+                        style=discord.ButtonStyle.secondary,
+                        custom_id=f"autoredeem_page_{max(0, page - 1)}",
+                        disabled=(page == 0),
+                        row=1
+                    )
+                    next_btn = discord.ui.Button(
+                        label="Next ▶",
+                        style=discord.ButtonStyle.secondary,
+                        custom_id=f"autoredeem_page_{min(total_pages - 1, page + 1)}",
+                        disabled=(page == total_pages - 1),
+                        row=1
+                    )
+                    view.add_item(prev_btn)
+                    view.add_item(next_btn)
+
+                # Action buttons (row 2 or 3)
                 view.add_item(discord.ui.Button(
                     label="Enter ID Manually",
                     style=discord.ButtonStyle.primary,
-                    custom_id="change_autoredeem_priority"
+                    custom_id="change_autoredeem_priority",
+                    row=1 if total_pages <= 1 else 2
                 ))
                 view.add_item(discord.ui.Button(
                     label="Back",
                     style=discord.ButtonStyle.secondary,
-                    custom_id="bot_operations"
+                    custom_id="bot_operations",
+                    row=1 if total_pages <= 1 else 2
                 ))
-                
+
                 if not interaction.response.is_done():
                     await interaction.response.edit_message(embed=embed, view=view)
                 else:
                     await interaction.message.edit(embed=embed, view=view)
             except Exception as e:
-                print(f"set_auto_redeem_order error: {e}")
+                import traceback
+                print(f"set_auto_redeem_order error: {e}\n{traceback.format_exc()}")
                 if not interaction.response.is_done():
                     await interaction.response.send_message("❌ Error loading settings.", ephemeral=True)
-                    
+
+
         elif custom_id == "change_autoredeem_priority":
             try:
                 self.settings_cursor.execute("SELECT is_initial FROM admin WHERE id = ?", (interaction.user.id,))

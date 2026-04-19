@@ -182,6 +182,10 @@ class AutoTranslate(commands.Cog):
             logger.error(f"Failed to get/create webhook: {e}")
             return None
     
+    def _contains_non_ascii(self, text: str) -> bool:
+        """Check if the text contains any non-ASCII characters (likely non-English script)"""
+        return any(ord(c) > 127 for c in text)
+    
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Listen for messages in configured source channels"""
@@ -214,8 +218,15 @@ class AutoTranslate(commands.Cog):
         try:
             # Skip if message is too short (language detection is unreliable for short text)
             min_text_length = config.get('min_text_length', 10)
-            if len(message.content.strip()) < min_text_length:
-                logger.info(f"Skipping translation: message too short ({len(message.content)} chars, minimum {min_text_length})")
+            
+            # Increase sensitivity for non-English scripts
+            effective_min_length = min_text_length
+            if self._contains_non_ascii(message.content):
+                # For non-English scripts, we allow shorter strings (e.g., 2 characters)
+                effective_min_length = 2
+                
+            if len(message.content.strip()) < effective_min_length:
+                logger.info(f"Skipping translation: message too short ({len(message.content)} chars, effective minimum {effective_min_length})")
                 return
             
             # Skip if message has attachments and skip_attachments is enabled

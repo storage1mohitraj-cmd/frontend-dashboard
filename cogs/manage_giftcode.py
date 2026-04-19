@@ -626,10 +626,15 @@ class ManageGiftCode(commands.Cog):
                 CREATE TABLE IF NOT EXISTS auto_redeem_settings (
                     guild_id INTEGER PRIMARY KEY,
                     enabled INTEGER DEFAULT 0,
+                    priority INTEGER DEFAULT 999,
                     updated_by INTEGER,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            try:
+                self.cursor.execute("ALTER TABLE auto_redeem_settings ADD COLUMN priority INTEGER DEFAULT 999")
+            except Exception:
+                pass # Column already exists
             
             # Auto redeem completed guilds table - track per-guild code processing to prevent restart loops
             # Standardize on case-insensitive gift codes

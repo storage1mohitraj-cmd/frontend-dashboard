@@ -5349,15 +5349,18 @@ class BotOperations(commands.Cog):
                                         if mongo_enabled() and AutoRedeemSettingsAdapter and hasattr(AutoRedeemSettingsAdapter, 'set_priority'):
                                             AutoRedeemSettingsAdapter.set_priority(gid, prio, modal_int.user.id)
                                         
-                                        with get_db_connection('giftcode.sqlite') as conn:
-                                            cursor = conn.cursor()
-                                            cursor.execute("SELECT priority FROM auto_redeem_settings WHERE guild_id = ?", (gid,))
-                                            row = cursor.fetchone()
-                                            if row:
-                                                cursor.execute("UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?", (prio, modal_int.user.id, gid))
-                                            else:
-                                                cursor.execute("INSERT INTO auto_redeem_settings (guild_id, enabled, priority, updated_by) VALUES (?, 1, ?, ?)", (gid, prio, modal_int.user.id))
-                                            conn.commit()
+                                        try:
+                                            with get_db_connection('giftcode.sqlite') as conn:
+                                                cursor = conn.cursor()
+                                                cursor.execute("SELECT priority FROM auto_redeem_settings WHERE guild_id = ?", (gid,))
+                                                row = cursor.fetchone()
+                                                if row:
+                                                    cursor.execute("UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?", (prio, modal_int.user.id, gid))
+                                                else:
+                                                    cursor.execute("INSERT INTO auto_redeem_settings (guild_id, enabled, priority, updated_by) VALUES (?, 1, ?, ?)", (gid, prio, modal_int.user.id))
+                                                conn.commit()
+                                        except Exception as db_err:
+                                            print(f"SQLite priority update error (ignoring): {db_err}")
                                         
                                         await modal_int.response.send_message(f"✅ Priority updated to **{prio}**.", ephemeral=True)
                                         
@@ -5432,13 +5435,16 @@ class BotOperations(commands.Cog):
                                 AutoRedeemSettingsAdapter.set_priority(gid, prio, modal_int.user.id)
                             
                             # SQLite
-                            with get_db_connection('giftcode.sqlite') as conn:
-                                cursor = conn.cursor()
-                                cursor.execute(
-                                    "UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?",
-                                    (prio, modal_int.user.id, gid)
-                                )
-                                conn.commit()
+                            try:
+                                with get_db_connection('giftcode.sqlite') as conn:
+                                    cursor = conn.cursor()
+                                    cursor.execute(
+                                        "UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?",
+                                        (prio, modal_int.user.id, gid)
+                                    )
+                                    conn.commit()
+                            except Exception as db_err:
+                                print(f"SQLite manual priority update error (ignoring): {db_err}")
                             
                             await modal_int.response.send_message(f"✅ Set priority for server `{gid}` to **{prio}**.", ephemeral=True)
                         except ValueError:

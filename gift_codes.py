@@ -50,7 +50,7 @@ class WosToolsScraper:
         }
         self.cache_data = None
         self.last_fetched = None
-        self.cache_duration = timedelta(minutes=5)  # Shorter cache — API is fast
+        self.cache_duration = timedelta(seconds=30)  # Very short cache for fast code detection
 
     async def fetch_gift_codes(self):
         """
@@ -119,7 +119,7 @@ class GiftCodeScraper:
         }
         self.cache_data = None
         self.last_fetched = None
-        self.cache_duration = timedelta(minutes=10)
+        self.cache_duration = timedelta(minutes=2)
     
     async def fetch_gift_codes(self):
         """

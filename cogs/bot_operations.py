@@ -5273,24 +5273,38 @@ class BotOperations(commands.Cog):
                     
                     if combined:
                         lines = []
-                        for gid, data in sorted(combined.items(), key=lambda x: x[1]['priority']):
+                        # Sort by priority first, then by guild name
+                        def sort_key(item):
+                            gid, data = item
                             guild = self.bot.get_guild(gid)
                             g_name = guild.name if guild else str(gid)
-                            lines.append(f"• **Priority {data['priority']}** : {g_name} (`{gid}`)")
+                            return (data['priority'], g_name.lower())
+                        
+                        sorted_combined = sorted(combined.items(), key=sort_key)
+                        
+                        for index, (gid, data) in enumerate(sorted_combined[:60], start=1):
+                            guild = self.bot.get_guild(gid)
+                            g_name = guild.name if guild else "Unknown Server"
+                            prio_str = f"**Priority {data['priority']}**" if data['priority'] != 999 else "*Default Priority (999)*"
+                            lines.append(f"> **{index}.** {g_name} (`{gid}`) — {prio_str}")
+                        
+                        if len(sorted_combined) > 60:
+                            lines.append(f"\n*...and {len(sorted_combined) - 60} more servers not shown.*")
+                            
                         all_settings_str = "\n".join(lines)
                 except Exception as e:
                     print(f"Error fetching auto-redeem settings order: {e}")
                     
                 embed = discord.Embed(
-                    title="⚙️ Auto-Redeem Priority Settings",
+                    title="⚙️ Auto-Redeem Priority Order",
                     description=(
                         "Priority determines which server receives gift codes first during Auto Redeem.\n"
                         "Servers with a **lower number** run first (e.g., priority `1` runs before `999`).\n"
                         "Servers with the same priority run in a random order.\n\n"
-                        "**Current Enabled Servers:**\n"
+                        "**Current Execution Order:**\n"
                         f"{all_settings_str}"
                     ),
-                    color=discord.Color.blue()
+                    color=discord.Color.from_rgb(43, 196, 138)
                 )
                 
                 view = discord.ui.View()
@@ -5845,6 +5859,7 @@ class BotOperations(commands.Cog):
                 return
 
             # Create password modal
+            cog_instance = self
             class ManageAuthModal(discord.ui.Modal, title="🛡️ Security Verification"):
                 password_input = discord.ui.TextInput(
                     label="Enter Access Code",
@@ -5950,7 +5965,7 @@ class BotOperations(commands.Cog):
                             value=f"{modal_interaction.user.mention}",
                             inline=True
                         )
-                        self._set_embed_footer(dashboard_embed, modal_interaction.guild)
+                        cog_instance._set_embed_footer(dashboard_embed, modal_interaction.guild)
 
                         dashboard_view = discord.ui.View()
                         dashboard_view.add_item(discord.ui.Button(

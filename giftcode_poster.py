@@ -42,6 +42,7 @@ class GiftCodePoster:
         return str(code).strip().upper()
 
     def _load_state(self):
+        loaded_from_mongo = False
         try:
             # Prefer Mongo when available
             if mongo_enabled() and GiftcodeStateAdapter is not None:
@@ -53,14 +54,15 @@ class GiftCodePoster:
                         self.state.setdefault('channels', {})
                         self.state.setdefault('sent', {})
                         self.state.setdefault('initialized', False)
-                        return
+                        loaded_from_mongo = True
                 except Exception:
                     pass
-            if os.path.exists(STATE_FILE):
-                with open(STATE_FILE, 'r', encoding='utf-8') as f:
-                    self.state = json.load(f)
-            else:
-                self._save_state_sync()
+            if not loaded_from_mongo:
+                if os.path.exists(STATE_FILE):
+                    with open(STATE_FILE, 'r', encoding='utf-8') as f:
+                        self.state = json.load(f)
+                else:
+                    self._save_state_sync()
         except Exception as e:
             logger.error(f"Failed to load giftcode state: {e}")
         # Normalize any existing sent codes to ensure consistent comparisons
@@ -683,10 +685,10 @@ async def run_check_once(bot: discord.Client):
                 sent_set = await poster.get_sent_set(guild_id)
                 logger.info(f"Guild {guild_id} ({guild.name}): sent_set has {len(sent_set)} codes")
                 
-                # If this is the first run after the poster was created (no persisted state),
-                # and the guild has no recorded sent codes, avoid blasting all current codes.
+                # If this guild has no recorded sent codes (e.g. newly configured),
+                # avoid blasting all current codes as "new".
                 # Instead, mark the currently fetched codes as sent and skip posting on this run.
-                if (not initialized) and (not sent_set):
+                if not sent_set:
                     try:
                         # mark fetched codes as sent for this guild to avoid reposts
                         await poster.mark_sent(guild_id, list(fetched_set))

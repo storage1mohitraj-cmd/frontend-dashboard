@@ -3907,7 +3907,7 @@ class BotOperations(commands.Cog):
                         
                         # Get all alliances
                         try:
-                            from db.mongo_adapters import mongo_enabled, AlliancesAdapter
+                            from db.mongo_adapters import AlliancesAdapter
                             if mongo_enabled():
                                 alliances_docs = AlliancesAdapter.get_all()
                                 alliances = [(doc.get('alliance_id', i+1), doc.get('name', 'Unknown')) for i, doc in enumerate(alliances_docs)]
@@ -3935,7 +3935,7 @@ class BotOperations(commands.Cog):
                         current_alliance_name = None
                         if current_alliance_id:
                             try:
-                                from db.mongo_adapters import mongo_enabled, AlliancesAdapter
+                                from db.mongo_adapters import AlliancesAdapter
                                 if mongo_enabled():
                                     target_alliance = AlliancesAdapter.get(current_alliance_id)
                                     if target_alliance:
@@ -5297,7 +5297,7 @@ class BotOperations(commands.Cog):
                     except Exception:
                         page = 0
 
-                from db.mongo_adapters import AutoRedeemSettingsAdapter, mongo_enabled
+                from db.mongo_adapters import AutoRedeemSettingsAdapter
                 from db_utils import get_db_connection
 
                 combined = {}
@@ -5407,7 +5407,7 @@ class BotOperations(commands.Cog):
                                             await modal_int.response.send_message("❌ Priority must be at least 1.", ephemeral=True)
                                             return
 
-                                        from db.mongo_adapters import AutoRedeemSettingsAdapter, mongo_enabled
+                                        from db.mongo_adapters import AutoRedeemSettingsAdapter
                                         from db_utils import get_db_connection
 
                                         if mongo_enabled() and AutoRedeemSettingsAdapter and hasattr(AutoRedeemSettingsAdapter, 'set_priority'):
@@ -5516,7 +5516,7 @@ class BotOperations(commands.Cog):
                             gid = int(self.guild_id.value.strip())
                             prio = int(self.priority.value.strip())
                             
-                            from db.mongo_adapters import AutoRedeemSettingsAdapter, mongo_enabled
+                            from db.mongo_adapters import AutoRedeemSettingsAdapter
                             from db_utils import get_db_connection
                             
                             # MongoDB

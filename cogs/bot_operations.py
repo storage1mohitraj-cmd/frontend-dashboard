@@ -5308,9 +5308,77 @@ class BotOperations(commands.Cog):
                 )
                 
                 view = discord.ui.View()
+                
+                # Create options list
+                server_options = []
+                if combined:
+                    for gid, data in sorted_combined:
+                        guild = self.bot.get_guild(gid)
+                        g_name = guild.name if guild else "Unknown Server"
+                        server_options.append((gid, g_name, data['priority']))
+                
+                if server_options:
+                    # Dynamically create the Select class to capture self (cog_instance)
+                    class PriorityServerSelect(discord.ui.Select):
+                        def __init__(self, cog):
+                            self.cog = cog
+                            options = []
+                            for gid, name, prio in server_options[:25]:
+                                desc = f"Priority: {prio}" if prio != 999 else "Default (999)"
+                                options.append(discord.SelectOption(label=f"{name}"[:100], value=str(gid), description=desc))
+                            super().__init__(placeholder="Select a server to update priority...", min_values=1, max_values=1, options=options)
+                            
+                        async def callback(self, select_int: discord.Interaction):
+                            gid = int(self.values[0])
+                            
+                            class PriorityUpdateModal(discord.ui.Modal, title="Update Server Priority"):
+                                priority = discord.ui.TextInput(
+                                    label="Priority Number",
+                                    placeholder="Lower number = Earlier (e.g. 1)",
+                                    default="999",
+                                    max_length=4,
+                                    required=True
+                                )
+                                async def on_submit(self, modal_int: discord.Interaction):
+                                    try:
+                                        prio = int(self.priority.value.strip())
+                                        from db.mongo_adapters import AutoRedeemSettingsAdapter
+                                        from config import mongo_enabled
+                                        from db_utils import get_db_connection
+                                        
+                                        if mongo_enabled() and AutoRedeemSettingsAdapter and hasattr(AutoRedeemSettingsAdapter, 'set_priority'):
+                                            AutoRedeemSettingsAdapter.set_priority(gid, prio, modal_int.user.id)
+                                        
+                                        with get_db_connection('giftcode.sqlite') as conn:
+                                            cursor = conn.cursor()
+                                            cursor.execute("SELECT priority FROM auto_redeem_settings WHERE guild_id = ?", (gid,))
+                                            row = cursor.fetchone()
+                                            if row:
+                                                cursor.execute("UPDATE auto_redeem_settings SET priority = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?", (prio, modal_int.user.id, gid))
+                                            else:
+                                                cursor.execute("INSERT INTO auto_redeem_settings (guild_id, enabled, priority, updated_by) VALUES (?, 1, ?, ?)", (gid, prio, modal_int.user.id))
+                                            conn.commit()
+                                        
+                                        await modal_int.response.send_message(f"✅ Priority updated to **{prio}**.", ephemeral=True)
+                                        
+                                        # Refresh the view using the original select interaction
+                                        try:
+                                            await self.cog.set_auto_redeem_order(select_int)
+                                        except Exception as e:
+                                            print(f"Error refreshing UI: {e}")
+                                    except ValueError:
+                                        await modal_int.response.send_message("❌ Invalid input. Please enter valid numbers.", ephemeral=True)
+                                    except Exception as e:
+                                        print(f"Priority modal error: {e}")
+                                        await modal_int.response.send_message("❌ Database error occurred.", ephemeral=True)
+
+                            await select_int.response.send_modal(PriorityUpdateModal())
+
+                    view.add_item(PriorityServerSelect(self))
+
                 view.add_item(discord.ui.Button(
-                    label="Change Server Priority",
-                    style=discord.ButtonStyle.success,
+                    label="Enter ID Manually",
+                    style=discord.ButtonStyle.primary,
                     custom_id="change_autoredeem_priority"
                 ))
                 view.add_item(discord.ui.Button(
@@ -5319,7 +5387,10 @@ class BotOperations(commands.Cog):
                     custom_id="bot_operations"
                 ))
                 
-                await interaction.response.edit_message(embed=embed, view=view)
+                if not interaction.response.is_done():
+                    await interaction.response.edit_message(embed=embed, view=view)
+                else:
+                    await interaction.message.edit(embed=embed, view=view)
             except Exception as e:
                 print(f"set_auto_redeem_order error: {e}")
                 if not interaction.response.is_done():

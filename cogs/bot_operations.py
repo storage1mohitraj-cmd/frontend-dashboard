@@ -155,6 +155,7 @@ class BotOperations(commands.Cog):
         # Handle Other Features button
         if custom_id == "manage_other_features":
             try:
+                await interaction.response.defer(ephemeral=True)
                 # Create Other Features submenu
                 embed = discord.Embed(
                     title="🔮 Other Features",
@@ -191,45 +192,38 @@ class BotOperations(commands.Cog):
                     custom_id="manage_welcome",
                     row=0
                 ))
-                view.add_item(discord.ui.Button(
-                    label="◀ Back",
-                    emoji="🏠",
-                    style=discord.ButtonStyle.secondary,
-                    custom_id="return_to_manage",
-                    row=1
-                ))
 
-                await interaction.response.edit_message(embed=embed, view=view)
-            except discord.errors.NotFound:
-                # Interaction expired, send a new message
-                await interaction.followup.send(
-                    "❌ Interaction expired. Please run `/manage` again.",
-                    ephemeral=True
-                )
+                await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             except Exception as e:
                 print(f"Other Features error: {e}")
                 import traceback
                 traceback.print_exc()
                 try:
-                    await interaction.response.send_message(
-                        "❌ An error occurred while loading Other Features.",
-                        ephemeral=True
-                    )
-                except:
                     await interaction.followup.send(
                         "❌ An error occurred while loading Other Features.",
                         ephemeral=True
                     )
+                except Exception:
+                    pass
             return
         
         # Handle Alliance Monitor button
         if custom_id == "manage_alliance_monitor":
             try:
+                await interaction.response.defer(ephemeral=True)
                 alliance_cog = self.bot.get_cog("Alliance")
                 if alliance_cog:
-                    from cogs.alliance import AllianceMonitorView
-                    view = AllianceMonitorView(alliance_cog, interaction.guild_id)
-                    
+                    try:
+                        from cogs.alliance import AllianceMonitorView
+                        view = AllianceMonitorView(alliance_cog, interaction.guild_id)
+                    except Exception as view_err:
+                        print(f"AllianceMonitorView init error: {view_err}")
+                        await interaction.followup.send(
+                            "❌ Failed to load Alliance Monitor view. Check logs for details.",
+                            ephemeral=True
+                        )
+                        return
+
                     embed = discord.Embed(
                         title="🏰 Alliance Monitoring Dashboard",
                         description=(
@@ -242,17 +236,20 @@ class BotOperations(commands.Cog):
                         ),
                         color=discord.Color.blue()
                     )
-                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+                    await interaction.followup.send(embed=embed, view=view, ephemeral=True)
                 else:
-                    await interaction.response.send_message("Alliance module is not loaded.", ephemeral=True)
+                    await interaction.followup.send("Alliance module is not loaded.", ephemeral=True)
             except Exception as e:
                 print(f"Alliance Monitor error: {e}")
                 import traceback
                 traceback.print_exc()
-                await interaction.response.send_message(
-                    "❌ An error occurred while loading Alliance Monitor.",
-                    ephemeral=True
-                )
+                try:
+                    await interaction.followup.send(
+                        "❌ An error occurred while loading Alliance Monitor.",
+                        ephemeral=True
+                    )
+                except Exception:
+                    pass
             return
         
         # Handle Welcome Messages button

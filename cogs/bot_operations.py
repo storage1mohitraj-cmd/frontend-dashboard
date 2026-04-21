@@ -119,8 +119,7 @@ class BotOperations(commands.Cog):
         except Exception as e:
             await ctx.send(f"Failed to sync: {e}")
 
-    @commands.Cog.listener()
-    async def on_interaction(self, interaction: discord.Interaction):
+    async def _handle_manage_interactionstion(self, interaction: discord.Interaction):
         if not interaction.type == discord.InteractionType.component:
             return
 
@@ -1406,6 +1405,11 @@ class BotOperations(commands.Cog):
 
         if custom_id == "records_menu":
             await self.records_menu(interaction)
+            return
+
+        # Handle manage-dashboard-specific interactions (Other Features, Alliance Monitor, Timezone, Welcome)
+        await self._handle_manage_interactions(interaction)
+        if interaction.response.is_done():
             return
 
         # Handle back buttons to return to management dashboard

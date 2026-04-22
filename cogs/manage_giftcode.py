@@ -1752,7 +1752,7 @@ class ManageGiftCode(commands.Cog):
                         return
                     # Process the member
                     status, success, already_redeemed, failed = await self._redeem_for_member(
-                        guild_id, fid, nickname, furnace_lv, code_up
+                        guild_id, fid, nickname, furnace_lv, giftcode
                     )
                     
                     # If status is permanently invalid for everyone, abort early

@@ -119,7 +119,7 @@ class BotOperations(commands.Cog):
         except Exception as e:
             await ctx.send(f"Failed to sync: {e}")
 
-    async def _handle_manage_interactionstion(self, interaction: discord.Interaction):
+    async def _handle_manage_interactions(self, interaction: discord.Interaction):
         if not interaction.type == discord.InteractionType.component:
             return
 

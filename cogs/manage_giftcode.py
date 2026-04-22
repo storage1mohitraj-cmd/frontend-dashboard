@@ -290,7 +290,7 @@ class ManageGiftCode(commands.Cog):
                 
                 try:
                     # Await the actual process (runs sequentially for this worker)
-                    await self.process_auto_redeem(guild_id, code_up, is_recheck=is_recheck)
+                    await self.process_auto_redeem(guild_id, code, is_recheck=is_recheck)
                 except Exception as e:
                     self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code_up}: {e}")
                 finally:
@@ -3013,7 +3013,7 @@ class ManageGiftCode(commands.Cog):
             self._completion_events[code_up] = asyncio.Event()
             
             for (guild_id,) in pending_guilds:
-                self.auto_redeem_queue.put_nowait((guild_id, code_up, is_recheck))
+                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
             
             # Wait for all jobs for THIS code to complete
             await self.wait_for_code_completion(code_up, len(pending_guilds), already_initialized=True)

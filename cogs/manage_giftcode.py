@@ -217,6 +217,8 @@ class ManageGiftCode(commands.Cog):
         self._pending_jobs_per_code = {} # {code: count_of_guilds_left}
         self._completion_events = {}     # {code: asyncio.Event}
         
+        self._bg_tasks = set()  # Strong references for background tasks
+        
         self.session = None
 
     def _set_embed_footer(self, embed: discord.Embed, guild: discord.Guild = None):
@@ -239,7 +241,9 @@ class ManageGiftCode(commands.Cog):
         self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
 
         # Sync MongoDB to SQLite on startup
-        asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
+        sync_task = asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
+        self._bg_tasks.add(sync_task)
+        sync_task.add_done_callback(self._bg_tasks.discard)
 
         # Start background workers
         self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
@@ -2802,7 +2806,9 @@ class ManageGiftCode(commands.Cog):
                 self.logger.info(f"Codes: {[c[0] for c in recent_codes]}")
                 # We do NOT mark them as processed here; trigger_auto_redeem_for_new_codes will do that
                 # after dispatching tasks to all guilds.
-                asyncio.create_task(self.trigger_auto_redeem_for_new_codes(recent_codes))
+                task = asyncio.create_task(self.trigger_auto_redeem_for_new_codes(recent_codes))
+                self._bg_tasks.add(task)
+                task.add_done_callback(self._bg_tasks.discard)
             
             # 2. Process OLD codes (Mark as processed only)
             if old_codes:
@@ -2861,7 +2867,9 @@ class ManageGiftCode(commands.Cog):
         try:
             # Trigger auto-redeem for all guilds that have it enabled
             # Setup as a background task to avoid blocking the DM notification logic and API checkers
-            asyncio.create_task(self.trigger_auto_redeem_for_new_codes(new_codes))
+            task = asyncio.create_task(self.trigger_auto_redeem_for_new_codes(new_codes))
+            self._bg_tasks.add(task)
+            task.add_done_callback(self._bg_tasks.discard)
 
             # Trigger immediate auto-posting to configured channels
             try:
@@ -3892,7 +3900,9 @@ class ManageGiftCode(commands.Cog):
                             )
                             await modal_interaction.edit_original_response(embed=success_embed)
                             # Trigger auto-redeem
-                            asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                            task = asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                            self.cog._bg_tasks.add(task)
+                            task.add_done_callback(self.cog._bg_tasks.discard)
                         else:
                             # Code doesn't exist in API, try to add it
                             success = await self.cog.add_giftcode_to_api(gift_code)
@@ -3918,7 +3928,9 @@ class ManageGiftCode(commands.Cog):
                                 )
                                 await modal_interaction.edit_original_response(embed=success_embed)
                                 # Trigger auto-redeem
-                                asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                task = asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                self.cog._bg_tasks.add(task)
+                                task.add_done_callback(self.cog._bg_tasks.discard)
                             else:
                                 # API rejected it. Try GAME API verification
                                 try:
@@ -3956,7 +3968,9 @@ class ManageGiftCode(commands.Cog):
                                         )
                                         await modal_interaction.edit_original_response(embed=success_embed)
                                         # Trigger auto-redeem
-                                        asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                        task = asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                        self.cog._bg_tasks.add(task)
+                                        task.add_done_callback(self.cog._bg_tasks.discard)
                                         
                                     elif status in ["INVALID_CODE", "EXPIRED", "USAGE_LIMIT_REACHED", "EXPIRED_CODE"]:
                                         # Definitively invalid
@@ -3997,7 +4011,9 @@ class ManageGiftCode(commands.Cog):
                                         )
                                         await modal_interaction.edit_original_response(embed=success_embed)
                                         # Trigger auto-redeem
-                                        asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                        task = asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                        self.cog._bg_tasks.add(task)
+                                        task.add_done_callback(self.cog._bg_tasks.discard)
                                 except Exception as e:
                                     self.cog.logger.error(f"Error during verification/force add: {e}")
                                     # Fallback to force add on error
@@ -4020,7 +4036,9 @@ class ManageGiftCode(commands.Cog):
                                     )
                                     await modal_interaction.edit_original_response(embed=success_embed)
                                     # Trigger auto-redeem
-                                    asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                    task = asyncio.create_task(self.cog.trigger_auto_redeem_for_new_codes([(gift_code, datetime.now().strftime("%Y-%m-%d"))]))
+                                    self.cog._bg_tasks.add(task)
+                                    task.add_done_callback(self.cog._bg_tasks.discard)
                         
                     except Exception as e:
                         self.cog.logger.exception(f"Error adding gift code: {e}")

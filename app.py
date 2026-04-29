@@ -920,6 +920,7 @@ async def setup_hook():
         "cogs.message_extractor",  # Message extraction for global admins
         "cogs.tictactoe",  # Tic-Tac-Toe game
         "cogs.alliance_monitor",  # Alliance online status monitoring
+        "cogs.ai_chat",  # AI Chat functionality on mentions/DMs
         # NOTE: cogs.start_menu removed from here — it was duplicated (also at top of list)
         # "cogs.debug_mongo_cog",  # Removed — debug tools moved to /settings button
     ]

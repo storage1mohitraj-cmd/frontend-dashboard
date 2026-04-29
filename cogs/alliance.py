@@ -230,13 +230,13 @@ class Alliance(commands.Cog):
                                 color=0x06B6D4
                             )
                             embed.add_field(
-                                name="⚙️ Getting Started",
-                                value="The main configuration dashboard is accessed via the `/manage` command in your server. You must be an administrator or have the required permissions to use it.",
+                                name="🔒 Default Security Lock",
+                                value="By default, core features like **`/manage`**, **Auto-Redeem**, and the **Alliance Monitor** are locked to prevent unauthorized access.",
                                 inline=False
                             )
                             embed.add_field(
-                                name="🔒 Security & Access",
-                                value="To access the `/manage` menu, a Global Administrator must first set an **Access Code** for your server.",
+                                name="🔑 Getting Access",
+                                value="To unlock these features for your server, you **must contact an administrator**. Please click the **Contact Administrator** button below to join our support server and request an Access Code.",
                                 inline=False
                             )
                             embed.set_thumbnail(url=avatar_url)
@@ -246,22 +246,22 @@ class Alliance(commands.Cog):
                         def get_page_2(self):
                             embed = discord.Embed(
                                 title="✨ Core Features",
-                                description="Here are some of the main features you can configure via `/manage`:",
+                                description="Once unlocked, you can configure these features via the `/manage` command:",
                                 color=0x06B6D4
                             )
                             embed.add_field(
                                 name="🏰 Alliance Monitoring",
-                                value="Track your alliance's statistics, name changes, and member growth. Set this up in `/manage` -> **Alliance Monitor**.",
+                                value="Track your alliance's statistics, name changes, and member growth.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="🎁 Gift Code Management",
+                                value="Automate gift code redemption for all your members!",
                                 inline=False
                             )
                             embed.add_field(
                                 name="👥 Player Records",
-                                value="Keep detailed records of your members, including custom groups and notes. Explore this in `/manage` -> **Records**.",
-                                inline=False
-                            )
-                            embed.add_field(
-                                name="👋 Welcome Setup",
-                                value="Create custom welcome messages for new members! Configure this via `/manage` -> **Other Features** -> **Welcome Setup**.",
+                                value="Keep detailed records of your members, including custom groups and notes.",
                                 inline=False
                             )
                             embed.set_thumbnail(url=avatar_url)
@@ -270,14 +270,9 @@ class Alliance(commands.Cog):
 
                         def get_page_3(self):
                             embed = discord.Embed(
-                                title="🔮 Additional Features & Support",
-                                description="There's more! Here are some other awesome features:",
+                                title="🔮 Additional Features",
+                                description="Here are some other awesome features available right now:",
                                 color=0x06B6D4
-                            )
-                            embed.add_field(
-                                name="🎁 Gift Code Management",
-                                value="Automate gift code redemption for your members! Configure this via `/manage` -> **Gift Codes**.",
-                                inline=False
                             )
                             embed.add_field(
                                 name="🔍 Quick Player Info",
@@ -285,12 +280,27 @@ class Alliance(commands.Cog):
                                 inline=False
                             )
                             embed.add_field(
-                                name="🆘 Need Help?",
-                                value="If you need assistance, want to report a bug, or have questions about the Access Code, please contact our administrators.",
+                                name="👋 Welcome Setup",
+                                value="Create custom welcome messages for new members using `/welcome` or via the manage dashboard.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="📅 Server Age",
+                                value="Use `/server_age` to check your server's age and upcoming milestones.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="🌐 Auto Translation",
+                                value="Create auto-translating channels using `/autotranslatecreate`.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="🎮 Tic Tac Toe",
+                                value="Play Tic Tac Toe with your friends using the `/tictactoe` command.",
                                 inline=False
                             )
                             embed.set_thumbnail(url=avatar_url)
-                            embed.set_footer(text="Page 3 of 3 • Click Contact Administrator to join our server")
+                            embed.set_footer(text="Page 3 of 3 • Click Contact Administrator to request access")
                             return embed
 
                         def update_buttons(self):

@@ -213,47 +213,147 @@ class Alliance(commands.Cog):
 
             if adder:
                 try:
-                    embed = discord.Embed(
-                        title="🤖 Welcome to Whiteout Survival Bot!",
-                        description=f"Thank you for adding me to **{guild.name}**! I'm here to help you manage your alliance effectively.\n\nHere's a quick guide to get you started:",
-                        color=0x06B6D4
-                    )
+                    avatar_url = self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url
                     
-                    embed.add_field(
-                        name="⚙️ Initial Setup",
-                        value="Use the `/manage` command in your server to access the main configuration dashboard. This is where you'll control all bot features.",
-                        inline=False
-                    )
-                    
-                    embed.add_field(
-                        name="🎁 Gift Code Management",
-                        value="Automate gift code redemption for your members! Configure this via `/manage` -> **Gift Codes**.",
-                        inline=False
-                    )
+                    class OnboardingView(discord.ui.View):
+                        def __init__(self, guild_name):
+                            super().__init__(timeout=None)
+                            self.guild_name = guild_name
+                            self.current_page = 0
+                            self.pages = [self.get_page_1(), self.get_page_2(), self.get_page_3()]
+                            self.update_buttons()
 
-                    embed.add_field(
-                        name="🏰 Alliance Monitoring",
-                        value="Track your alliance's statistics and member growth. Set this up in `/manage` -> **Alliance Monitor**.",
-                        inline=False
-                    )
+                        def get_page_1(self):
+                            embed = discord.Embed(
+                                title="🤖 Welcome to Whiteout Survival Bot!",
+                                description=f"Thank you for adding me to **{self.guild_name}**!\n\nThis guide will help you understand my core features and how to set them up.",
+                                color=0x06B6D4
+                            )
+                            embed.add_field(
+                                name="⚙️ Getting Started",
+                                value="The main configuration dashboard is accessed via the `/manage` command in your server. You must be an administrator or have the required permissions to use it.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="🔒 Security & Access",
+                                value="To access the `/manage` menu, a Global Administrator must first set an **Access Code** for your server.",
+                                inline=False
+                            )
+                            embed.set_thumbnail(url=avatar_url)
+                            embed.set_footer(text="Page 1 of 3 • Use the buttons below to navigate")
+                            return embed
 
-                    embed.add_field(
-                        name="👥 Player Records",
-                        value="Keep detailed records of your members, including custom groups. Explore this in `/manage` -> **Records**.",
-                        inline=False
-                    )
+                        def get_page_2(self):
+                            embed = discord.Embed(
+                                title="✨ Core Features",
+                                description="Here are some of the main features you can configure via `/manage`:",
+                                color=0x06B6D4
+                            )
+                            embed.add_field(
+                                name="🏰 Alliance Monitoring",
+                                value="Track your alliance's statistics, name changes, and member growth. Set this up in `/manage` -> **Alliance Monitor**.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="👥 Player Records",
+                                value="Keep detailed records of your members, including custom groups and notes. Explore this in `/manage` -> **Records**.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="👋 Welcome Setup",
+                                value="Create custom welcome messages for new members! Configure this via `/manage` -> **Other Features** -> **Welcome Setup**.",
+                                inline=False
+                            )
+                            embed.set_thumbnail(url=avatar_url)
+                            embed.set_footer(text="Page 2 of 3 • Use the buttons below to navigate")
+                            return embed
 
-                    embed.add_field(
-                        name="🆘 Need Help?",
-                        value="If you need assistance or want to report a bug, join our [Support Server](https://discord.gg/bP5JQFH2M5).",
-                        inline=False
-                    )
+                        def get_page_3(self):
+                            embed = discord.Embed(
+                                title="🔮 Additional Features & Support",
+                                description="There's more! Here are some other awesome features:",
+                                color=0x06B6D4
+                            )
+                            embed.add_field(
+                                name="🎁 Gift Code Management",
+                                value="Automate gift code redemption for your members! Configure this via `/manage` -> **Gift Codes**.",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="🔍 Quick Player Info",
+                                value="Simply type a player's **ID** in any channel, and I will automatically fetch and display their in-game information!",
+                                inline=False
+                            )
+                            embed.add_field(
+                                name="🆘 Need Help?",
+                                value="If you need assistance, want to report a bug, or have questions about the Access Code, please contact our administrators.",
+                                inline=False
+                            )
+                            embed.set_thumbnail(url=avatar_url)
+                            embed.set_footer(text="Page 3 of 3 • Click Contact Administrator to join our server")
+                            return embed
 
-                    embed.set_thumbnail(url=self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url)
-                    embed.set_footer(text="Whiteout Survival Bot • Use /manage to begin")
+                        def update_buttons(self):
+                            self.clear_items()
+                            
+                            # Previous button
+                            prev_btn = discord.ui.Button(
+                                label="Previous",
+                                style=discord.ButtonStyle.secondary,
+                                disabled=self.current_page == 0,
+                                custom_id="onboarding_prev"
+                            )
+                            prev_btn.callback = self.prev_page
+                            self.add_item(prev_btn)
 
-                    await adder.send(embed=embed)
-                    print(f"   \u2705 Sent onboarding DM to {adder.name}")
+                            # Next button
+                            if self.current_page < len(self.pages) - 1:
+                                next_btn = discord.ui.Button(
+                                    label="Next",
+                                    style=discord.ButtonStyle.primary,
+                                    custom_id="onboarding_next"
+                                )
+                                next_btn.callback = self.next_page
+                                self.add_item(next_btn)
+                            else:
+                                # Understood button on last page
+                                understood_btn = discord.ui.Button(
+                                    label="Understood",
+                                    style=discord.ButtonStyle.success,
+                                    custom_id="onboarding_understood"
+                                )
+                                understood_btn.callback = self.understood
+                                self.add_item(understood_btn)
+
+                            # Contact Administrator button
+                            self.add_item(discord.ui.Button(
+                                label="Contact Administrator",
+                                style=discord.ButtonStyle.link,
+                                url="https://discord.gg/bP5JQFH2M5"
+                            ))
+
+                        async def prev_page(self, interaction: discord.Interaction):
+                            if self.current_page > 0:
+                                self.current_page -= 1
+                                self.update_buttons()
+                                await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+                        async def next_page(self, interaction: discord.Interaction):
+                            if self.current_page < len(self.pages) - 1:
+                                self.current_page += 1
+                                self.update_buttons()
+                                await interaction.response.edit_message(embed=self.pages[self.current_page], view=self)
+
+                        async def understood(self, interaction: discord.Interaction):
+                            for item in self.children:
+                                if hasattr(item, "custom_id") and item.custom_id in ["onboarding_prev", "onboarding_understood", "onboarding_next"]:
+                                    item.disabled = True
+                            await interaction.response.edit_message(view=self)
+                            await interaction.followup.send("✅ **You're all set!** Enjoy using Whiteout Survival Bot.", ephemeral=True)
+
+                    view = OnboardingView(guild.name)
+                    await adder.send(embed=view.pages[0], view=view)
+                    print(f"   \u2705 Sent paginated onboarding DM to {adder.name}")
                 except discord.Forbidden:
                     print(f"   \u274c Failed to send DM to {adder.name} (DMs disabled)")
                 except Exception as e:

@@ -21,23 +21,25 @@ class AIChat(commands.Cog):
         """Send a greeting when joining a new server."""
         # Find a suitable channel
         chat_channel = None
-        default_role = guild.default_role
         
-        # Priority 1: Exact matches for common public channels, ensuring @everyone can see/send
+        # Priority 1: Substring match for common channel names
         for channel in guild.text_channels:
             if channel.permissions_for(guild.me).send_messages:
-                # Check if it's a public channel (not restricted to admins)
-                perms = channel.permissions_for(default_role)
-                if perms.read_messages and perms.send_messages:
-                    channel_name = channel.name.lower()
-                    # Exact match to prevent spamming 'staff-chat', 'admin-general', etc.
-                    if channel_name in ["chat", "general", "main", "welcome"]:
-                        chat_channel = channel
-                        break
+                channel_name = channel.name.lower()
+                if any(word in channel_name for word in ["chat", "general", "main", "welcome"]):
+                    chat_channel = channel
+                    break
                     
         # Priority 2: Use the system channel if we have permission
         if not chat_channel and guild.system_channel and guild.system_channel.permissions_for(guild.me).send_messages:
             chat_channel = guild.system_channel
+            
+        # Priority 3: Fallback to the very first channel we have permission to type in
+        if not chat_channel:
+            for channel in guild.text_channels:
+                if channel.permissions_for(guild.me).send_messages:
+                    chat_channel = channel
+                    break
                     
         if chat_channel:
             try:

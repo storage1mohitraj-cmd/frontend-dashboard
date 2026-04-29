@@ -454,6 +454,36 @@ class GiftCodeAPI:
                                                     self.logger.error("GiftOperations cog not found!")
                                         except Exception as e:
                                             self.logger.exception(f"Error processing new code {code}: {e}")
+                                    
+                                    # === TRIGGER AUTO-POSTING TO CONFIGURED CHANNELS ===
+                                    try:
+                                        import giftcode_poster as _gp
+                                        await _gp.run_now_and_report(self.bot)
+                                        self.logger.info("🚀 Triggered immediate gift code auto-posting to configured channels")
+                                    except Exception as e:
+                                        self.logger.error(f"Error triggering auto-posting from gift_operationsapi: {e}")
+                                    
+                                    # === TRIGGER FID-BASED AUTO-REDEEM VIA ManageGiftCode ===
+                                    # Collect all validated codes for auto-redeem
+                                    validated_codes_for_redeem = [
+                                        (code, date) for code, date in new_codes
+                                        if self._get_gift_code_status(code) not in ('invalid', None)
+                                    ]
+                                    if validated_codes_for_redeem:
+                                        try:
+                                            manage_giftcode_cog = self.bot.get_cog('ManageGiftCode')
+                                            if manage_giftcode_cog:
+                                                self.logger.info(f"🔔 Triggering FID-based auto-redeem for {len(validated_codes_for_redeem)} validated codes via ManageGiftCode")
+                                                task = asyncio.create_task(
+                                                    manage_giftcode_cog.trigger_auto_redeem_for_new_codes(validated_codes_for_redeem)
+                                                )
+                                                manage_giftcode_cog._bg_tasks.add(task)
+                                                task.add_done_callback(manage_giftcode_cog._bg_tasks.discard)
+                                            else:
+                                                self.logger.warning("⚠️ ManageGiftCode cog not found - FID-based auto-redeem not triggered")
+                                        except Exception as e:
+                                            self.logger.error(f"Error triggering FID-based auto-redeem from gift_operationsapi: {e}")
+
                             except Exception as e:
                                 self.logger.exception(f"Error committing new codes: {e}")
                             

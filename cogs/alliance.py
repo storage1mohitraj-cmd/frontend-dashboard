@@ -195,6 +195,70 @@ class Alliance(commands.Cog):
                 print(f"   \u274c Failed to set server limits for {guild.name}: {e}")
             
             print(f"\U0001f512 [AUTO-LOCK] Defaults applied for {guild.name}")
+
+            # 3. Send Onboarding DM
+            adder = None
+            try:
+                async for entry in guild.audit_logs(limit=1, action=discord.AuditLogAction.bot_add):
+                    if entry.target.id == self.bot.user.id:
+                        adder = entry.user
+                        break
+            except discord.Forbidden:
+                print(f"   \u26a0\ufe0f Lacking audit log permissions to find bot adder in {guild.name}")
+            except Exception as e:
+                print(f"   \u26a0\ufe0f Error finding bot adder: {e}")
+
+            if not adder:
+                adder = guild.owner
+
+            if adder:
+                try:
+                    embed = discord.Embed(
+                        title="🤖 Welcome to Whiteout Survival Bot!",
+                        description=f"Thank you for adding me to **{guild.name}**! I'm here to help you manage your alliance effectively.\n\nHere's a quick guide to get you started:",
+                        color=0x06B6D4
+                    )
+                    
+                    embed.add_field(
+                        name="⚙️ Initial Setup",
+                        value="Use the `/settings` command in your server to access the main configuration dashboard. This is where you'll control all bot features.",
+                        inline=False
+                    )
+                    
+                    embed.add_field(
+                        name="🎁 Gift Code Auto-Redeem",
+                        value="Automate gift code redemption for your members! Configure this via `/settings` -> **Gift Code Operations**.",
+                        inline=False
+                    )
+
+                    embed.add_field(
+                        name="🏰 Alliance Monitoring",
+                        value="Track your alliance's statistics and member growth. Set this up in `/settings` -> **Alliance Operations**.",
+                        inline=False
+                    )
+
+                    embed.add_field(
+                        name="👥 Player Records",
+                        value="Keep detailed records of your members, including custom groups. Explore this in `/settings` -> **Records**.",
+                        inline=False
+                    )
+
+                    embed.add_field(
+                        name="🆘 Need Help?",
+                        value="If you need assistance or want to report a bug, join our [Support Server](https://discord.gg/apYByj6K2m).",
+                        inline=False
+                    )
+
+                    embed.set_thumbnail(url=self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url)
+                    embed.set_footer(text="Whiteout Survival Bot • Use /settings to begin")
+
+                    await adder.send(embed=embed)
+                    print(f"   \u2705 Sent onboarding DM to {adder.name}")
+                except discord.Forbidden:
+                    print(f"   \u274c Failed to send DM to {adder.name} (DMs disabled)")
+                except Exception as e:
+                    print(f"   \u274c Error sending DM: {e}")
+
         except Exception as e:
             print(f"\u274c [AUTO-LOCK] Error processing guild join for {guild}: {e}")
 

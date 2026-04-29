@@ -2219,37 +2219,53 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 self.logger.warning(f"Failed to fetch invalid codes for filtering: {e}")
 
-        active_codes_map = {}
+        active_codes_map = {}  # code_str -> {'expiry': str, 'has_real_expiry': bool}
         
-        # 1. Fetch from website scraper
+        # 1. Fetch from website scraper (has real expiry/rewards info)
         try:
             from gift_codes import get_active_gift_codes
             website_codes = await get_active_gift_codes()
             if website_codes:
                 for item in website_codes:
                     if item.get('code') and item.get('is_active', True):
-                        active_codes_map[item['code']] = item.get('expiry', 'Unknown')
+                        code_key = item['code']
+                        expiry = item.get('expiry', 'Unknown')
+                        active_codes_map[code_key] = {
+                            'expiry': expiry,
+                            'has_real_expiry': expiry not in ('Unknown', '', None)
+                        }
         except Exception as e:
             self.logger.error(f"Error fetching website codes for consolidated list: {e}")
             
-        # 2. Fetch from API
+        # 2. Fetch from Bot API (date is 'date added', NOT expiry)
         try:
             api_codes = await self.fetch_codes_from_api()
             if api_codes:
                 for code_str, date_str in api_codes:
-                    if code_str not in active_codes_map:
-                        active_codes_map[code_str] = date_str
+                    # Case-insensitive check: don't add duplicates
+                    already_exists = any(
+                        existing.upper() == code_str.upper() 
+                        for existing in active_codes_map
+                    )
+                    if not already_exists:
+                        active_codes_map[code_str] = {
+                            'expiry': date_str,
+                            'has_real_expiry': False  # Bot API date = date added, NOT expiry
+                        }
         except Exception as e:
             self.logger.error(f"Error fetching API codes for consolidated list: {e}")
             
-        # 3. Filter by expiry date
+        # 3. Filter by expiry date (ONLY for codes that have a real expiry date)
         filtered_map = {}
         now = datetime.now()
         import dateutil.parser
         
-        for code_str, expiry_str in active_codes_map.items():
+        for code_str, info in active_codes_map.items():
+            expiry_str = info['expiry']
             is_active = True
-            if expiry_str and expiry_str != 'Unknown':
+            
+            # Only filter by date if this is a REAL expiry date (from web scraper)
+            if info['has_real_expiry'] and expiry_str and expiry_str != 'Unknown':
                 try:
                     expiry_date = dateutil.parser.parse(expiry_str, fuzzy=True)
                     if expiry_date <= now:
@@ -2257,7 +2273,11 @@ class ManageGiftCode(commands.Cog):
                 except Exception:
                     pass
             
-            if is_active and code_str not in invalid_codes:
+            # Case-insensitive check against invalid codes
+            code_upper = code_str.upper()
+            is_invalid = any(inv.upper() == code_upper for inv in invalid_codes)
+            
+            if is_active and not is_invalid:
                 filtered_map[code_str] = expiry_str
                 
         return filtered_map

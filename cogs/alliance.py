@@ -221,36 +221,36 @@ class Alliance(commands.Cog):
                     
                     embed.add_field(
                         name="⚙️ Initial Setup",
-                        value="Use the `/settings` command in your server to access the main configuration dashboard. This is where you'll control all bot features.",
+                        value="Use the `/manage` command in your server to access the main configuration dashboard. This is where you'll control all bot features.",
                         inline=False
                     )
                     
                     embed.add_field(
-                        name="🎁 Gift Code Auto-Redeem",
-                        value="Automate gift code redemption for your members! Configure this via `/settings` -> **Gift Code Operations**.",
+                        name="🎁 Gift Code Management",
+                        value="Automate gift code redemption for your members! Configure this via `/manage` -> **Gift Codes**.",
                         inline=False
                     )
 
                     embed.add_field(
                         name="🏰 Alliance Monitoring",
-                        value="Track your alliance's statistics and member growth. Set this up in `/settings` -> **Alliance Operations**.",
+                        value="Track your alliance's statistics and member growth. Set this up in `/manage` -> **Alliance Monitor**.",
                         inline=False
                     )
 
                     embed.add_field(
                         name="👥 Player Records",
-                        value="Keep detailed records of your members, including custom groups. Explore this in `/settings` -> **Records**.",
+                        value="Keep detailed records of your members, including custom groups. Explore this in `/manage` -> **Records**.",
                         inline=False
                     )
 
                     embed.add_field(
                         name="🆘 Need Help?",
-                        value="If you need assistance or want to report a bug, join our [Support Server](https://discord.gg/apYByj6K2m).",
+                        value="If you need assistance or want to report a bug, join our [Support Server](https://discord.gg/bP5JQFH2M5).",
                         inline=False
                     )
 
                     embed.set_thumbnail(url=self.bot.user.avatar.url if self.bot.user.avatar else self.bot.user.default_avatar.url)
-                    embed.set_footer(text="Whiteout Survival Bot • Use /settings to begin")
+                    embed.set_footer(text="Whiteout Survival Bot • Use /manage to begin")
 
                     await adder.send(embed=embed)
                     print(f"   \u2705 Sent onboarding DM to {adder.name}")

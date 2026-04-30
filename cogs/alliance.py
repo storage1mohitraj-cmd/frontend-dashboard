@@ -456,6 +456,13 @@ class Alliance(commands.Cog):
                     locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            # Migration: Add feature_locked column if it doesn't exist
+            try:
+                self.c_settings.execute("ALTER TABLE server_locks ADD COLUMN feature_locked INTEGER DEFAULT 0")
+            except Exception:
+                pass
+                
         except Exception:
             pass
 

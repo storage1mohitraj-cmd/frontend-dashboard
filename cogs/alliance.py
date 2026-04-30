@@ -172,14 +172,14 @@ class Alliance(commands.Cog):
         try:
             print(f"\U0001f512 [AUTO-LOCK] Bot joined server: {guild.name} ({guild.id}). Applying default locks...")
             
-            # 1. Lock the bot (/manage) via server_locks table
+            # 1. Lock the bot (/manage and alliance monitor) via server_locks table (Partial Lock)
             try:
                 self.c_settings.execute(
-                    "INSERT OR REPLACE INTO server_locks (guild_id, locked, locked_by, locked_at) VALUES (?, 1, ?, CURRENT_TIMESTAMP)",
+                    "INSERT OR REPLACE INTO server_locks (guild_id, locked, feature_locked, locked_by, locked_at) VALUES (?, 0, 1, ?, CURRENT_TIMESTAMP)",
                     (guild.id, self.bot.user.id)
                 )
                 self.conn_settings.commit()
-                print(f"   \u2705 /manage locked for {guild.name}")
+                print(f"   \u2705 Partial/Feature lock applied for {guild.name}")
             except Exception as e:
                 print(f"   \u274c Failed to lock /manage for {guild.name}: {e}")
             
@@ -451,6 +451,7 @@ class Alliance(commands.Cog):
                 CREATE TABLE IF NOT EXISTS server_locks (
                     guild_id INTEGER PRIMARY KEY,
                     locked INTEGER DEFAULT 0,
+                    feature_locked INTEGER DEFAULT 0,
                     locked_by INTEGER,
                     locked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
@@ -2027,8 +2028,8 @@ class Alliance(commands.Cog):
                             return
                         
                         # Get current lock status for all servers
-                        self.c_settings.execute("SELECT guild_id, locked FROM server_locks")
-                        lock_status = {row[0]: row[1] for row in self.c_settings.fetchall()}
+                        self.c_settings.execute("SELECT guild_id, locked, feature_locked FROM server_locks")
+                        lock_status = {row[0]: {"locked": row[1] == 1, "feature_locked": row[2] == 1 if len(row) > 2 else False} for row in self.c_settings.fetchall()}
                         
                         # Create paginated server view
                         servers_per_page = 25
@@ -2047,13 +2048,25 @@ class Alliance(commands.Cog):
                                 
                                 server_options = []
                                 for guild in guilds_list[start_idx:end_idx]:
-                                    is_locked = lock_status.get(guild.id, 0) == 1
-                                    lock_emoji = "🔒" if is_locked else "🔓"
+                                    l_status = lock_status.get(guild.id, {})
+                                    is_locked = l_status.get("locked", False)
+                                    is_feature_locked = l_status.get("feature_locked", False)
+                                    
+                                    if is_locked:
+                                        lock_emoji = "🔒"
+                                        status_text = "Locked"
+                                    elif is_feature_locked:
+                                        lock_emoji = "🔏"
+                                        status_text = "Feature Locked"
+                                    else:
+                                        lock_emoji = "🔓"
+                                        status_text = "Unlocked"
+                                        
                                     server_options.append(
                                         discord.SelectOption(
                                             label=f"{guild.name[:90]}",
                                             value=str(guild.id),
-                                            description=f"{lock_emoji} {'Locked' if is_locked else 'Unlocked'}",
+                                            description=f"{lock_emoji} {status_text}",
                                             emoji=lock_emoji
                                         )
                                     )
@@ -2126,9 +2139,20 @@ class Alliance(commands.Cog):
                                 
                                 server_list = ""
                                 for idx, guild in enumerate(self.guilds[start_idx:end_idx], start=start_idx + 1):
-                                    is_locked = lock_status.get(guild.id, 0) == 1
-                                    lock_emoji = "🔒" if is_locked else "🔓"
-                                    status = "**LOCKED**" if is_locked else "Unlocked"
+                                    l_status = lock_status.get(guild.id, {})
+                                    is_locked = l_status.get("locked", False)
+                                    is_feature_locked = l_status.get("feature_locked", False)
+                                    
+                                    if is_locked:
+                                        lock_emoji = "🔒"
+                                        status = "**LOCKED**"
+                                    elif is_feature_locked:
+                                        lock_emoji = "🔏"
+                                        status = "**FEATURE LOCKED**"
+                                    else:
+                                        lock_emoji = "🔓"
+                                        status = "Unlocked"
+                                        
                                     server_list += f"**{idx:02d}.** {lock_emoji} {guild.name}\n└ Status: {status}\n\n"
                                 
                                 embed = discord.Embed(
@@ -2141,6 +2165,7 @@ class Alliance(commands.Cog):
                                         "```\n"
                                         "**Select a server to lock or unlock the bot**\n\n"
                                         "🔒 **Locked**: Bot will not respond to commands\n"
+                                        "🔏 **Feature Locked**: Locks `/manage` and Alliance Monitor\n"
                                         "🔓 **Unlocked**: Bot functions normally\n\n"
                                         f"{server_list}"
                                     ),
@@ -2170,107 +2195,115 @@ class Alliance(commands.Cog):
                                 settings_db = sqlite3.connect('db/settings.sqlite')
                                 cursor = settings_db.cursor()
                                 cursor.execute(
-                                    "SELECT locked FROM server_locks WHERE guild_id = ?",
+                                    "SELECT locked, feature_locked FROM server_locks WHERE guild_id = ?",
                                     (guild_id,)
                                 )
                                 result = cursor.fetchone()
                                 is_locked = result[0] == 1 if result else False
+                                is_feature_locked = result[1] == 1 if result else False
                                 settings_db.close()
                                 
                                 # Create lock/unlock confirmation view
                                 confirm_view = discord.ui.View(timeout=60)
                                 
-                                if is_locked:
-                                    # Show unlock button
-                                    unlock_button = discord.ui.Button(
-                                        label="Unlock Bot",
-                                        emoji="🔓",
-                                        style=discord.ButtonStyle.success,
-                                        custom_id="unlock_confirm"
+                                # Unlock Button
+                                unlock_button = discord.ui.Button(
+                                    label="Unlock All",
+                                    emoji="🔓",
+                                    style=discord.ButtonStyle.success if (is_locked or is_feature_locked) else discord.ButtonStyle.secondary,
+                                    custom_id="unlock_confirm",
+                                    disabled=not (is_locked or is_feature_locked)
+                                )
+                                
+                                async def unlock_callback(btn_interaction: discord.Interaction):
+                                    import sqlite3
+                                    settings_db = sqlite3.connect('db/settings.sqlite')
+                                    cursor = settings_db.cursor()
+                                    cursor.execute(
+                                        "INSERT OR REPLACE INTO server_locks (guild_id, locked, feature_locked, locked_by, locked_at) VALUES (?, 0, 0, ?, CURRENT_TIMESTAMP)",
+                                        (guild_id, btn_interaction.user.id)
                                     )
+                                    settings_db.commit()
+                                    settings_db.close()
                                     
-                                    async def unlock_callback(btn_interaction: discord.Interaction):
-                                        # Unlock the server
-                                        import sqlite3
-                                        settings_db = sqlite3.connect('db/settings.sqlite')
-                                        cursor = settings_db.cursor()
-                                        cursor.execute(
-                                            "INSERT OR REPLACE INTO server_locks (guild_id, locked, locked_by, locked_at) VALUES (?, 0, ?, CURRENT_TIMESTAMP)",
-                                            (guild_id, btn_interaction.user.id)
-                                        )
-                                        settings_db.commit()
-                                        settings_db.close()
-                                        
-                                        # Update lock_status dict
-                                        lock_status[guild_id] = 0
-                                        
-                                        success_embed = discord.Embed(
-                                            title="✅ Bot Unlocked",
-                                            description=(
-                                                f"**Server:** {guild.name}\n"
-                                                f"**Status:** 🔓 Unlocked\n\n"
-                                                "The bot will now respond normally in this server."
-                                            ),
-                                            color=0x57F287
-                                        )
-                                        success_embed.set_footer(
-                                            text=f"Unlocked by {btn_interaction.user.display_name}",
-                                            icon_url=btn_interaction.user.display_avatar.url
-                                        )
-                                        
-                                        await btn_interaction.response.edit_message(
-                                            embed=success_embed,
-                                            view=None
-                                        )
+                                    lock_status[guild_id] = {"locked": False, "feature_locked": False}
                                     
-                                    unlock_button.callback = unlock_callback
-                                    confirm_view.add_item(unlock_button)
-                                else:
-                                    # Show lock button
-                                    lock_button = discord.ui.Button(
-                                        label="Lock Bot",
-                                        emoji="🔒",
-                                        style=discord.ButtonStyle.danger,
-                                        custom_id="lock_confirm"
+                                    success_embed = discord.Embed(
+                                        title="✅ Bot Unlocked",
+                                        description=(f"**Server:** {guild.name}\n**Status:** 🔓 Unlocked\n\nThe bot will now respond normally in this server."),
+                                        color=0x57F287
                                     )
+                                    success_embed.set_footer(text=f"Unlocked by {btn_interaction.user.display_name}", icon_url=btn_interaction.user.display_avatar.url)
+                                    await btn_interaction.response.edit_message(embed=success_embed, view=None)
+                                
+                                unlock_button.callback = unlock_callback
+                                confirm_view.add_item(unlock_button)
+
+                                # Feature Lock Button
+                                feature_lock_button = discord.ui.Button(
+                                    label="Feature Lock",
+                                    emoji="🔏",
+                                    style=discord.ButtonStyle.primary if not is_feature_locked else discord.ButtonStyle.secondary,
+                                    custom_id="feature_lock_confirm",
+                                    disabled=is_feature_locked and not is_locked
+                                )
+
+                                async def feature_lock_callback(btn_interaction: discord.Interaction):
+                                    import sqlite3
+                                    settings_db = sqlite3.connect('db/settings.sqlite')
+                                    cursor = settings_db.cursor()
+                                    cursor.execute(
+                                        "INSERT OR REPLACE INTO server_locks (guild_id, locked, feature_locked, locked_by, locked_at) VALUES (?, 0, 1, ?, CURRENT_TIMESTAMP)",
+                                        (guild_id, btn_interaction.user.id)
+                                    )
+                                    settings_db.commit()
+                                    settings_db.close()
                                     
-                                    async def lock_callback(btn_interaction: discord.Interaction):
-                                        # Lock the server
-                                        import sqlite3
-                                        settings_db = sqlite3.connect('db/settings.sqlite')
-                                        cursor = settings_db.cursor()
-                                        cursor.execute(
-                                            "INSERT OR REPLACE INTO server_locks (guild_id, locked, locked_by, locked_at) VALUES (?, 1, ?, CURRENT_TIMESTAMP)",
-                                            (guild_id, btn_interaction.user.id)
-                                        )
-                                        settings_db.commit()
-                                        settings_db.close()
-                                        
-                                        # Update lock_status dict
-                                        lock_status[guild_id] = 1
-                                        
-                                        success_embed = discord.Embed(
-                                            title="🔒 Bot Locked",
-                                            description=(
-                                                f"**Server:** {guild.name}\n"
-                                                f"**Status:** 🔒 Locked\n\n"
-                                                "The bot will no longer respond to commands in this server.\n"
-                                                "A locked message will be sent when users try to use commands."
-                                            ),
-                                            color=0xED4245
-                                        )
-                                        success_embed.set_footer(
-                                            text=f"Locked by {btn_interaction.user.display_name}",
-                                            icon_url=btn_interaction.user.display_avatar.url
-                                        )
-                                        
-                                        await btn_interaction.response.edit_message(
-                                            embed=success_embed,
-                                            view=None
-                                        )
+                                    lock_status[guild_id] = {"locked": False, "feature_locked": True}
                                     
-                                    lock_button.callback = lock_callback
-                                    confirm_view.add_item(lock_button)
+                                    success_embed = discord.Embed(
+                                        title="🔏 Feature Locked",
+                                        description=(f"**Server:** {guild.name}\n**Status:** 🔏 Feature Locked\n\nSpecific features like `/manage` are now locked."),
+                                        color=0xE67E22
+                                    )
+                                    success_embed.set_footer(text=f"Feature Locked by {btn_interaction.user.display_name}", icon_url=btn_interaction.user.display_avatar.url)
+                                    await btn_interaction.response.edit_message(embed=success_embed, view=None)
+
+                                feature_lock_button.callback = feature_lock_callback
+                                confirm_view.add_item(feature_lock_button)
+
+                                # Full Lock Button
+                                full_lock_button = discord.ui.Button(
+                                    label="Full Lock",
+                                    emoji="🔒",
+                                    style=discord.ButtonStyle.danger if not is_locked else discord.ButtonStyle.secondary,
+                                    custom_id="full_lock_confirm",
+                                    disabled=is_locked
+                                )
+                                
+                                async def full_lock_callback(btn_interaction: discord.Interaction):
+                                    import sqlite3
+                                    settings_db = sqlite3.connect('db/settings.sqlite')
+                                    cursor = settings_db.cursor()
+                                    cursor.execute(
+                                        "INSERT OR REPLACE INTO server_locks (guild_id, locked, feature_locked, locked_by, locked_at) VALUES (?, 1, 0, ?, CURRENT_TIMESTAMP)",
+                                        (guild_id, btn_interaction.user.id)
+                                    )
+                                    settings_db.commit()
+                                    settings_db.close()
+                                    
+                                    lock_status[guild_id] = {"locked": True, "feature_locked": False}
+                                    
+                                    success_embed = discord.Embed(
+                                        title="🔒 Bot Locked",
+                                        description=(f"**Server:** {guild.name}\n**Status:** 🔒 Locked\n\nThe bot will no longer respond to commands in this server."),
+                                        color=0xED4245
+                                    )
+                                    success_embed.set_footer(text=f"Locked by {btn_interaction.user.display_name}", icon_url=btn_interaction.user.display_avatar.url)
+                                    await btn_interaction.response.edit_message(embed=success_embed, view=None)
+                                
+                                full_lock_button.callback = full_lock_callback
+                                confirm_view.add_item(full_lock_button)
                                 
                                 # Add cancel button
                                 cancel_button = discord.ui.Button(
@@ -2290,15 +2323,26 @@ class Alliance(commands.Cog):
                                 cancel_button.callback = cancel_callback
                                 confirm_view.add_item(cancel_button)
                                 
+                                # Current Status
+                                if is_locked:
+                                    curr_status = "🔒 Locked"
+                                    c_color = 0xED4245
+                                elif is_feature_locked:
+                                    curr_status = "🔏 Feature Locked"
+                                    c_color = 0xE67E22
+                                else:
+                                    curr_status = "🔓 Unlocked"
+                                    c_color = 0x57F287
+
                                 # Show confirmation
                                 confirm_embed = discord.Embed(
-                                    title=f"{'🔓 Unlock' if is_locked else '🔒 Lock'} Bot",
+                                    title=f"Server Lock Management",
                                     description=(
                                         f"**Server:** {guild.name}\n"
-                                        f"**Current Status:** {'🔒 Locked' if is_locked else '🔓 Unlocked'}\n\n"
-                                        f"Do you want to **{'unlock' if is_locked else 'lock'}** the bot for this server?"
+                                        f"**Current Status:** {curr_status}\n\n"
+                                        f"Select an action below to update the server lock status."
                                     ),
-                                    color=0x57F287 if is_locked else 0xED4245
+                                    color=c_color
                                 )
                                 
                                 await select_interaction.response.send_message(

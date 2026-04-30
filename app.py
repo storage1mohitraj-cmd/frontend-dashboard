@@ -1242,60 +1242,89 @@ async def check_server_lock(interaction: discord.Interaction) -> bool:
             # Check if server is locked
             settings_db = sqlite3.connect('db/settings.sqlite')
             cursor = settings_db.cursor()
-            cursor.execute("SELECT locked FROM server_locks WHERE guild_id = ?", (interaction.guild.id,))
+            cursor.execute("SELECT locked, feature_locked FROM server_locks WHERE guild_id = ?", (interaction.guild.id,))
             result = cursor.fetchone()
             settings_db.close()
             
-            # If server is locked, send locked message and block command execution
-            if result and result[0] == 1:
-                embed = discord.Embed(
-                    title="🔒 Bot Locked",
-                    description=(
-                        "**This bot is currently locked for this server.**\n\n"
-                        "The bot will not respond to any commands until it is unlocked by the Global Administrator.\n\n"
-                        "If you believe this is an error, please contact the server administrators."
-                    ),
-                    color=0xED4245
-                )
-                embed.set_footer(text="Contact your server administrator for assistance")
+            if result:
+                is_locked = result[0] == 1
+                is_feature_locked = result[1] == 1 if len(result) > 1 else False
                 
-                # Add Contact Administrator button
-                view = discord.ui.View(timeout=None)
-                
-                # Get bot owner for contact link
-                app_info = None
-                try:
-                    app_info = await interaction.client.application_info()
-                except Exception:
-                    pass
-                
-                if app_info and app_info.owner:
-                    owner_id = app_info.owner.id
-                    view.add_item(discord.ui.Button(
-                        label="Contact Administrator",
-                        emoji="📩",
-                        style=discord.ButtonStyle.link,
-                        url=f"https://discord.com/users/{owner_id}"
-                    ))
-                else:
-                    # Fallback: generic support server link or just a non-link button
-                    view.add_item(discord.ui.Button(
-                        label="Contact Administrator",
-                        emoji="📩",
-                        style=discord.ButtonStyle.link,
-                        url="https://discord.com"
-                    ))
-                
-                try:
-                    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-                except:
+                # If server is completely locked, block all commands
+                if is_locked:
+                    embed = discord.Embed(
+                        title="🔒 Bot Locked",
+                        description=(
+                            "**This bot is currently locked for this server.**\n\n"
+                            "The bot will not respond to any commands until it is unlocked by the Global Administrator.\n\n"
+                            "If you believe this is an error, please contact the server administrators."
+                        ),
+                        color=0xED4245
+                    )
+                    embed.set_footer(text="Contact your server administrator for assistance")
+                    
+                    # Add Contact Administrator button
+                    view = discord.ui.View(timeout=None)
+                    
+                    # Get bot owner for contact link
+                    app_info = None
                     try:
-                        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-                    except:
+                        app_info = await interaction.client.application_info()
+                    except Exception:
                         pass
-                
-                # Return False to block command execution
-                return False
+                    
+                    if app_info and app_info.owner:
+                        owner_id = app_info.owner.id
+                        view.add_item(discord.ui.Button(
+                            label="Contact Administrator",
+                            emoji="📩",
+                            style=discord.ButtonStyle.link,
+                            url=f"https://discord.com/users/{owner_id}"
+                        ))
+                    else:
+                        # Fallback: generic support server link or just a non-link button
+                        view.add_item(discord.ui.Button(
+                            label="Contact Administrator",
+                            emoji="📩",
+                            style=discord.ButtonStyle.link,
+                            url="https://discord.com"
+                        ))
+                    
+                    try:
+                        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+                    except:
+                        try:
+                            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+                        except:
+                            pass
+                    
+                    # Return False to block command execution
+                    return False
+                    
+                # If server is feature locked, block only specific commands
+                if is_feature_locked and interaction.command:
+                    blocked_commands = ["manage", "alliancemonitor", "allianceactivity"]
+                    if interaction.command.name in blocked_commands:
+                        embed = discord.Embed(
+                            title="🔏 Feature Locked",
+                            description=(
+                                "**This feature is currently locked for this server.**\n\n"
+                                "You cannot use the `/manage` or Alliance Monitor features until they are unlocked by the Global Administrator.\n\n"
+                                "If you believe this is an error, please contact the server administrators."
+                            ),
+                            color=0xE67E22
+                        )
+                        embed.set_footer(text="Contact your server administrator for assistance")
+                        try:
+                            await interaction.response.send_message(embed=embed, ephemeral=True)
+                        except:
+                            try:
+                                await interaction.followup.send(embed=embed, ephemeral=True)
+                            except:
+                                pass
+                        
+                        return False
+
         except Exception as e:
             # If there's an error checking locks, log it but allow command to proceed
             logger.error(f"Error checking server lock status: {e}")

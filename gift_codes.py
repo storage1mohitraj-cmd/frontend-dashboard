@@ -514,26 +514,35 @@ async def get_active_gift_codes():
                 wosgift_codes.append(code)  # Assume active if unparseable
 
     # Merge: wostools (primary) → RSS → HTML, deduplicated by uppercase code
-    seen = set()
-    merged = []
+    merged_dict = {}
+
+    def _merge_code(code_dict):
+        key = code_dict.get('code', '').strip().upper()
+        if not key:
+            return
+        if key not in merged_dict:
+            merged_dict[key] = code_dict
+        else:
+            # Update existing if new dict has better details
+            existing = merged_dict[key]
+            new_rewards = code_dict.get('rewards', '').strip()
+            if new_rewards and new_rewards.lower() != 'rewards not specified' and (existing.get('rewards', '').lower() == 'rewards not specified' or not existing.get('rewards')):
+                existing['rewards'] = new_rewards
+                
+            new_expiry = code_dict.get('expiry', '').strip()
+            if new_expiry and new_expiry.lower() not in ['unknown', 'expired'] and (existing.get('expiry', '').lower() in ['unknown', 'expired'] or not existing.get('expiry')):
+                existing['expiry'] = new_expiry
 
     for code_dict in (wostools_codes or []):
-        key = code_dict.get('code', '').strip().upper()
-        if key and key not in seen:
-            seen.add(key)
-            merged.append(code_dict)
+        _merge_code(code_dict)
 
     for code_dict in (rss_codes or []):
-        key = code_dict.get('code', '').strip().upper()
-        if key and key not in seen:
-            seen.add(key)
-            merged.append(code_dict)
+        _merge_code(code_dict)
 
     for code_dict in wosgift_codes:
-        key = code_dict.get('code', '').strip().upper()
-        if key and key not in seen:
-            seen.add(key)
-            merged.append(code_dict)
+        _merge_code(code_dict)
+
+    merged = list(merged_dict.values())
 
     if merged:
         logger.info(

@@ -117,7 +117,9 @@ class RemoteAccess(commands.Cog):
                 
                 else:
                     # Paginated server list for more than 25 servers
-                    await self.show_paginated_servers(interaction, guilds)
+                    view = RemoteServerSelectionView(self.bot, guilds, self)
+                    embed = view.create_embed()
+                    await interaction.response.edit_message(embed=embed, view=view)
 
             except Exception as e:
                 print(f"Remote Access error: {e}")
@@ -2677,10 +2679,204 @@ class RemoteAccess(commands.Cog):
 
     async def show_paginated_servers(self, interaction: discord.Interaction, guilds: list):
         """Show paginated server list for servers > 25"""
-        await interaction.response.send_message(
-            "📊 **Paginated Server List**\n\nThis feature will be implemented for bots in more than 25 servers.",
-            ephemeral=True
+        view = RemoteServerSelectionView(self.bot, guilds, self)
+        embed = view.create_embed()
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        else:
+            await interaction.response.edit_message(embed=embed, view=view)
+
+
+class RemoteServerSelect(discord.ui.Select):
+    """Dropdown for selecting a server in Remote Access."""
+    
+    def __init__(self, guilds: list, page: int = 0):
+        self.guilds = guilds
+        self.page = page
+        self.total_pages = max(1, (len(guilds) - 1) // 25 + 1)
+        
+        start_idx = page * 25
+        end_idx = min(start_idx + 25, len(guilds))
+        current_page_guilds = guilds[start_idx:end_idx]
+        
+        options = [
+            discord.SelectOption(
+                label=f"{guild.name[:90]}",
+                value=str(guild.id),
+                description=f"Members: {guild.member_count} ΓÇó Channels: {len(guild.channels)}",
+                emoji="🏰"
+            )
+            for guild in current_page_guilds
+        ]
+        
+        super().__init__(
+            placeholder=f"ΓÅ│ Select a server... (Page {page + 1}/{self.total_pages})",
+            min_values=1,
+            max_values=1,
+            options=options,
+            custom_id=f"remote_server_select_pg{page}"
         )
+
+    async def callback(self, interaction: discord.Interaction):
+        guild_id = int(self.values[0])
+        guild = interaction.client.get_guild(guild_id)
+        
+        if not guild:
+            await interaction.response.send_message("Γplain Server not found.", ephemeral=True)
+            return
+            
+        # Call the parent cog's method to show server management
+        cog = interaction.client.get_cog("RemoteAccess")
+        if cog:
+            await cog.show_server_management(interaction, guild)
+
+
+class RemoteServerSelectionView(discord.ui.View):
+    """View for server selection with pagination support in Remote Access."""
+    
+    def __init__(self, bot, guilds: list, cog, page: int = 0):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.guilds = sorted(guilds, key=lambda g: g.name)
+        self.cog = cog
+        self.page = page
+        self.total_pages = max(1, (len(guilds) - 1) // 25 + 1)
+        
+        # Add server select dropdown
+        self.add_item(RemoteServerSelect(self.guilds, page=page))
+        
+        # Add pagination buttons if needed
+        if self.total_pages > 1:
+            # Previous button
+            prev_button = discord.ui.Button(
+                emoji="⬅️",
+                style=discord.ButtonStyle.secondary,
+                disabled=(page == 0)
+            )
+            prev_button.callback = self.previous_page
+            self.add_item(prev_button)
+            
+            # Page indicator
+            page_button = discord.ui.Button(
+                label=f"Page {page + 1}/{self.total_pages}",
+                style=discord.ButtonStyle.secondary,
+                disabled=True
+            )
+            self.add_item(page_button)
+            
+            # Next button
+            next_button = discord.ui.Button(
+                emoji="➡️",
+                style=discord.ButtonStyle.secondary,
+                disabled=(page == self.total_pages - 1)
+            )
+            next_button.callback = self.next_page
+            self.add_item(next_button)
+
+        # Search button
+        search_button = discord.ui.Button(
+            label="Search",
+            emoji="🔍",
+            style=discord.ButtonStyle.primary,
+            row=1 if self.total_pages > 1 else 0
+        )
+        search_button.callback = self.search_callback
+        self.add_item(search_button)
+
+        # View All List button
+        view_all_button = discord.ui.Button(
+            label="View All List",
+            emoji="📋",
+            style=discord.ButtonStyle.secondary,
+            row=1 if self.total_pages > 1 else 0
+        )
+        view_all_button.callback = self.view_all_callback
+        self.add_item(view_all_button)
+    
+    async def search_callback(self, interaction: discord.Interaction):
+        """Open a search modal."""
+        from discord.ui import Modal, TextInput
+        
+        class SearchModal(Modal, title="Search Server"):
+            query = TextInput(label="Server Name", placeholder="Enter partial name...", required=True)
+            
+            def __init__(self, parent_view):
+                super().__init__()
+                self.parent_view = parent_view
+                
+            async def on_submit(self, modal_inter: discord.Interaction):
+                search_query = self.query.value.lower()
+                filtered_guilds = [g for g in self.parent_view.guilds if search_query in g.name.lower()]
+                
+                if not filtered_guilds:
+                    await modal_inter.response.send_message(f"❌ No servers found matching '{self.query.value}'", ephemeral=True)
+                    return
+                
+                # Show results using the same view class but with filtered list
+                view = RemoteServerSelectionView(self.parent_view.bot, filtered_guilds, self.parent_view.cog)
+                embed = view.create_embed()
+                embed.title = f"🔍 Search Results: {self.query.value}"
+                
+                await modal_inter.response.send_message(embed=embed, view=view, ephemeral=True)
+        
+        await interaction.response.send_modal(SearchModal(self))
+
+    async def view_all_callback(self, interaction: discord.Interaction):
+        """Show a paginated list of all servers."""
+        from cogs.message_extractor import MessageExtractor
+        extractor = self.bot.get_cog("MessageExtractor")
+        if extractor:
+            await extractor.list_servers(interaction)
+        else:
+            await interaction.response.send_message("❌ MessageExtractor module not found.", ephemeral=True)
+
+            
+        # Back button to Bot Operations
+        back_button = discord.ui.Button(
+            label="ΓùÇ Back to Bot Operations",
+            emoji="🤖",
+            style=discord.ButtonStyle.secondary,
+            custom_id="bot_operations",
+            row=4 if self.total_pages > 1 else 1
+        )
+        self.add_item(back_button)
+
+    def create_embed(self) -> discord.Embed:
+        """Create the embed for the current page of servers."""
+        start_idx = self.page * 25
+        end_idx = min(start_idx + 25, len(self.guilds))
+        current_guilds = self.guilds[start_idx:end_idx]
+        
+        embed = discord.Embed(
+            title="Γplain Remote Access Control Panel",
+            description=(
+                f"**Select a server to manage channels and settings**\n"
+                f"Page {self.page + 1} of {self.total_pages}\n\n"
+            ),
+            color=0x00D9FF
+        )
+        
+        server_list = []
+        for guild in current_guilds:
+            server_list.append(f"Γ£╢ **{guild.name}** (`{guild.id}`)\n   Γò╖ Members: {guild.member_count} | Channels: {len(guild.channels)}")
+        
+        embed.description += "\n".join(server_list)
+        embed.set_footer(text=f"Total Servers Connected: {len(self.guilds)}")
+        return embed
+
+    async def previous_page(self, interaction: discord.Interaction):
+        """Navigate to the previous page."""
+        self.page = max(0, self.page - 1)
+        view = RemoteServerSelectionView(self.bot, self.guilds, self.cog, self.page)
+        embed = view.create_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    async def next_page(self, interaction: discord.Interaction):
+        """Navigate to the next page."""
+        self.page = min(self.total_pages - 1, self.page + 1)
+        view = RemoteServerSelectionView(self.bot, self.guilds, self.cog, self.page)
+        embed = view.create_embed()
+        await interaction.response.edit_message(embed=embed, view=view)
 
 async def setup(bot):
     await bot.add_cog(RemoteAccess(bot, None))

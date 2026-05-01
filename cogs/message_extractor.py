@@ -60,22 +60,19 @@ class MessageExtractor(commands.Cog):
             )
             return
         
-        # Get all guilds where bot has admin permissions
-        admin_guilds = []
-        for guild in self.bot.guilds:
-            if await self.check_bot_permissions(guild):
-                admin_guilds.append(guild)
+        # Get all guilds where bot is present
+        all_guilds = sorted(self.bot.guilds, key=lambda g: g.name)
         
-        if not admin_guilds:
+        if not all_guilds:
             await interaction.followup.send(
-                "ℹ️ **No Endpoints Found**\n"
-                "No authorized endpoints available.",
+                "ℹ️ **No Servers Found**\n"
+                "The bot is not connected to any servers.",
                 ephemeral=True
             )
             return
         
         # Create server selection view
-        view = ServerSelectionView(self.bot, admin_guilds, self)
+        view = ServerSelectionView(self.bot, all_guilds, self)
         embed = view.create_embed()
         
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
@@ -1736,7 +1733,7 @@ class ServerSelectionView(discord.ui.View):
         if self.total_pages > 1:
             # Previous button
             prev_button = discord.ui.Button(
-                label="◀ Previous",
+                emoji="⬅️",
                 style=discord.ButtonStyle.secondary,
                 disabled=(page == 0)
             )
@@ -1753,12 +1750,66 @@ class ServerSelectionView(discord.ui.View):
             
             # Next button
             next_button = discord.ui.Button(
-                label="Next ▶",
+                emoji="➡️",
                 style=discord.ButtonStyle.secondary,
                 disabled=(page >= self.total_pages - 1)
             )
             next_button.callback = self.next_page
             self.add_item(next_button)
+
+        # Search button
+        search_button = discord.ui.Button(
+            label="Search",
+            emoji="🔍",
+            style=discord.ButtonStyle.primary,
+            row=1 if self.total_pages > 1 else 0
+        )
+        search_button.callback = self.search_callback
+        self.add_item(search_button)
+
+        # View All List button
+        view_all_button = discord.ui.Button(
+            label="View All List",
+            emoji="📋",
+            style=discord.ButtonStyle.secondary,
+            row=1 if self.total_pages > 1 else 0
+        )
+        view_all_button.callback = self.view_all_callback
+        self.add_item(view_all_button)
+    
+    async def search_callback(self, interaction: discord.Interaction):
+        """Open a search modal."""
+        from discord.ui import Modal, TextInput
+        
+        class SearchModal(Modal, title="Search Server"):
+            query = TextInput(label="Server Name", placeholder="Enter partial name...", required=True)
+            
+            def __init__(self, parent_view):
+                super().__init__()
+                self.parent_view = parent_view
+                
+            async def on_submit(self, modal_inter: discord.Interaction):
+                search_query = self.query.value.lower()
+                filtered_guilds = [g for g in self.parent_view.guilds if search_query in g.name.lower()]
+                
+                if not filtered_guilds:
+                    await modal_inter.response.send_message(f"❌ No servers found matching '{self.query.value}'", ephemeral=True)
+                    return
+                
+                # Show results using the same view class but with filtered list
+                cls = self.parent_view.__class__
+                view = cls(self.parent_view.bot, filtered_guilds, self.parent_view.cog)
+                embed = view.create_embed()
+                embed.title = f"🔍 Search Results: {self.query.value}"
+                
+                await modal_inter.response.send_message(embed=embed, view=view, ephemeral=True)
+        
+        await interaction.response.send_modal(SearchModal(self))
+
+    async def view_all_callback(self, interaction: discord.Interaction):
+        """Show a paginated list of all servers."""
+        await self.cog.list_servers(interaction)
+
     
     def create_embed(self) -> discord.Embed:
         """Create the embed for the current page of servers."""
@@ -1824,7 +1875,7 @@ class ServerSelectionForChannelsView(discord.ui.View):
         if self.total_pages > 1:
             # Previous button
             prev_button = discord.ui.Button(
-                label="◀ Previous",
+                emoji="⬅️",
                 style=discord.ButtonStyle.secondary,
                 disabled=(page == 0)
             )
@@ -1841,12 +1892,66 @@ class ServerSelectionForChannelsView(discord.ui.View):
             
             # Next button
             next_button = discord.ui.Button(
-                label="Next ▶",
+                emoji="➡️",
                 style=discord.ButtonStyle.secondary,
                 disabled=(page >= self.total_pages - 1)
             )
             next_button.callback = self.next_page
             self.add_item(next_button)
+
+        # Search button
+        search_button = discord.ui.Button(
+            label="Search",
+            emoji="🔍",
+            style=discord.ButtonStyle.primary,
+            row=1 if self.total_pages > 1 else 0
+        )
+        search_button.callback = self.search_callback
+        self.add_item(search_button)
+
+        # View All List button
+        view_all_button = discord.ui.Button(
+            label="View All List",
+            emoji="📋",
+            style=discord.ButtonStyle.secondary,
+            row=1 if self.total_pages > 1 else 0
+        )
+        view_all_button.callback = self.view_all_callback
+        self.add_item(view_all_button)
+    
+    async def search_callback(self, interaction: discord.Interaction):
+        """Open a search modal."""
+        from discord.ui import Modal, TextInput
+        
+        class SearchModal(Modal, title="Search Server"):
+            query = TextInput(label="Server Name", placeholder="Enter partial name...", required=True)
+            
+            def __init__(self, parent_view):
+                super().__init__()
+                self.parent_view = parent_view
+                
+            async def on_submit(self, modal_inter: discord.Interaction):
+                search_query = self.query.value.lower()
+                filtered_guilds = [g for g in self.parent_view.guilds if search_query in g.name.lower()]
+                
+                if not filtered_guilds:
+                    await modal_inter.response.send_message(f"❌ No servers found matching '{self.query.value}'", ephemeral=True)
+                    return
+                
+                # Show results using the same view class but with filtered list
+                cls = self.parent_view.__class__
+                view = cls(self.parent_view.bot, filtered_guilds, self.parent_view.cog)
+                embed = view.create_embed()
+                embed.title = f"🔍 Search Results: {self.query.value}"
+                
+                await modal_inter.response.send_message(embed=embed, view=view, ephemeral=True)
+        
+        await interaction.response.send_modal(SearchModal(self))
+
+    async def view_all_callback(self, interaction: discord.Interaction):
+        """Show a paginated list of all servers."""
+        await self.cog.list_servers(interaction)
+
     
     def create_embed(self) -> discord.Embed:
         """Create the embed for the current page of servers."""
@@ -1933,16 +2038,13 @@ class FormatSelectionView(discord.ui.View):
         
         await interaction.response.defer(ephemeral=True)
         
-        # Get all guilds where bot has admin permissions
-        admin_guilds = []
-        for guild in self.bot.guilds:
-            if await self.check_bot_permissions(guild):
-                admin_guilds.append(guild)
+        # Get all guilds where bot is present
+        all_guilds = sorted(self.bot.guilds, key=lambda g: g.name)
         
-        if not admin_guilds:
+        if not all_guilds:
             await interaction.followup.send(
-                "ℹ️ **No Endpoints Found**\n"
-                "No authorized endpoints available.",
+                "ℹ️ **No Servers Found**\n"
+                "The bot is not connected to any servers.",
                 ephemeral=True
             )
             return
@@ -1950,32 +2052,36 @@ class FormatSelectionView(discord.ui.View):
         # Create embeds for pagination (10 servers per page)
         embeds = []
         items_per_page = 10
-        total_pages = (len(admin_guilds) - 1) // items_per_page + 1
+        total_pages = (len(all_guilds) - 1) // items_per_page + 1
         
         for page_num in range(total_pages):
             embed = discord.Embed(
                 title="🔐 Authentication Scope Verification",
-                description=f"Verified **{len(admin_guilds)}** authorized endpoint(s):",
+                description=f"Connected to **{len(all_guilds)}** server(s):",
                 color=discord.Color.blue(),
                 timestamp=datetime.now(timezone.utc)
             )
             
             start_idx = page_num * items_per_page
-            end_idx = min(start_idx + items_per_page, len(admin_guilds))
-            page_guilds = admin_guilds[start_idx:end_idx]
+            end_idx = min(start_idx + items_per_page, len(all_guilds))
+            page_guilds = all_guilds[start_idx:end_idx]
             
             for guild in page_guilds:
+                is_admin = await self.check_bot_permissions(guild)
+                status_emoji = "✅" if is_admin else "⚠️"
+                admin_status = "Admin Authorized" if is_admin else "Missing Admin Permissions"
                 text_channels = len([c for c in guild.channels if isinstance(c, discord.TextChannel)])
+                
                 embed.add_field(
-                    name=f"🔹 {guild.name}",
+                    name=f"{status_emoji} {guild.name}",
                     value=f"**Endpoint:** `{guild.id}`\n"
                           f"**Nodes:** {guild.member_count}\n"
                           f"**Streams:** {text_channels}\n"
-                          f"**Admin:** {guild.owner.mention if guild.owner else 'Unknown'}",
+                          f"**Status:** {admin_status}",
                     inline=False
                 )
             
-            embed.set_footer(text=f"Page {page_num + 1}/{total_pages} • Total: {len(admin_guilds)} server(s)")
+            embed.set_footer(text=f"Page {page_num + 1}/{total_pages} • Total: {len(all_guilds)} server(s)")
             embeds.append(embed)
         
         if len(embeds) > 1:
@@ -2004,22 +2110,19 @@ class FormatSelectionView(discord.ui.View):
             )
             return
         
-        # Get all guilds where bot has admin permissions
-        admin_guilds = []
-        for guild in self.bot.guilds:
-            if await self.check_bot_permissions(guild):
-                admin_guilds.append(guild)
+        # Get all guilds where bot is present
+        all_guilds = sorted(self.bot.guilds, key=lambda g: g.name)
         
-        if not admin_guilds:
+        if not all_guilds:
             await interaction.followup.send(
-                "ℹ️ **No Endpoints Found**\n"
-                "No authorized endpoints available.",
+                "ℹ️ **No Servers Found**\n"
+                "The bot is not connected to any servers.",
                 ephemeral=True
             )
             return
         
         # Create server selection view for channel listing
-        view = ServerSelectionForChannelsView(self.bot, admin_guilds, self)
+        view = ServerSelectionForChannelsView(self.bot, all_guilds, self)
         embed = view.create_embed()
         
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)

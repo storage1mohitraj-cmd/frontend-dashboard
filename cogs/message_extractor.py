@@ -1735,7 +1735,8 @@ class ServerSelectionView(discord.ui.View):
             prev_button = discord.ui.Button(
                 emoji="⬅️",
                 style=discord.ButtonStyle.secondary,
-                disabled=(page == 0)
+                disabled=(page == 0),
+                row=1
             )
             prev_button.callback = self.previous_page
             self.add_item(prev_button)
@@ -1744,7 +1745,8 @@ class ServerSelectionView(discord.ui.View):
             page_button = discord.ui.Button(
                 label=f"Page {page + 1}/{self.total_pages}",
                 style=discord.ButtonStyle.secondary,
-                disabled=True
+                disabled=True,
+                row=1
             )
             self.add_item(page_button)
             
@@ -1752,7 +1754,8 @@ class ServerSelectionView(discord.ui.View):
             next_button = discord.ui.Button(
                 emoji="➡️",
                 style=discord.ButtonStyle.secondary,
-                disabled=(page >= self.total_pages - 1)
+                disabled=(page >= self.total_pages - 1),
+                row=1
             )
             next_button.callback = self.next_page
             self.add_item(next_button)
@@ -1762,7 +1765,7 @@ class ServerSelectionView(discord.ui.View):
             label="Search",
             emoji="🔍",
             style=discord.ButtonStyle.primary,
-            row=1 if self.total_pages > 1 else 0
+            row=2
         )
         search_button.callback = self.search_callback
         self.add_item(search_button)
@@ -1772,7 +1775,7 @@ class ServerSelectionView(discord.ui.View):
             label="View All List",
             emoji="📋",
             style=discord.ButtonStyle.secondary,
-            row=1 if self.total_pages > 1 else 0
+            row=2
         )
         view_all_button.callback = self.view_all_callback
         self.add_item(view_all_button)
@@ -1877,7 +1880,8 @@ class ServerSelectionForChannelsView(discord.ui.View):
             prev_button = discord.ui.Button(
                 emoji="⬅️",
                 style=discord.ButtonStyle.secondary,
-                disabled=(page == 0)
+                disabled=(page == 0),
+                row=1
             )
             prev_button.callback = self.previous_page
             self.add_item(prev_button)
@@ -1886,7 +1890,8 @@ class ServerSelectionForChannelsView(discord.ui.View):
             page_button = discord.ui.Button(
                 label=f"Page {page + 1}/{self.total_pages}",
                 style=discord.ButtonStyle.secondary,
-                disabled=True
+                disabled=True,
+                row=1
             )
             self.add_item(page_button)
             
@@ -1894,7 +1899,8 @@ class ServerSelectionForChannelsView(discord.ui.View):
             next_button = discord.ui.Button(
                 emoji="➡️",
                 style=discord.ButtonStyle.secondary,
-                disabled=(page >= self.total_pages - 1)
+                disabled=(page >= self.total_pages - 1),
+                row=1
             )
             next_button.callback = self.next_page
             self.add_item(next_button)
@@ -1904,7 +1910,7 @@ class ServerSelectionForChannelsView(discord.ui.View):
             label="Search",
             emoji="🔍",
             style=discord.ButtonStyle.primary,
-            row=1 if self.total_pages > 1 else 0
+            row=2
         )
         search_button.callback = self.search_callback
         self.add_item(search_button)
@@ -1914,7 +1920,7 @@ class ServerSelectionForChannelsView(discord.ui.View):
             label="View All List",
             emoji="📋",
             style=discord.ButtonStyle.secondary,
-            row=1 if self.total_pages > 1 else 0
+            row=2
         )
         view_all_button.callback = self.view_all_callback
         self.add_item(view_all_button)

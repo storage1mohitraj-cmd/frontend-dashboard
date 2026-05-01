@@ -10,11 +10,48 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+class WelcomeView(discord.ui.View):
+    """View containing the Personalise button for the greeting message."""
+    def __init__(self):
+        super().__init__(timeout=None)
+        
+    @discord.ui.button(label="Personalise", style=discord.ButtonStyle.primary, emoji="🎨", custom_id="welcome_personalise")
+    async def personalise(self, interaction: discord.Interaction, button: discord.ui.Button):
+        """Trigger the personalization flow."""
+        try:
+            # Import here to avoid circular dependencies
+            from cogs.personalise_chat import PronounSelectView
+            
+            user_id = str(interaction.user.id)
+            
+            embed = discord.Embed(
+                title="🎨 Personalize Your Chat Experience",
+                description=(
+                    "Let's make our conversations more personal! 🌟\n\n"
+                    "I'll ask you a few quick questions to understand you better:\n"
+                    "1️⃣ **Your Pronouns** - How should I refer to you?\n"
+                    "2️⃣ **Your Personality** - What traits describe you?\n"
+                    "3️⃣ **Your Game Info** - Your player details\n\n"
+                    "This helps me tailor responses just for you! 💬"
+                ),
+                color=0x3498db
+            )
+            embed.set_footer(text="Click the dropdown below to get started!")
+            
+            view = PronounSelectView(user_id)
+            # Use ephemeral=True so other users don't see the flow
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            logger.error(f"Error in WelcomeView button: {e}", exc_info=True)
+            await interaction.response.send_message("❌ An error occurred. Please try using `/personalisechat` instead.", ephemeral=True)
+
 class AIChat(commands.Cog):
     """Cog for AI chat functionality on mentions, replies, and DMs."""
     
     def __init__(self, bot):
         self.bot = bot
+        # Register the view for persistence
+        self.bot.add_view(WelcomeView())
         
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
@@ -54,7 +91,7 @@ class AIChat(commands.Cog):
                     ),
                     color=discord.Color.blue()
                 )
-                await chat_channel.send(embed=embed)
+                await chat_channel.send(embed=embed, view=WelcomeView())
                 logger.info(f"[AIChat] Sent welcome message to {guild.name} in {chat_channel.name}")
             except Exception as e:
                 logger.error(f"[AIChat] Failed to send welcome message to {guild.name}: {e}")

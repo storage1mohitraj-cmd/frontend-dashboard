@@ -199,3 +199,51 @@ async def is_bot_owner(bot, user_id):
     except Exception as e:
         print(f"[ERROR] Failed to check bot owner: {e}")
         return False
+
+
+def format_furnace_level(furnace_lv):
+    """
+    Format furnace level display matching game logic.
+    Fire Crystal levels start at level 31:
+    - Level 31-34: FC 1-1 to 1-4
+    - Level 35: FC 1
+    - Level 36-39: FC 2-1 to 2-4
+    - Level 40: FC 2
+    - etc.
+    """
+    try:
+        if furnace_lv is None:
+            return "0"
+            
+        lv = int(furnace_lv)
+        
+        if lv <= 30:
+            return str(lv)
+        
+        # Fire Crystal levels start at 31
+        # FC 1: 31-35
+        # FC 2: 36-40
+        # Each tier has 5 stages
+        adjusted_level = lv - 30
+        tier = (adjusted_level - 1) // 5 + 1
+        stage = (adjusted_level - 1) % 5 + 1
+        
+        if stage == 5:
+            # Base tier level (35, 40, 45, etc.)
+            return f"FC {tier}"
+        else:
+            # Sub-tier level (31-34, 36-39, etc.)
+            return f"FC {tier}-{stage}"
+    except (ValueError, TypeError):
+        return str(furnace_lv) if furnace_lv else "0"
+
+
+def get_level_mapping():
+    """
+    Returns a consistent mapping of raw furnace levels to display strings.
+    Covers levels 1-84.
+    """
+    mapping = {i: str(i) for i in range(1, 31)}
+    for i in range(31, 85):
+        mapping[i] = format_furnace_level(i)
+    return mapping

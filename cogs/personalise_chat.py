@@ -18,6 +18,7 @@ import re
 from typing import Optional, List
 
 from angel_personality import angel_personality
+from admin_utils import format_furnace_level
 from api_manager import make_request
 from command_animator import command_animation
 from wos_api import fetch_wos_player
@@ -191,7 +192,10 @@ class PlayerIDModal(discord.ui.Modal, title="🎮 Step 3: Player Information"):
             embed.add_field(name="👤 Pronouns", value=f"`{self.pronouns}`", inline=True)
             embed.add_field(name="✨ Traits", value=f"`{', '.join(self.traits)}`", inline=True)
             embed.add_field(name="🎮 Player ID", value=f"`{player_id}`", inline=True)
-            embed.add_field(name="📊 Current Stats", value=f"**{player_name}** • FC {furnace_level} • State {state_id}", inline=False)
+            
+            # Format furnace level using shared utility
+            formatted_level = format_furnace_level(furnace_level)
+            embed.add_field(name="📊 Current Stats", value=f"**{player_name}** • {formatted_level} • State {state_id}", inline=False)
             embed.set_footer(text="Your player ID is saved! I'll fetch fresh data whenever you ask about your game stats.")
             
             await interaction.followup.send(embed=embed)

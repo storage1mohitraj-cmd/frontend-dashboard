@@ -14,6 +14,7 @@ from datetime import datetime
 import time
 import logging
 import giftcode_poster
+from admin_utils import is_admin, is_global_admin, is_bot_owner, format_furnace_level as shared_format_furnace_level
 
 try:
     from db.mongo_adapters import mongo_enabled, GiftCodesAdapter, AutoRedeemSettingsAdapter, AutoRedeemChannelsAdapter, GiftCodeRedemptionAdapter, AutoRedeemMembersAdapter, AutoRedeemedCodesAdapter, _get_db, ServerLimitsAdapter
@@ -1283,30 +1284,8 @@ class ManageGiftCode(commands.Cog):
         return False
     
     def format_furnace_level(self, furnace_lv):
-        """Format furnace level display matching game logic"""
-        if not furnace_lv or furnace_lv <= 30:
-            return str(furnace_lv) if furnace_lv else "0"
-        
-        # Level 31-34 = 30-1 to 30-4
-        if 31 <= furnace_lv <= 34:
-            level_in_tier = furnace_lv - 30
-            return f"30-{level_in_tier}"
-        
-        # Level 35+ follows pattern:
-        # 35 = FC 1, 36-39 = FC 1-1 to FC 1-4
-        # 40 = FC 2, 41-44 = FC 2-1 to FC 2-4
-        # 45 = FC 3, 46-49 = FC 3-1 to FC 3-4
-        # etc.
-        adjusted_level = furnace_lv - 35  # 35 becomes 0, 36 becomes 1, etc.
-        tier = (adjusted_level // 5) + 1
-        level_in_tier = adjusted_level % 5
-        
-        if level_in_tier == 0:
-            # Base tier level (35, 40, 45, etc.)
-            return f"FC {tier}"
-        else:
-            # Sub-tier level (36-39, 41-44, etc.)
-            return f"FC {tier}-{level_in_tier}"
+        """Format furnace level display using shared utility"""
+        return shared_format_furnace_level(furnace_lv)
     
     async def _redeem_for_member(self, guild_id, fid, nickname, furnace_lv, giftcode):
         """

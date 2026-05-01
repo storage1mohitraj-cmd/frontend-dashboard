@@ -668,17 +668,6 @@ class CategorySelect(discord.ui.Select):
                 inline=False
             )
             embed.add_field(
-                name="⚡ `/allianceactivity`",
-                value=(
-                    "Show player growth based on furnace changes (Last 7 Days)\n"
-                    "```yaml\n"
-                    "Usage: /allianceactivity\n"
-                    "Analysis: Power growth, furnace upgrades, member progress\n"
-                    "```"
-                ),
-                inline=False
-            )
-            embed.add_field(
                 name="⚡ `/manage`",
                 value=(
                     "Quick access to management operations\n"

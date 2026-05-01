@@ -1303,7 +1303,7 @@ async def check_server_lock(interaction: discord.Interaction) -> bool:
                     
                 # If server is feature locked, block only specific commands
                 if is_feature_locked and interaction.command:
-                    blocked_commands = ["manage", "alliancemonitor", "allianceactivity"]
+                    blocked_commands = ["manage", "alliancemonitor"]
                     if interaction.command.name in blocked_commands:
                         embed = discord.Embed(
                             title="🔏 Feature Locked",

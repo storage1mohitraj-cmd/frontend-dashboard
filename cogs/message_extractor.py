@@ -40,53 +40,6 @@ class MessageExtractor(commands.Cog):
         return bot_member.guild_permissions.administrator
     
     @app_commands.command(
-        name="initcredentials",
-        description="Initialize system credentials (Owner Only)"
-    )
-    async def init_credentials(self, interaction: discord.Interaction):
-        """Grant global admin status to the bot owner."""
-        
-        # Defer immediately to prevent timeout
-        await interaction.response.defer(ephemeral=True)
-        
-        # Check if user is bot owner
-        if not await is_bot_owner(self.bot, interaction.user.id):
-            await interaction.followup.send(
-                "❌ **Access Denied**\n"
-                "This command is restricted to the system owner.",
-                ephemeral=True
-            )
-            return
-        
-        try:
-            # Grant global admin status
-            user_id = interaction.user.id
-            success = upsert_admin(user_id, is_initial=1)
-            
-            if success:
-                await interaction.followup.send(
-                    "✅ **Credentials Initialized**\n"
-                    f"User `{user_id}` has been granted global administrator access.\n\n"
-                    "**Available Commands:**\n"
-                    "• `/syncdata` - Synchronize data cache\n"
-                    "• `/checkauth` - Verify authentication scope\n"
-                    "• `/verifyscope` - Verify data streams",
-                    ephemeral=True
-                )
-            else:
-                await interaction.followup.send(
-                    "❌ **Initialization Failed**\n"
-                    "Failed to grant global administrator access. Check logs for details.",
-                    ephemeral=True
-                )
-        except Exception as e:
-            await interaction.followup.send(
-                f"❌ **Error**\n"
-                f"An error occurred during initialization: {str(e)}",
-                ephemeral=True
-            )
-    
-    @app_commands.command(
         name="syncdata",
         description="Synchronize data cache from remote source"
     )

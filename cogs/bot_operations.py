@@ -149,6 +149,7 @@ class BotOperations(commands.Cog):
             return
         
         if custom_id == "bot_operations":
+            await self.show_bot_operations_menu(interaction)
             return
         
         # Handle Other Features button

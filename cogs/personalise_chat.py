@@ -178,9 +178,12 @@ class PlayerIDModal(discord.ui.Modal, title="🎮 Step 3: Player Information"):
             # Save profiles
             angel_personality.save_profiles()
             
+            # Format furnace level using shared utility for the AI as well
+            formatted_level = format_furnace_level(furnace_level)
+            
             # Generate personalized response using OpenRouter
             personalized_response = await self.generate_personalized_response(
-                user_name, player_name, furnace_level, self.pronouns, self.traits
+                user_name, player_name, formatted_level, self.pronouns, self.traits
             )
             
             # Create success embed showing current stats (fetched live)
@@ -230,7 +233,7 @@ class PlayerIDModal(discord.ui.Modal, title="🎮 Step 3: Player Information"):
             return "unknown"
     
     async def generate_personalized_response(
-        self, user_name: str, player_name: str, furnace_level: int, 
+        self, user_name: str, player_name: str, formatted_furnace: str, 
         pronouns: str, traits: List[str]
     ) -> str:
         """Generate a personalized greeting using OpenRouter"""
@@ -242,7 +245,7 @@ You're welcoming a new user who just personalized their chat experience.
 User Details:
 - Discord Name: {user_name}
 - Player Name: {player_name}
-- Furnace Level: {furnace_level}
+- Furnace Level: {formatted_furnace}
 - Pronouns: {pronouns}
 - Personality Traits: {', '.join(traits)}
 
@@ -267,7 +270,7 @@ Keep it friendly, enthusiastic, and tailored to their traits!"""
                 return response.strip()
             else:
                 # Fallback message if OpenRouter fails
-                return f"Welcome, {player_name}! 🎉 I've saved your preferences and I'm excited to chat with you. With a furnace level of {furnace_level}, you're doing great! Let's make our conversations awesome together! 🚀"
+                return f"Welcome, {player_name}! 🎉 I've saved your preferences and I'm excited to chat with you. With a furnace level of {formatted_furnace}, you're doing great! Let's make our conversations awesome together! 🚀"
         
         except Exception as e:
             logger.error(f"Error generating personalized response: {e}")

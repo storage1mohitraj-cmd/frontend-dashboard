@@ -12,6 +12,7 @@ from datetime import datetime
 import logging
 
 logger = logging.getLogger(__name__)
+from admin_utils import format_furnace_level
 try:
     from db.mongo_adapters import mongo_enabled, UserProfilesAdapter
 except Exception:
@@ -234,7 +235,8 @@ class AngelPersonality:
         if game_progress.get('level') or game_progress.get('furnace_level'):
             # Support both 'level' and 'furnace_level' fields
             furnace_lv = game_progress.get('furnace_level') or game_progress.get('level')
-            parts = [f"Furnace Level {furnace_lv}"]
+            formatted_lv = format_furnace_level(furnace_lv)
+            parts = [f"Furnace Level {formatted_lv}"]
             
             # Add player name if available
             if game_progress.get('player_name'):

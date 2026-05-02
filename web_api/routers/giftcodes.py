@@ -32,7 +32,7 @@ except Exception:
     get_active_gift_codes = None
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/giftcodes", tags=["Gift Codes"])
+router = APIRouter(tags=["Gift Codes"])
 WOSTOOLS_GIFT_CODES_URL = "https://wostools.net/api/gift-codes"
 WOSGIFTCODES_URL = "https://wosgiftcodes.com/"
 

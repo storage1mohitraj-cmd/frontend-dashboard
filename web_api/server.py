@@ -63,6 +63,7 @@ async def start_web_server(port: int = 8080):
         host="0.0.0.0",
         port=port,
         loop="asyncio",
+        log_config=None,  # Prevents uvicorn from using colorama which crashes under PM2
         log_level="info"
     )
     server = uvicorn.Server(config)

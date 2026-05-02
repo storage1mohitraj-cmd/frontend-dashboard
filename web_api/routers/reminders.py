@@ -48,6 +48,10 @@ async def get_reminders(request: Request, guild_id: int):
     # Filter by guild_id if available, or check if channel_id belongs to the guild
     server_reminders = []
     for r in reminders:
+        # Convert MongoDB ObjectId to string for JSON serialization
+        if "_id" in r:
+            r["_id"] = str(r["_id"])
+            
         r_guild = str(r.get("guild_id")) if r.get("guild_id") else None
         r_channel = str(r.get("channel_id"))
         

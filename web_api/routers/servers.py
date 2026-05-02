@@ -30,11 +30,11 @@ async def get_user_servers(request: Request):
         guilds = r.json()
 
     # Get IDs of guilds the bot is in (from bot cache if available)
-    bot_guild_ids: set = set()
+    bot_guilds_info = {}
     _bot = getattr(request.app.state, 'bot', None)
     if _bot is not None:
         try:
-            bot_guild_ids = {str(g.id) for g in _bot.guilds}
+            bot_guilds_info = {str(g.id): g for g in _bot.guilds}
         except Exception:
             pass
 
@@ -54,7 +54,13 @@ async def get_user_servers(request: Request):
                     pass
 
             g["bot_lock_status"] = lock_status
-            g["bot_present"] = str(g["id"]) in bot_guild_ids
+            if str(g["id"]) in bot_guilds_info:
+                g["bot_present"] = True
+                g["approximate_member_count"] = bot_guilds_info[str(g["id"])].member_count
+            else:
+                g["bot_present"] = False
             admin_guilds.append(g)
 
     return {"servers": admin_guilds}
+
+

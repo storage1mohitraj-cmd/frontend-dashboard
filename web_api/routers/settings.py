@@ -1,6 +1,8 @@
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from pydantic import BaseModel
 import logging
+import os
+import uuid
 
 try:
     from db.mongo_adapters import WelcomeChannelAdapter, BirthdaysAdapter, BirthdayChannelAdapter, AutoTranslateAdapter, mongo_enabled
@@ -9,6 +11,22 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/settings", tags=["Settings"])
+
+@router.post("/upload")
+async def upload_image(file: UploadFile = File(...)):
+    if not file:
+        return {"status": "error", "message": "No file uploaded"}
+    
+    ext = file.filename.split('.')[-1] if '.' in file.filename else 'png'
+    filename = f"{uuid.uuid4()}.{ext}"
+    os.makedirs("data/uploads", exist_ok=True)
+    filepath = os.path.join("data/uploads", filename)
+    
+    with open(filepath, "wb") as f:
+        content = await file.read()
+        f.write(content)
+        
+    return {"url": f"/api/static/{filename}"}
 
 class WelcomeSettings(BaseModel):
     enabled: bool

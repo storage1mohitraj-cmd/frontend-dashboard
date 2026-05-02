@@ -8,6 +8,9 @@ try:
 except ImportError:
     mongo_enabled = lambda: False
 
+import os
+from fastapi.staticfiles import StaticFiles
+
 # Import our modular routers
 from web_api.routers.auth import router as auth_router
 from web_api.routers.giftcodes import router as giftcodes_router
@@ -55,6 +58,9 @@ app.include_router(giftcodes_router)
 app.include_router(servers_router)
 app.include_router(guilds_router)
 app.include_router(settings_router)
+
+os.makedirs("data/uploads", exist_ok=True)
+app.mount("/api/static", StaticFiles(directory="data/uploads"), name="static")
 
 async def start_web_server(bot=None, port: int = 8080):
     """Starts the FastAPI server on the existing asyncio loop."""

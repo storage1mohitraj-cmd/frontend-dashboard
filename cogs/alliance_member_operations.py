@@ -1037,12 +1037,6 @@ class AllianceSelectView(discord.ui.View):
         self.alliances = alliances_with_counts
         self.user_id = user_id
         self.cog = cog
-
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if self.user_id and interaction.user.id != self.user_id:
-            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
-            return False
-        return True
         self.page = page
         self.max_page = (len(alliances_with_counts) - 1) // 25 if alliances_with_counts else 0
         self.current_select = None
@@ -1051,6 +1045,12 @@ class AllianceSelectView(discord.ui.View):
         self.selected_alliance_id = None
         self.context = context  # "transfer", "furnace_history", or "nickname_history"
         self.update_select_menu()
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if self.user_id and interaction.user.id != self.user_id:
+            await interaction.response.send_message("❌ This menu is not for you.", ephemeral=True)
+            return False
+        return True
 
     def update_select_menu(self):
         for item in self.children[:]:

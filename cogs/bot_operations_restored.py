@@ -4315,38 +4315,35 @@ class BotOperations(commands.Cog):
                             color=discord.Color.blue()
                         )
 
-                        # Create alliance selection dropdown
+                        # Prepare alliances with member counts for the paginated view
+                        alliances_with_counts = []
                         seen_alliance_ids = set()
-                        options = []
                         for alliance_id, name in alliances:
                             if alliance_id in seen_alliance_ids:
                                 continue
                             seen_alliance_ids.add(alliance_id)
                             
-                            is_current = (alliance_id == current_alliance_id)
-                            options.append(
-                                discord.SelectOption(
-                                    label=f"{name[:50]}",
-                                    value=str(alliance_id),
-                                    description=f"ID: {alliance_id}" + (" (Currently assigned)" if is_current else ""),
-                                    emoji="✅" if is_current else "🏰"
-                                )
-                            )
-                            if len(options) >= 25:
-                                break
+                            member_count = 0
+                            try:
+                                with sqlite3.connect('db/users.sqlite') as users_db:
+                                    users_cursor = users_db.cursor()
+                                    users_cursor.execute("SELECT COUNT(*) FROM users WHERE alliance = ?", (alliance_id,))
+                                    member_count = users_cursor.fetchone()[0]
+                            except Exception:
+                                pass
+                            
+                            alliances_with_counts.append((alliance_id, name, member_count))
 
-                        alliance_select = discord.ui.Select(
-                            placeholder="Select an alliance to assign...",
-                            options=options,
-                            custom_id="alliance_select"
-                        )
+                        # Use the paginated AllianceSelectView
+                        from .alliance_member_operations import AllianceSelectView
+                        alliance_view = AllianceSelectView(alliances_with_counts, self, user_id=interaction.user.id)
 
                         async def alliance_select_callback(alliance_interaction: discord.Interaction):
                             try:
-                                selected_alliance_id = int(alliance_interaction.data["values"][0])
+                                selected_alliance_id = int(alliance_view.current_select.values[0])
                                 
-                                # Get alliance name from the already-fetched list
-                                alliance_name = next((name for aid, name in alliances if aid == selected_alliance_id), f"Alliance {selected_alliance_id}")
+                                # Get alliance name from the list
+                                alliance_name = next((name for aid, name, count in alliances_with_counts if aid == selected_alliance_id), f"Alliance {selected_alliance_id}")
 
                                 # Assign alliance to server
                                 success = ServerAllianceAdapter.set_alliance(
@@ -4389,10 +4386,7 @@ class BotOperations(commands.Cog):
                                     ephemeral=True
                                 )
 
-                        alliance_select.callback = alliance_select_callback
-
-                        alliance_view = discord.ui.View()
-                        alliance_view.add_item(alliance_select)
+                        alliance_view.callback = alliance_select_callback
 
                         # Add remove assignment button if there's a current assignment
                         if current_alliance_id:

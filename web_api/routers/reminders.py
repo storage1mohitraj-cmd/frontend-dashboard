@@ -129,3 +129,54 @@ async def delete_reminder(request: Request, guild_id: int, reminder_id: int):
         return {"status": "success"}
     else:
         raise HTTPException(status_code=400, detail="Failed to delete reminder. It may not exist or does not belong to you.")
+
+@router.patch("/{guild_id}/{reminder_id}")
+async def update_reminder(request: Request, guild_id: int, reminder_id: str, payload: ReminderCreate):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    # reminder_id can be int or ObjectId string
+    try:
+        rid = int(reminder_id)
+    except:
+        rid = reminder_id
+        
+    async with httpx.AsyncClient() as client:
+        r = await client.get('https://discord.com/api/users/@me', headers={"Authorization": auth_header})
+        if r.status_code != 200:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        user = r.json()
+        user_id = user["id"]
+
+    # Re-parse time in case it changed
+    reminder_time, recurring_info = TimeParser.parse_time_string(payload.time_str)
+    if not reminder_time:
+         raise HTTPException(status_code=400, detail="Invalid time format.")
+
+    _bot = getattr(request.app.state, 'bot', None)
+    storage = getattr(_bot, 'reminder_system', None).storage if _bot and hasattr(_bot, 'reminder_system') else ReminderStorage()
+    
+    update_data = {
+        "message": payload.message,
+        "body": payload.body,
+        "reminder_time": reminder_time,
+        "channel_id": str(payload.channel_id),
+        "mention": payload.mention,
+        "image_url": payload.image_url,
+        "thumbnail_url": payload.thumbnail_url,
+        "footer_text": payload.footer_text,
+        "footer_icon_url": payload.footer_icon_url,
+        "author_url": payload.author_url,
+        "is_recurring": recurring_info.get("is_recurring", False),
+        "recurrence_type": recurring_info.get("type"),
+        "recurrence_interval": recurring_info.get("interval"),
+        "original_time_pattern": recurring_info.get("pattern")
+    }
+    
+    success = storage.update_reminder_fields(rid, update_data)
+    
+    if success:
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=400, detail="Failed to update reminder.")

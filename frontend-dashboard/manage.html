@@ -137,6 +137,8 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-width: 0;
+            min-height: 0;
         }
 
         .top-bar {
@@ -669,22 +671,25 @@
                                             <span class="dc-bot-tag">APP</span>
                                             <span class="dc-timestamp">Today at 5:44 PM</span>
                                         </div>
-                                        <div class="dc-text" id="preview-text">
-                                            Hi <span class="dc-mention">@NewMember</span> Welcome to the <strong>Your Server</strong>🥳
-                                        </div>
                                         <!-- Embed card -->
                                         <div class="dc-embed" id="preview-embed">
-                                            <div class="dc-embed-img-wrap" id="preview-img-wrap">
-                                                <div class="dc-embed-img-placeholder" id="preview-img-placeholder">
-                                                    <i data-lucide="image" style="width:20px;height:20px;"></i> Background image preview
+                                            <div class="dc-embed-inner" style="padding-bottom: 8px;">
+                                                <div class="dc-embed-desc" id="preview-text" style="font-size: 0.875rem; line-height: 1.375rem; color: #dbdee1;">
+                                                    Hi <span class="dc-mention">@NewMember</span> Welcome to the <strong>Your Server</strong>🥳
                                                 </div>
-                                                <img id="preview-embed-image" class="dc-embed-image" src="" alt="" style="display:none;">
                                             </div>
-                                            <div class="dc-embed-inner">
-                                                <div class="dc-embed-title" id="preview-title">Welcome NewMember</div>
-                                                <div class="dc-embed-desc" id="preview-subtitle">to Your Server</div>
-                                                <div class="dc-embed-footer" id="preview-footer">Member joined • May 02, 2026</div>
+                                            <div class="dc-embed-img-wrap" id="preview-img-wrap" style="position: relative; margin: 0 16px 16px 16px; border-radius: 4px; overflow: hidden; background: #232831;">
+                                                <div class="dc-embed-img-placeholder" id="preview-img-placeholder" style="width: 100%; height: 180px; display: flex; align-items: center; justify-content: center; flex-direction: column; color: white; text-shadow: 1px 1px 4px rgba(0,0,0,0.8);">
+                                                    <strong id="preview-title" style="font-size:20px; font-weight:800; margin-bottom:4px;">Welcome NewMember</strong>
+                                                    <span id="preview-subtitle" style="font-size:14px; font-weight:600;">to Your Server</span>
+                                                </div>
+                                                <img id="preview-embed-image" class="dc-embed-image" src="" alt="" style="display:none; width: 100%; height: auto; object-fit: cover;">
+                                                <div id="preview-img-overlay" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center; color:white; text-shadow: 2px 2px 5px rgba(0,0,0,0.9); display:none; width:100%; pointer-events: none; padding: 0 20px;">
+                                                    <h2 id="preview-title-overlay" style="font-size:24px; font-weight:800; margin:0 0 4px 0;">Welcome NewMember</h2>
+                                                    <h3 id="preview-subtitle-overlay" style="font-size:16px; font-weight:600; margin:0;">to Your Server</h3>
+                                                </div>
                                             </div>
+                                            <div class="dc-embed-footer" id="preview-footer" style="padding: 0 16px 16px 16px; margin-top: 0; border-top: none;">Member joined • May 02, 2026</div>
                                         </div>
                                     </div>
                                 </div>
@@ -891,15 +896,21 @@
         }
 
         function updatePreview() {
-            // Top message text
+            // Top message text is actually the embed description
             const welcomeText = document.getElementById('welcome-text').value || 'Hi {mention} Welcome to the {server}🥳';
             document.getElementById('preview-text').innerHTML = applyVars(welcomeText);
 
-            // Embed title + subtitle
+            // Embed title + subtitle (drawn on image placeholder or overlay)
             const titleVal = document.getElementById('embed-title').value || 'Welcome {username}';
             const subtitleVal = document.getElementById('embed-subtitle').value || 'to {server}';
-            document.getElementById('preview-title').textContent = applyVarsPlain(titleVal);
-            document.getElementById('preview-subtitle').textContent = applyVarsPlain(subtitleVal);
+            
+            const resolvedTitle = applyVarsPlain(titleVal);
+            const resolvedSubtitle = applyVarsPlain(subtitleVal);
+            
+            document.getElementById('preview-title').textContent = resolvedTitle;
+            document.getElementById('preview-subtitle').textContent = resolvedSubtitle;
+            document.getElementById('preview-title-overlay').textContent = resolvedTitle;
+            document.getElementById('preview-subtitle-overlay').textContent = resolvedSubtitle;
 
             // Footer
             const footerVal = document.getElementById('footer-text').value || 'Member joined • {date}';
@@ -913,17 +924,17 @@
             const bgUrl = document.getElementById('welcome-bg').value;
             const previewImg = document.getElementById('preview-embed-image');
             const placeholder = document.getElementById('preview-img-placeholder');
-            if (bgUrl) {
-                previewImg.src = bgUrl;
+            const overlay = document.getElementById('preview-img-overlay');
+            
+            if (bgUrl || window._uploadedPreviewUrl) {
+                previewImg.src = bgUrl || window._uploadedPreviewUrl;
                 previewImg.style.display = 'block';
                 placeholder.style.display = 'none';
-            } else if (window._uploadedPreviewUrl) {
-                previewImg.src = window._uploadedPreviewUrl;
-                previewImg.style.display = 'block';
-                placeholder.style.display = 'none';
+                overlay.style.display = 'block';
             } else {
                 previewImg.style.display = 'none';
                 placeholder.style.display = 'flex';
+                overlay.style.display = 'none';
             }
 
             lucide.createIcons();

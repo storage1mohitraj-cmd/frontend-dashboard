@@ -850,12 +850,27 @@
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                     <div class="form-group">
-                        <label>Time</label>
-                        <input type="text" id="reminder-time" placeholder="e.g. in 10 minutes">
+                        <label>Start Date & Time</label>
+                        <input type="datetime-local" id="reminder-target-time">
                     </div>
                     <div class="form-group">
                         <label>Channel</label>
                         <select id="reminder-channel" class="guild-channels"></select>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div class="form-group">
+                        <label>Repeat / Recurrence</label>
+                        <select id="reminder-recurrence" onchange="toggleCustomInterval()">
+                            <option value="none">One-time</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="custom">Every X days...</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="custom-interval-group" style="display:none;">
+                        <label>Repeat every (days)</label>
+                        <input type="number" id="reminder-interval" min="1" value="1">
                     </div>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
@@ -1480,6 +1495,19 @@
             } catch (e) {} finally { showLoading(false); }
         }
 
+        function toggleCustomInterval() {
+            const val = document.getElementById('reminder-recurrence').value;
+            document.getElementById('custom-interval-group').style.display = (val === 'custom') ? 'block' : 'none';
+        }
+        
+        function formatDateTimeLocal(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '';
+            const pad = (num) => String(num).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
         let currentReminderId = null;
         let remindersMap = {};
 
@@ -1495,7 +1523,11 @@
                 submitBtn.onclick = () => updateReminder(reminderId);
                 
                 document.getElementById('reminder-message').value = r.message || '';
-                document.getElementById('reminder-time').value = r.original_time_pattern || r.reminder_time || '';
+                document.getElementById('reminder-target-time').value = formatDateTimeLocal(r.reminder_time);
+                document.getElementById('reminder-recurrence').value = r.recurrence_type || 'none';
+                document.getElementById('reminder-interval').value = r.recurrence_interval || 1;
+                toggleCustomInterval();
+
                 document.getElementById('reminder-body').value = r.body || '';
                 document.getElementById('reminder-channel').value = r.channel_id || '';
                 document.getElementById('reminder-mention').value = r.mention || 'everyone';
@@ -1510,7 +1542,14 @@
                 submitBtn.onclick = createReminder;
                 
                 document.getElementById('reminder-message').value = '';
-                document.getElementById('reminder-time').value = '';
+                // Default to 10 minutes from now
+                const now = new Date();
+                now.setMinutes(now.getMinutes() + 10);
+                document.getElementById('reminder-target-time').value = formatDateTimeLocal(now);
+                document.getElementById('reminder-recurrence').value = 'none';
+                document.getElementById('reminder-interval').value = 1;
+                toggleCustomInterval();
+
                 document.getElementById('reminder-body').value = '';
                 document.getElementById('reminder-image').value = '';
                 document.getElementById('reminder-thumbnail').value = '';
@@ -1542,7 +1581,9 @@
 
         function getReminderFormData() {
             const message = document.getElementById('reminder-message').value.trim();
-            const time_str = document.getElementById('reminder-time').value.trim();
+            const target_time = document.getElementById('reminder-target-time').value;
+            const recurrence_type = document.getElementById('reminder-recurrence').value;
+            const recurrence_interval = parseInt(document.getElementById('reminder-interval').value) || 1;
             const channel_id = document.getElementById('reminder-channel').value;
             const body = document.getElementById('reminder-body').value.trim() || null;
             const mention = document.getElementById('reminder-mention').value;
@@ -1552,12 +1593,12 @@
             const footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
             const author_url = document.getElementById('reminder-author-url').value.trim() || null;
             
-            if (!message || !time_str || !channel_id) {
+            if (!message || !target_time || !channel_id) {
                 showNotification('Title, Time, and Channel are required', true);
                 return null;
             }
             return {
-                message, time_str, channel_id, 
+                message, target_time, recurrence_type, recurrence_interval, channel_id, 
                 body, mention, image_url, thumbnail_url, footer_text,
                 footer_icon_url, author_url
             };

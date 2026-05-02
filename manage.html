@@ -405,6 +405,29 @@
         .config-item { display:flex; justify-content:space-between; align-items:center; background:#16191f; border-radius:12px; padding:16px; border:1px solid var(--glass-border); margin-bottom:12px; }
         .config-info h4 { font-weight:600; margin-bottom:4px; }
         .config-info p { color:var(--text-muted); font-size:0.85rem; }
+
+        /* Gift codes */
+        .giftcodes-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px; }
+        .giftcodes-header p { color:var(--text-muted); font-size:0.9rem; margin-top:6px; line-height:1.5; }
+        .giftcodes-meta { color:var(--text-muted); font-size:0.78rem; display:flex; align-items:center; gap:8px; margin-bottom:14px; }
+        .giftcodes-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:14px; }
+        .giftcode-card { background:#16191f; border:1px solid var(--glass-border); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:14px; min-width:0; }
+        .giftcode-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+        .giftcode-code { font-family:'Outfit', sans-serif; font-size:1.08rem; font-weight:800; color:#fff; overflow-wrap:anywhere; letter-spacing:0; }
+        .status-pill { flex-shrink:0; display:inline-flex; align-items:center; gap:6px; padding:4px 9px; border-radius:999px; font-size:0.72rem; font-weight:800; text-transform:uppercase; letter-spacing:0; }
+        .status-pill.active { background:rgba(16,185,129,0.14); color:#34d399; border:1px solid rgba(52,211,153,0.25); }
+        .giftcode-detail { display:grid; gap:10px; }
+        .giftcode-detail-row { display:grid; grid-template-columns:22px 1fr; gap:8px; align-items:start; color:var(--text-muted); font-size:0.86rem; line-height:1.5; min-width:0; }
+        .giftcode-detail-row i { width:16px; height:16px; color:var(--primary); margin-top:2px; }
+        .giftcode-detail-row strong { display:block; color:var(--text-main); font-size:0.78rem; margin-bottom:2px; }
+        .giftcode-detail-row span { overflow-wrap:anywhere; }
+        .giftcode-actions { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:auto; padding-top:12px; border-top:1px solid var(--glass-border); }
+        .giftcode-source { color:var(--text-muted); font-size:0.76rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .empty-state { text-align:center; padding:42px 20px; color:var(--text-muted); background:#16191f; border:1px solid var(--glass-border); border-radius:12px; }
+        @media(max-width:700px) {
+            .giftcodes-header { flex-direction:column; }
+            .giftcodes-header .btn { width:100%; justify-content:center; }
+        }
     </style>
 </head>
 
@@ -743,7 +766,17 @@
 
             <!-- Gift Codes Tab -->
             <div id="tab-giftcodes" class="tab-content">
-                <h2 class="section-title">Gift Code Management</h2>
+                <div class="giftcodes-header">
+                    <div>
+                        <h2 class="section-title" style="margin-bottom:0;">Active Gift Codes</h2>
+                        <p>Live codes from the bot scrapers, with rewards and expiry when the source publishes them.</p>
+                    </div>
+                    <button onclick="loadGiftCodes(true)" class="btn btn-secondary">
+                        <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+                        Refresh
+                    </button>
+                </div>
+                <div id="giftcodes-meta" class="giftcodes-meta"></div>
                 <div id="giftcodes-list"></div>
             </div>
         </div>
@@ -1172,19 +1205,116 @@
             } catch (e) {}
         }
 
-        async function loadGiftCodes() {
+        function escapeHTML(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[ch]));
+        }
+
+        function escapeAttribute(value) {
+            return escapeHTML(value).replace(/`/g, '&#096;');
+        }
+
+        function formatGiftDate(value) {
+            if (!value || String(value).toLowerCase() === 'unknown') return 'Not published';
+            const parsed = new Date(value);
+            if (!Number.isNaN(parsed.getTime())) {
+                return parsed.toLocaleString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+            return value;
+        }
+
+        function normalizeGiftValue(value, fallback) {
+            const text = String(value ?? '').trim();
+            if (!text || text.toLowerCase() === 'unknown') return fallback;
+            return text;
+        }
+
+        function copyGiftCode(code) {
+            navigator.clipboard.writeText(code)
+                .then(() => showNotification(`Copied ${code}`))
+                .catch(() => showNotification('Could not copy code', true));
+        }
+
+        async function loadGiftCodes(forceRefresh = false) {
+            const list = document.getElementById('giftcodes-list');
+            const meta = document.getElementById('giftcodes-meta');
+            list.innerHTML = '<div class="empty-state">Loading active codes...</div>';
+            meta.innerHTML = '';
             try {
-                const data = await fetchData(`/api/giftcodes`);
+                const endpoint = forceRefresh ? `/api/giftcodes?refresh=${Date.now()}` : `/api/giftcodes`;
+                const data = await fetchData(endpoint);
                 const codes = data.codes || data || [];
-                const list = document.getElementById('giftcodes-list');
+                const activeCodes = codes.filter(code => code.is_active !== false && String(code.validation_status || 'active').toLowerCase() !== 'expired');
+
+                meta.innerHTML = `
+                    <i data-lucide="radio" style="width:15px;height:15px;"></i>
+                    <span>${activeCodes.length} active ${activeCodes.length === 1 ? 'code' : 'codes'}${data.last_updated ? ` - Updated ${formatGiftDate(data.last_updated)}` : ''}</span>
+                `;
+
+                if (activeCodes.length === 0) {
+                    list.innerHTML = '<div class="empty-state">No active gift codes found right now.</div>';
+                    lucide.createIcons();
+                    return;
+                }
+
+                list.className = 'giftcodes-grid';
                 list.innerHTML = '';
-                codes.forEach(code => {
+                activeCodes.forEach(code => {
+                    const codeText = normalizeGiftValue(code.code, 'Unknown code');
+                    const rewards = normalizeGiftValue(code.rewards || code.description, 'Rewards not specified');
+                    const expiry = formatGiftDate(code.expiry);
+                    const source = normalizeGiftValue(code.source, data.source || 'live source');
+                    const rawDateAdded = String(code.date_added || code.date || '').trim();
+                    const dateAdded = rawDateAdded && rawDateAdded.toLowerCase() !== 'unknown' ? formatGiftDate(rawDateAdded) : '';
                     const div = document.createElement('div');
-                    div.className = 'config-item';
-                    div.innerHTML = `<div class="config-info"><h4>${code.code}</h4><p>Status: ${code.validation_status}</p></div>`;
+                    div.className = 'giftcode-card';
+                    div.innerHTML = `
+                        <div class="giftcode-top">
+                            <div class="giftcode-code">${escapeHTML(codeText)}</div>
+                            <span class="status-pill active">Active</span>
+                        </div>
+                        <div class="giftcode-detail">
+                            <div class="giftcode-detail-row">
+                                <i data-lucide="gift"></i>
+                                <span><strong>Rewards</strong>${escapeHTML(rewards)}</span>
+                            </div>
+                            <div class="giftcode-detail-row">
+                                <i data-lucide="calendar-clock"></i>
+                                <span><strong>Expiry</strong>${escapeHTML(expiry)}</span>
+                            </div>
+                        </div>
+                        <div class="giftcode-actions">
+                            <span class="giftcode-source" title="${escapeAttribute(source)}${dateAdded ? ` - ${escapeAttribute(dateAdded)}` : ''}">
+                                ${escapeHTML(source)}${dateAdded ? ` - ${escapeHTML(dateAdded)}` : ''}
+                            </span>
+                            <button class="btn btn-secondary copy-giftcode" data-code="${escapeAttribute(codeText)}" style="padding:8px 12px;">
+                                <i data-lucide="copy" style="width:15px;height:15px;"></i>
+                                Copy
+                            </button>
+                        </div>
+                    `;
                     list.appendChild(div);
                 });
-            } catch (e) {}
+
+                document.querySelectorAll('.copy-giftcode').forEach(button => {
+                    button.addEventListener('click', () => copyGiftCode(button.dataset.code));
+                });
+                lucide.createIcons();
+            } catch (e) {
+                list.className = '';
+                list.innerHTML = '<div class="empty-state">Could not load gift codes. Try refreshing in a moment.</div>';
+            }
         }
 
         function openTranslateModal(config = null) {

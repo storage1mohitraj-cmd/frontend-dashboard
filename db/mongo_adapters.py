@@ -1350,6 +1350,51 @@ class AutoRedeemSettingsAdapter:
             return False
 
     @staticmethod
+    async def get_settings_async(guild_id: int) -> Optional[Dict[str, Any]]:
+        """Get auto redeem settings for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[AutoRedeemSettingsAdapter.COLL].find_one({'_id': str(guild_id)})
+            if not doc:
+                return None
+            return {
+                'enabled': bool(doc.get('enabled', False)),
+                'priority': int(doc.get('priority', 999)),
+                'updated_by': int(doc.get('updated_by', 0)),
+                'updated_at': doc.get('updated_at')
+            }
+        except Exception as e:
+            logger.error(f'Failed to get auto redeem settings (async) for guild {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def set_enabled_async(guild_id: int, enabled: bool, updated_by: int) -> bool:
+        """Set auto redeem enabled/disabled state for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[AutoRedeemSettingsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'enabled': bool(enabled),
+                        'updated_by': int(updated_by),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {
+                        'created_at': now,
+                        'priority': 999
+                    }
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set auto redeem settings (async) for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
     def set_priority(guild_id: int, priority: int, updated_by: int) -> bool:
         """Set auto redeem priority for a guild"""
         try:
@@ -1760,7 +1805,7 @@ class AutoRedeemMembersAdapter:
 
             for target_db in db_list:
                 cursor = target_db[AutoRedeemMembersAdapter.COLL].find({'guild_id': {'$in': search_gid}})
-                docs = await cursor.to_list(length=None)
+                docs = await cursor.to_list(length=1000)
                 
                 for doc in docs:
                     fid = doc.get('fid')
@@ -1898,7 +1943,7 @@ class AutoRedeemMembersAdapter:
                     'guild_id': {'$in': search_gid},
                     'fid': {'$in': fid_strs}
                 })
-                docs = await cursor.to_list(length=None)
+                docs = await cursor.to_list(length=1000)
                 for d in docs: results[str(d.get('fid'))] = True
                 
                 if not all(results.values()):
@@ -1906,7 +1951,7 @@ class AutoRedeemMembersAdapter:
                         'guild_id': {'$in': search_gid},
                         'members.fid': {'$in': fid_strs}
                     })
-                    docs_v1 = await cursor_v1.to_list(length=None)
+                    docs_v1 = await cursor_v1.to_list(length=1000)
                     for doc in docs_v1:
                         if 'members' in doc:
                             for m in doc['members']:
@@ -2213,29 +2258,29 @@ class IDChannelsAdapter:
 
     @staticmethod
     async def delete_async(guild_id: int) -> bool:
-        """Delete welcome channel configuration for a guild asynchronously"""
+        """Delete ID channel configuration for a guild asynchronously"""
         try:
             db = await _get_db_main_async()
-            result = await db[WelcomeChannelAdapter.COLL].delete_one({'_id': str(guild_id)})
+            result = await db[IDChannelsAdapter.COLL].delete_one({'_id': str(guild_id)})
             return result.deleted_count > 0
         except Exception as e:
-            logger.error(f'Failed to delete welcome channel (async) for guild {guild_id}: {e}')
+            logger.error(f'Failed to delete ID channel (async) for guild {guild_id}: {e}')
             return False
 
     @staticmethod
     async def get_all_async() -> list:
-        """Get all configured welcome channels asynchronously"""
+        """Get all configured ID channels asynchronously"""
         try:
             db = await _get_db_main_async()
-            cursor = db[WelcomeChannelAdapter.COLL].find({'enabled': True})
-            docs = await cursor.to_list(length=None)
+            cursor = db[IDChannelsAdapter.COLL].find({})
+            docs = await cursor.to_list(length=1000)
             return [{
-                'guild_id': int(d.get('_id')),
+                'guild_id': int(d.get('guild_id', d.get('_id'))),
                 'channel_id': int(d.get('channel_id')),
-                'enabled': bool(d.get('enabled', True))
+                'alliance_id': int(d.get('alliance_id', 0))
             } for d in docs]
         except Exception as e:
-            logger.error(f'Failed to get all welcome channels (async): {e}')
+            logger.error(f'Failed to get all ID channels (async): {e}')
             return []
 
 class BirthdayChannelAdapter:

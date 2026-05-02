@@ -4249,23 +4249,31 @@ class BotOperations(commands.Cog):
                             )
                             return
                         
-                        # Get all alliances
-                        try:
-                            from db.mongo_adapters import mongo_enabled, AlliancesAdapter
-                            if mongo_enabled():
-                                alliances_docs = AlliancesAdapter.get_all()
-                                alliances = [(doc.get('alliance_id', i+1), doc.get('name', 'Unknown')) for i, doc in enumerate(alliances_docs)]
-                                alliances.sort(key=lambda x: x[1])
-                            else:
-                                raise Exception("Mongo fallback")
-                        except Exception:
-                            alliance_db = sqlite3.connect('db/alliance.sqlite')
-                            alliance_cursor = alliance_db.cursor()
+                        # Get all alliances from both MongoDB and SQLite to ensure full list
+                        alliances_map = {} # alliance_id -> name
+                        
+                        # Try MongoDB
+                        if mongo_enabled():
                             try:
-                                alliance_cursor.execute("SELECT alliance_id, name FROM alliance_list ORDER BY name")
-                                alliances = alliance_cursor.fetchall()
-                            except sqlite3.OperationalError:
-                                alliances = []
+                                from db.mongo_adapters import AlliancesAdapter
+                                for doc in AlliancesAdapter.get_all():
+                                    aid = doc.get('alliance_id') or doc.get('id')
+                                    if aid:
+                                        alliances_map[int(aid)] = doc.get('name', 'Unknown')
+                            except Exception as e:
+                                print(f"MongoDB alliance fetch failed: {e}")
+
+                        # Always check SQLite as fallback/supplement
+                        try:
+                            with sqlite3.connect('db/alliance.sqlite') as alliance_db:
+                                alliance_cursor = alliance_db.cursor()
+                                alliance_cursor.execute("SELECT alliance_id, name FROM alliance_list")
+                                for aid, name in alliance_cursor.fetchall():
+                                    alliances_map[int(aid)] = name
+                        except Exception as e:
+                            print(f"SQLite alliance fetch failed: {e}")
+                        
+                        alliances = sorted(alliances_map.items(), key=lambda x: x[1])
 
                         if not alliances:
                             await select_interaction.response.send_message(

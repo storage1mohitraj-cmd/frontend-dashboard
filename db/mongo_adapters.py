@@ -2482,6 +2482,20 @@ class AlliancesAdapter:
             return []
 
     @staticmethod
+    def upsert(alliance_id: int, name: str, discord_server_id: int) -> bool:
+        try:
+            db = _get_db_main()
+            now = datetime.utcnow().isoformat()
+            db[AlliancesAdapter.COLL].update_one(
+                {'_id': str(alliance_id)},
+                {'$set': {'alliance_id': int(alliance_id), 'name': name, 'discord_server_id': int(discord_server_id), 'updated_at': now}, '$setOnInsert': {'created_at': now}},
+                upsert=True
+            )
+            return True
+        except Exception:
+            return False
+
+    @staticmethod
     async def upsert_async(alliance_id: int, name: str, discord_server_id: int) -> bool:
         try:
             db = await _get_db_main_async()

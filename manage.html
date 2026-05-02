@@ -1480,20 +1480,67 @@
             } catch (e) {} finally { showLoading(false); }
         }
 
-        function openReminderModal() {
-            document.getElementById('reminder-message').value = '';
-            document.getElementById('reminder-time').value = '';
-            document.getElementById('reminder-body').value = '';
-            document.getElementById('reminder-image').value = '';
-            document.getElementById('reminder-thumbnail').value = '';
-            document.getElementById('reminder-footer').value = '';
-            document.getElementById('reminder-footer-icon').value = '';
-            document.getElementById('reminder-author-url').value = '';
+        let currentReminderId = null;
+        let remindersMap = {};
+
+        function openReminderModal(reminderId = null) {
+            currentReminderId = reminderId;
+            const titleEl = document.querySelector('#reminder-modal h3');
+            const submitBtn = document.querySelector('#reminder-modal .btn-primary');
+            
+            if (reminderId && remindersMap[reminderId]) {
+                const r = remindersMap[reminderId];
+                titleEl.textContent = 'Edit Reminder';
+                submitBtn.textContent = 'Update Reminder';
+                submitBtn.onclick = () => updateReminder(reminderId);
+                
+                document.getElementById('reminder-message').value = r.message || '';
+                document.getElementById('reminder-time').value = r.original_time_pattern || r.reminder_time || '';
+                document.getElementById('reminder-body').value = r.body || '';
+                document.getElementById('reminder-channel').value = r.channel_id || '';
+                document.getElementById('reminder-mention').value = r.mention || 'everyone';
+                document.getElementById('reminder-image').value = r.image_url || '';
+                document.getElementById('reminder-thumbnail').value = r.thumbnail_url || '';
+                document.getElementById('reminder-footer').value = r.footer_text || '';
+                document.getElementById('reminder-footer-icon').value = r.footer_icon_url || '';
+                document.getElementById('reminder-author-url').value = r.author_url || '';
+            } else {
+                titleEl.textContent = 'New Reminder';
+                submitBtn.textContent = 'Create Reminder';
+                submitBtn.onclick = createReminder;
+                
+                document.getElementById('reminder-message').value = '';
+                document.getElementById('reminder-time').value = '';
+                document.getElementById('reminder-body').value = '';
+                document.getElementById('reminder-image').value = '';
+                document.getElementById('reminder-thumbnail').value = '';
+                document.getElementById('reminder-footer').value = '';
+                document.getElementById('reminder-footer-icon').value = '';
+                document.getElementById('reminder-author-url').value = '';
+            }
             document.getElementById('reminder-modal').style.display = 'flex';
         }
         function closeReminderModal() { document.getElementById('reminder-modal').style.display = 'none'; }
 
-        async function createReminder() {
+        async function updateReminder(id) {
+            const data = getReminderFormData();
+            if (!data) return;
+            
+            showLoading(true);
+            try {
+                await fetchData(`/api/reminders/${guildId}/${id}`, { 
+                    method: 'PATCH', 
+                    body: JSON.stringify(data) 
+                });
+                showNotification('Reminder updated!');
+                closeReminderModal();
+                loadReminders();
+            } catch (e) {
+                showNotification(e.message || 'Failed to update reminder', true);
+            } finally { showLoading(false); }
+        }
+
+        function getReminderFormData() {
             const message = document.getElementById('reminder-message').value.trim();
             const time_str = document.getElementById('reminder-time').value.trim();
             const channel_id = document.getElementById('reminder-channel').value;
@@ -1507,18 +1554,24 @@
             
             if (!message || !time_str || !channel_id) {
                 showNotification('Title, Time, and Channel are required', true);
-                return;
+                return null;
             }
+            return {
+                message, time_str, channel_id, 
+                body, mention, image_url, thumbnail_url, footer_text,
+                footer_icon_url, author_url
+            };
+        }
+
+        async function createReminder() {
+            const data = getReminderFormData();
+            if (!data) return;
             
             showLoading(true);
             try {
                 await fetchData(`/api/reminders/${guildId}`, { 
                     method: 'POST', 
-                    body: JSON.stringify({ 
-                        message, time_str, channel_id, 
-                        body, mention, image_url, thumbnail_url, footer_text,
-                        footer_icon_url, author_url
-                    }) 
+                    body: JSON.stringify(data) 
                 });
                 showNotification('Reminder created!');
                 closeReminderModal();
@@ -1552,7 +1605,9 @@
                 
                 list.innerHTML = '';
                 list.className = 'giftcodes-grid'; // Reuse giftcode grid style
+                remindersMap = {};
                 data.reminders.forEach(r => {
+                    remindersMap[r.id] = r;
                     const div = document.createElement('div');
                     div.className = 'giftcode-card'; // Reuse style
                     
@@ -1573,8 +1628,12 @@
                                 <span><strong>Channel</strong>${escapeHTML(r.channel_id)}</span>
                             </div>
                         </div>
-                        <div class="giftcode-actions" style="justify-content: flex-end;">
-                            <button class="btn btn-danger" onclick="deleteReminder(${r.id})" style="padding:8px 12px;">
+                        <div class="giftcode-actions" style="justify-content: flex-end; gap: 8px;">
+                            <button class="btn btn-secondary" onclick="openReminderModal('${r.id}')" style="padding:8px 12px;">
+                                <i data-lucide="edit-3" style="width:15px;height:15px;"></i>
+                                Edit
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteReminder('${r.id}')" style="padding:8px 12px;">
                                 <i data-lucide="trash-2" style="width:15px;height:15px;"></i>
                                 Delete
                             </button>

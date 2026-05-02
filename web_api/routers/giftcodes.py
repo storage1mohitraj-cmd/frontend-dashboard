@@ -29,7 +29,7 @@ except Exception:
     get_active_gift_codes = None
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/giftcodes", tags=["Gift Codes"])
+router = APIRouter(tags=["Gift Codes"])
 WOSTOOLS_GIFT_CODES_URL = "https://wostools.net/api/gift-codes"
 WOSGIFTCODES_URL = "https://wosgiftcodes.com/"
 
@@ -534,7 +534,7 @@ def _normalize_database_code_rich(doc: dict, wostools_map: dict | None = None) -
     }
 
 @router.get("/{guild_id}/stats")
-async def get_giftcode_stats(guild_id: int):
+async def get_giftcode_stats(guild_id: str):
     """Fetch giftcode stats for a specific guild."""
     if not mongo_enabled():
         return {"total_attempts": 0, "successful": 0, "failed": 0, "unique_codes": 0}

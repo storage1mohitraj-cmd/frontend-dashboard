@@ -63,10 +63,14 @@ async def get_status():
         "bot_online": True
     }
 
+@app.get("/api/test-direct")
+async def test_direct():
+    return {"message": "Direct API test works"}
+
 # Register all modular routers
 app.include_router(status_router)
 app.include_router(auth_router)
-app.include_router(giftcodes_router)
+app.include_router(giftcodes_router, prefix="/api/giftcodes")
 app.include_router(servers_router)
 app.include_router(guilds_router)
 app.include_router(settings_router)
@@ -88,4 +92,11 @@ async def start_web_server(bot=None, port: int = 8080):
     )
     server = uvicorn.Server(config)
     logger.info(f"🚀 FastAPI Web Server running on port {port}")
+    
+    # Log all registered routes
+    logger.info("📋 Registered Routes:")
+    for route in app.routes:
+        if hasattr(route, 'path'):
+            logger.info(f"  {route.methods} {route.path}")
+            
     await server.serve()

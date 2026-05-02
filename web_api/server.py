@@ -63,9 +63,23 @@ async def get_status():
         "bot_online": True
     }
 
-@app.get("/api/test-direct")
-async def test_direct():
-    return {"message": "Direct API test works"}
+@app.get("/")
+@app.get("/api/health")
+async def health_check():
+    """Basic health check to verify server is reachable."""
+    return {
+        "status": "online",
+        "timestamp": datetime.utcnow().isoformat(),
+        "bot_loaded": hasattr(app.state, "bot") and app.state.bot is not None
+    }
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"🔥 Global error: {str(exc)}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "message": str(exc)}
+    )
 
 # Register all modular routers
 app.include_router(status_router)

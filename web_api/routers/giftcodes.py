@@ -22,6 +22,9 @@ try:
     )
 except ImportError:
     mongo_enabled = lambda: False
+    GiftCodesAdapter = GiftCodeRedemptionAdapter = AutoRedeemSettingsAdapter = \
+    AutoRedeemChannelsAdapter = AutoRedeemMembersAdapter = IDChannelsAdapter = \
+    GiftcodeStateAdapter = None
 
 try:
     from gift_codes import get_active_gift_codes

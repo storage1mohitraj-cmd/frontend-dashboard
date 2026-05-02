@@ -21,8 +21,16 @@ WOSTOOLS_GIFT_CODES_URL = "https://wostools.net/api/gift-codes"
 
 @router.get("")
 @router.get("/")
-async def get_active_giftcodes():
+async def get_active_giftcodes(request: Request):
     """Fetch active giftcodes from the bot scraper, with fallbacks."""
+    bot_codes = await _fetch_running_bot_active_codes(request)
+    if bot_codes:
+        return {
+            "codes": bot_codes,
+            "source": "bot_manage_cog",
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+        }
+
     if get_active_gift_codes is not None:
         try:
             live_codes = await get_active_gift_codes()
@@ -70,6 +78,45 @@ async def get_active_giftcodes():
     except Exception as e:
         logger.error(f"Failed to fetch giftcodes: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _fetch_running_bot_active_codes(request: Request) -> list[dict]:
+    """Read active gift codes from the loaded Discord bot cog, if available."""
+    try:
+        bot = getattr(request.app.state, "bot", None)
+        if bot is None:
+            return []
+
+        manage_cog = bot.get_cog("ManageGiftCode") if hasattr(bot, "get_cog") else None
+        if manage_cog is None or not hasattr(manage_cog, "get_active_gift_codes_consolidated"):
+            return []
+
+        active_map = await manage_cog.get_active_gift_codes_consolidated(force_refresh=True)
+        if not active_map:
+            return []
+
+        return [
+            _normalize_bot_cog_code(code, expiry)
+            for code, expiry in active_map.items()
+            if str(code).strip()
+        ]
+    except Exception as e:
+        logger.warning(f"Running bot giftcode cog fetch failed: {e}")
+        return []
+
+
+def _normalize_bot_cog_code(code: str, expiry: str) -> dict:
+    return {
+        "code": str(code).strip(),
+        "rewards": "Rewards not specified",
+        "expiry": str(expiry or "Unknown").strip() or "Unknown",
+        "description": "",
+        "source": "bot_manage_cog",
+        "date_added": "",
+        "status": "active",
+        "validation_status": "active",
+        "is_active": True,
+    }
 
 
 async def _fetch_wostools_active_codes() -> list[dict]:

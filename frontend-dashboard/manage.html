@@ -460,6 +460,20 @@
             border-top: 1px solid rgba(255,255,255,0.1);
             border-bottom: 1px solid rgba(255,255,255,0.1);
         }
+        .time-picker-row::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 36px;
+            border-top: 1px solid var(--primary);
+            border-bottom: 1px solid var(--primary);
+            transform: translateY(-50%);
+            background: rgba(var(--primary-rgb), 0.05);
+            pointer-events: none;
+            z-index: 1;
+        }
         .wheel-container {
             height: 100px;
             overflow-y: scroll;
@@ -1063,79 +1077,94 @@
         }
 
         function initTimeWheels() {
-            const hours = document.getElementById('wheel-hour');
-            const mins = document.getElementById('wheel-min');
-            const secs = document.getElementById('wheel-sec');
-            const ampm = document.getElementById('wheel-ampm');
+            const wheels = ['wheel-hour', 'wheel-min', 'wheel-sec', 'wheel-ampm'];
             
-            const populate = (el, max, start=0) => {
-                el.innerHTML = '<div class="wheel-item" style="height:33px;"></div>';
-                for(let i=start; i<=max; i++) {
-                    const val = String(i).padStart(2, '0');
-                    const item = document.createElement('div');
-                    item.className = 'wheel-item';
-                    item.dataset.val = val;
-                    item.textContent = val;
-                    item.onclick = () => setWheelValue(el, val);
-                    el.appendChild(item);
+            wheels.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                
+                if (id !== 'wheel-ampm') {
+                    const max = id === 'wheel-hour' ? 12 : 59;
+                    const start = id === 'wheel-hour' ? 1 : 0;
+                    el.innerHTML = '<div class="wheel-item spacer"></div>';
+                    for(let i=start; i<=max; i++) {
+                        const val = String(i).padStart(2, '0');
+                        const item = document.createElement('div');
+                        item.className = 'wheel-item';
+                        item.dataset.val = val;
+                        item.textContent = val;
+                        item.onclick = () => setWheelValue(el, val);
+                        el.appendChild(item);
+                    }
+                    el.innerHTML += '<div class="wheel-item spacer"></div>';
+                } else {
+                    // AM/PM already has spacers in HTML
+                    el.querySelectorAll('.wheel-item[data-val]').forEach(item => {
+                        item.onclick = () => setWheelValue(el, item.dataset.val);
+                    });
                 }
-                el.innerHTML += '<div class="wheel-item" style="height:33px;"></div>';
-                el.addEventListener('scroll', () => {
-                    clearTimeout(el.scrollTimeout);
-                    el.scrollTimeout = setTimeout(() => updateWheelSelection(el), 50);
-                });
-            };
-            
-            populate(hours, 12, 1);
-            populate(mins, 59);
-            populate(secs, 59);
-            
-            // Fix AM/PM items
-            ampm.querySelectorAll('.wheel-item[data-val]').forEach(item => {
-                item.onclick = () => setWheelValue(ampm, item.dataset.val);
-            });
-            ampm.addEventListener('scroll', () => {
-                clearTimeout(ampm.scrollTimeout);
-                ampm.scrollTimeout = setTimeout(() => updateWheelSelection(ampm), 50);
+                
+                el.addEventListener('scroll', () => updateWheelSelection(el));
             });
             
-            // Initial selection
+            // Initial selection based on current time
             setTimeout(() => {
                 const now = new Date();
                 let h = now.getHours();
                 const p = h >= 12 ? 'PM' : 'AM';
                 h = h % 12 || 12;
-                setWheelValue(hours, String(h).padStart(2, '0'));
-                setWheelValue(mins, String(now.getMinutes()).padStart(2, '0'));
-                setWheelValue(secs, '00');
-                setWheelValue(ampm, p);
-            }, 300);
+                setWheelValue(document.getElementById('wheel-hour'), String(h).padStart(2, '0'));
+                setWheelValue(document.getElementById('wheel-min'), String(now.getMinutes()).padStart(2, '0'));
+                setWheelValue(document.getElementById('wheel-sec'), '00');
+                setWheelValue(document.getElementById('wheel-ampm'), p);
+            }, 500);
         }
 
         function updateWheelSelection(el) {
-            const items = el.querySelectorAll('.wheel-item[data-val]');
-            const scrollTop = el.scrollTop;
-            const index = Math.round(scrollTop / 33);
+            const containerRect = el.getBoundingClientRect();
+            const centerY = containerRect.top + containerRect.height / 2;
             
-            el.querySelectorAll('.wheel-item').forEach((item, i) => {
-                // items include spacers, so offset by 1
-                if(i === index + 1) item.classList.add('selected');
-                else item.classList.remove('selected');
+            let closestItem = null;
+            let minDiff = Infinity;
+            
+            el.querySelectorAll('.wheel-item[data-val]').forEach(item => {
+                const rect = item.getBoundingClientRect();
+                const itemCenterY = rect.top + rect.height / 2;
+                const diff = Math.abs(centerY - itemCenterY);
+                
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestItem = item;
+                }
+                item.classList.remove('selected');
             });
+            
+            if (closestItem) {
+                closestItem.classList.add('selected');
+            }
         }
 
-        function getWheelValue(el) {
+        function getWheelValue(id) {
+            const el = document.getElementById(id);
             const selected = el.querySelector('.wheel-item.selected');
-            return selected ? selected.dataset.val : '00';
+            if (selected) return selected.dataset.val;
+            
+            // Fallback: try to find the one closest to the center if none marked selected
+            updateWheelSelection(el);
+            const afterUpdate = el.querySelector('.wheel-item.selected');
+            return afterUpdate ? afterUpdate.dataset.val : '00';
         }
 
         function setWheelValue(el, val) {
-            const items = Array.from(el.querySelectorAll('.wheel-item'));
+            const items = Array.from(el.querySelectorAll('.wheel-item[data-val]'));
             const index = items.findIndex(item => item.dataset.val == val);
             if(index !== -1) {
-                el.scrollTo({ top: (index - 1) * 33, behavior: 'smooth' });
-                // Force selection class after scroll
-                setTimeout(() => updateWheelSelection(el), 300);
+                const item = items[index];
+                const scrollPos = item.offsetTop - el.offsetTop - (el.clientHeight / 2) + (item.clientHeight / 2);
+                el.scrollTo({ top: scrollPos, behavior: 'smooth' });
+                // Mark selected immediately for better UX
+                items.forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
             }
         }
 
@@ -1801,10 +1830,10 @@
         function getReminderFormData() {
             const message = document.getElementById('reminder-message').value.trim();
             const date = document.getElementById('reminder-date').value;
-            const hour = getWheelValue(document.getElementById('wheel-hour'));
-            const min = getWheelValue(document.getElementById('wheel-min'));
-            const sec = getWheelValue(document.getElementById('wheel-sec'));
-            const ampm = getWheelValue(document.getElementById('wheel-ampm'));
+            const hour = getWheelValue('wheel-hour');
+            const min = getWheelValue('wheel-min');
+            const sec = getWheelValue('wheel-sec');
+            const ampm = getWheelValue('wheel-ampm');
             const timezone = document.getElementById('reminder-timezone').value;
             
             const recurrence_type = document.getElementById('reminder-recurrence').value;

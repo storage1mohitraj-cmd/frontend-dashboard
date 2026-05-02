@@ -1246,6 +1246,13 @@
                 .catch(() => showNotification('Could not copy code', true));
         }
 
+        function isActiveGiftCode(code) {
+            const status = String(code.validation_status || code.status || '').trim().toLowerCase();
+            if (['expired', 'invalid', 'inactive', 'failed', 'pending'].includes(status)) return false;
+            if (['active', 'valid'].includes(status)) return true;
+            return code.is_active === true;
+        }
+
         async function loadGiftCodes(forceRefresh = false) {
             const list = document.getElementById('giftcodes-list');
             const meta = document.getElementById('giftcodes-meta');
@@ -1255,7 +1262,7 @@
                 const endpoint = forceRefresh ? `/api/giftcodes?refresh=${Date.now()}` : `/api/giftcodes`;
                 const data = await fetchData(endpoint);
                 const codes = data.codes || data || [];
-                const activeCodes = codes.filter(code => code.is_active !== false && String(code.validation_status || 'active').toLowerCase() !== 'expired');
+                const activeCodes = codes.filter(isActiveGiftCode);
 
                 meta.innerHTML = `
                     <i data-lucide="radio" style="width:15px;height:15px;"></i>

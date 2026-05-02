@@ -192,7 +192,20 @@ class IDChannel(commands.Cog):
             
             fid = int(content)
             
-            # Get ID channels from database
+            # ── Check ID Channels ──
+            # Try MongoDB first
+            try:
+                from db.mongo_adapters import mongo_enabled, IDChannelsAdapter
+                if mongo_enabled() and IDChannelsAdapter:
+                    config = await IDChannelsAdapter.get_channel_async(message.guild.id)
+                    if config and config.get('channel_id') == message.channel.id:
+                        self._log_debug(f"Processing FID {fid} in Mongo ID channel {message.channel.id}")
+                        await self.process_fid(message, fid, config.get('alliance_id', 0))
+                        return
+            except Exception as e:
+                self._log_debug(f"Mongo ID channel check failed: {e}")
+
+            # Get ID channels from SQLite database (fallback/legacy)
             with sqlite3.connect('db/id_channel.sqlite') as db:
                 cursor = db.cursor()
                 cursor.execute(
@@ -204,7 +217,7 @@ class IDChannel(commands.Cog):
             # Check if message is in an ID channel
             for channel_id, alliance_id in channels:
                 if message.channel.id == channel_id:
-                    self._log_debug(f"Processing FID {fid} in ID channel {channel_id} for alliance {alliance_id}")
+                    self._log_debug(f"Processing FID {fid} in SQLite ID channel {channel_id} for alliance {alliance_id}")
                     # Process the FID
                     await self.process_fid(message, fid, alliance_id)
                     return

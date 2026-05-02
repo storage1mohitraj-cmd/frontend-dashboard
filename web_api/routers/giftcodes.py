@@ -2,12 +2,23 @@ import asyncio
 import json
 import re
 from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Body
+from pydantic import BaseModel
+from typing import Optional, List
 import logging
 from urllib.request import Request as UrlRequest, urlopen
 
 try:
-    from db.mongo_adapters import GiftCodesAdapter, GiftCodeRedemptionAdapter, mongo_enabled
+    from db.mongo_adapters import (
+        GiftCodesAdapter, 
+        GiftCodeRedemptionAdapter, 
+        mongo_enabled,
+        AutoRedeemSettingsAdapter,
+        AutoRedeemChannelsAdapter,
+        AutoRedeemMembersAdapter,
+        IDChannelsAdapter,
+        GiftcodeStateAdapter
+    )
 except ImportError:
     mongo_enabled = lambda: False
 
@@ -499,3 +510,122 @@ async def redeem_giftcodes_api(request: Request):
     except Exception as e:
         logger.error(f"Error redeeming giftcodes: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# ─────────────────────────────────────────
+# Automation & Settings
+# ─────────────────────────────────────────
+
+class GiftCodeAutomationSettings(BaseModel):
+    auto_redeem_enabled: bool
+    auto_redeem_channel_id: Optional[str] = None
+    registration_channel_id: Optional[str] = None
+    latest_code_channel_id: Optional[str] = None
+
+class AutoRedeemMemberAdd(BaseModel):
+    fid: str
+    nickname: Optional[str] = "Unknown"
+    furnace_lv: Optional[int] = 0
+    avatar_image: Optional[str] = ""
+
+@router.get("/settings/{guild_id}")
+async def get_automation_settings(guild_id: int):
+    if not mongo_enabled():
+        return {
+            "auto_redeem_enabled": False,
+            "auto_redeem_channel_id": None,
+            "registration_channel_id": None,
+            "latest_code_channel_id": None
+        }
+    
+    # Auto-redeem settings
+    ar_settings = await AutoRedeemSettingsAdapter.get_settings_async(guild_id)
+    ar_channel_doc = await AutoRedeemChannelsAdapter.get_channel_async(guild_id)
+    
+    # ID registration channel
+    id_channel_doc = await IDChannelsAdapter.get_channel_async(guild_id)
+    
+    # Latest code channel (poster)
+    poster_state = await GiftcodeStateAdapter.get_state_async()
+    poster_channels = poster_state.get('channels', {})
+    # Look up by string guild_id as it's common in JSON/Mongo
+    poster_channel_id = poster_channels.get(str(guild_id))
+    
+    return {
+        "auto_redeem_enabled": ar_settings.get('enabled', False) if ar_settings else False,
+        "auto_redeem_channel_id": str(ar_channel_doc.get('channel_id')) if ar_channel_doc else None,
+        "registration_channel_id": str(id_channel_doc.get('channel_id')) if id_channel_doc else None,
+        "latest_code_channel_id": str(poster_channel_id) if poster_channel_id else None
+    }
+
+@router.post("/settings/{guild_id}")
+async def update_automation_settings(guild_id: int, settings: GiftCodeAutomationSettings):
+    if not mongo_enabled():
+        raise HTTPException(status_code=503, detail="MongoDB not enabled")
+    
+    # 1. Update Auto-redeem enabled state
+    await AutoRedeemSettingsAdapter.set_enabled_async(guild_id, settings.auto_redeem_enabled, 0)
+    
+    # 2. Update Auto-redeem channel
+    if settings.auto_redeem_channel_id:
+        await AutoRedeemChannelsAdapter.set_channel_async(guild_id, int(settings.auto_redeem_channel_id), 0)
+    
+    # 3. Update Registration channel
+    if settings.registration_channel_id:
+        await IDChannelsAdapter.set_channel_async(guild_id, int(settings.registration_channel_id), 0)
+        
+    # 4. Update Latest code channel (poster)
+    if settings.latest_code_channel_id:
+        poster_state = await GiftcodeStateAdapter.get_state_async()
+        if 'channels' not in poster_state:
+            poster_state['channels'] = {}
+        poster_state['channels'][str(guild_id)] = int(settings.latest_code_channel_id)
+        await GiftcodeStateAdapter.set_state_async(poster_state)
+        
+    return {"status": "success"}
+
+@router.get("/members/{guild_id}")
+async def get_auto_redeem_members(guild_id: int):
+    if not mongo_enabled():
+        return {"members": []}
+    
+    try:
+        from db.mongo_adapters import AutoRedeemMembersAdapter
+        members = await AutoRedeemMembersAdapter.get_members_async(guild_id)
+        return {"members": members}
+    except Exception as e:
+        logger.error(f"Failed to get members: {e}")
+        return {"members": []}
+
+@router.post("/members/{guild_id}/add")
+async def add_auto_redeem_member(guild_id: int, member: AutoRedeemMemberAdd):
+    if not mongo_enabled():
+        raise HTTPException(status_code=503, detail="MongoDB not enabled")
+    
+    member_data = {
+        "nickname": member.nickname,
+        "furnace_lv": member.furnace_lv,
+        "avatar_image": member.avatar_image,
+        "added_by": 0,
+        "added_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    success = await AutoRedeemMembersAdapter.add_member_async(guild_id, member.fid, member_data)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to add member")
+        
+    return {"status": "success"}
+
+@router.post("/members/{guild_id}/remove")
+async def remove_auto_redeem_member(guild_id: int, payload: dict = Body(...)):
+    if not mongo_enabled():
+        raise HTTPException(status_code=503, detail="MongoDB not enabled")
+    
+    fid = payload.get("fid")
+    if not fid:
+        raise HTTPException(status_code=400, detail="FID is required")
+        
+    success = await AutoRedeemMembersAdapter.remove_member_async(guild_id, fid)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to remove member")
+        
+    return {"status": "success"}

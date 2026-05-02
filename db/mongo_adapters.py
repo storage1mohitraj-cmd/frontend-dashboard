@@ -2163,6 +2163,54 @@ class WelcomeChannelAdapter:
             logger.error(f'Failed to set background image (async) for guild {guild_id}: {e}')
             return False
 
+
+class IDChannelsAdapter:
+    """Adapter for managing ID registration channels in MongoDB"""
+    COLL = 'id_channels'
+
+    @staticmethod
+    async def get_channel_async(guild_id: int) -> Optional[Dict[str, Any]]:
+        """Get ID channel configuration for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[IDChannelsAdapter.COLL].find_one({'_id': str(guild_id)})
+            if not doc:
+                return None
+            return {
+                'channel_id': int(doc.get('channel_id')),
+                'alliance_id': int(doc.get('alliance_id', 0)),
+                'created_by': int(doc.get('created_by', 0)),
+                'created_at': doc.get('created_at')
+            }
+        except Exception as e:
+            logger.error(f'Failed to get ID channel (async) for guild {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def set_channel_async(guild_id: int, channel_id: int, created_by: int, alliance_id: int = 0) -> bool:
+        """Set ID channel for a guild asynchronously"""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[IDChannelsAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'guild_id': int(guild_id),
+                        'channel_id': int(channel_id),
+                        'alliance_id': int(alliance_id),
+                        'created_by': int(created_by),
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            return True
+        except Exception as e:
+            logger.error(f'Failed to set ID channel (async) for guild {guild_id}: {e}')
+            return False
+
     @staticmethod
     async def delete_async(guild_id: int) -> bool:
         """Delete welcome channel configuration for a guild asynchronously"""

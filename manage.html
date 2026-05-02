@@ -841,16 +841,46 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Message</label>
+                    <label>Title Message</label>
                     <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!">
                 </div>
                 <div class="form-group">
-                    <label>Time</label>
-                    <input type="text" id="reminder-time" placeholder="e.g. in 10 minutes or tomorrow at 3pm UTC">
+                    <label>Description (Body)</label>
+                    <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 60px;"></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Channel</label>
-                    <select id="reminder-channel" class="guild-channels"></select>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div class="form-group">
+                        <label>Time</label>
+                        <input type="text" id="reminder-time" placeholder="e.g. in 10 minutes">
+                    </div>
+                    <div class="form-group">
+                        <label>Channel</label>
+                        <select id="reminder-channel" class="guild-channels"></select>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div class="form-group">
+                        <label>Mention</label>
+                        <select id="reminder-mention">
+                            <option value="everyone">@everyone</option>
+                            <option value="here">@here</option>
+                            <option value="none">None</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Image URL</label>
+                        <input type="text" id="reminder-image" placeholder="https://...">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div class="form-group">
+                        <label>Thumbnail URL</label>
+                        <input type="text" id="reminder-thumbnail" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Footer Text</label>
+                        <input type="text" id="reminder-footer" placeholder="Optional footer">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1442,6 +1472,10 @@
         function openReminderModal() {
             document.getElementById('reminder-message').value = '';
             document.getElementById('reminder-time').value = '';
+            document.getElementById('reminder-body').value = '';
+            document.getElementById('reminder-image').value = '';
+            document.getElementById('reminder-thumbnail').value = '';
+            document.getElementById('reminder-footer').value = '';
             document.getElementById('reminder-modal').style.display = 'flex';
         }
         function closeReminderModal() { document.getElementById('reminder-modal').style.display = 'none'; }
@@ -1450,9 +1484,14 @@
             const message = document.getElementById('reminder-message').value.trim();
             const time_str = document.getElementById('reminder-time').value.trim();
             const channel_id = document.getElementById('reminder-channel').value;
+            const body = document.getElementById('reminder-body').value.trim() || null;
+            const mention = document.getElementById('reminder-mention').value;
+            const image_url = document.getElementById('reminder-image').value.trim() || null;
+            const thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
+            const footer_text = document.getElementById('reminder-footer').value.trim() || null;
             
             if (!message || !time_str || !channel_id) {
-                showNotification('Please fill in all fields', true);
+                showNotification('Title, Time, and Channel are required', true);
                 return;
             }
             
@@ -1460,7 +1499,10 @@
             try {
                 await fetchData(`/api/reminders/${guildId}`, { 
                     method: 'POST', 
-                    body: JSON.stringify({ message, time_str, channel_id }) 
+                    body: JSON.stringify({ 
+                        message, time_str, channel_id, 
+                        body, mention, image_url, thumbnail_url, footer_text
+                    }) 
                 });
                 showNotification('Reminder created!');
                 closeReminderModal();

@@ -8,8 +8,9 @@ except ImportError:
     mongo_enabled = lambda: False
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/servers", tags=["Servers"])
+router = APIRouter(prefix="/api/servers", tags=["Servers"], redirect_slashes=False)
 
+@router.get("")
 @router.get("/")
 async def get_user_servers(request: Request):
     """Fetches servers the user is an admin of, and checks bot limits."""

@@ -3742,8 +3742,13 @@ class BotOperations(commands.Cog):
                         start_idx = current_page * self.servers_per_page
                         end_idx = min(start_idx + self.servers_per_page, len(guilds_list))
                         
+                        seen_server_ids = set()
                         server_options = []
-                        for guild in guilds_list[start_idx:end_idx]:
+                        for guild in guilds_list[start_idx:]:
+                            if guild.id in seen_server_ids:
+                                continue
+                            seen_server_ids.add(guild.id)
+                            
                             # Get current alliance assignment status
                             alliance_id = ServerAllianceAdapter.get_alliance(guild.id)
                             has_alliance = "🏰" if alliance_id else "⚪"
@@ -3757,6 +3762,8 @@ class BotOperations(commands.Cog):
                                     emoji="🏰" if alliance_id else "⚪"
                                 )
                             )
+                            if len(server_options) >= 25:
+                                break
                         
                         server_select = discord.ui.Select(
                             placeholder="Select a server to assign alliance...",
@@ -3974,8 +3981,13 @@ class BotOperations(commands.Cog):
                         )
 
                         # Create alliance selection dropdown
+                        seen_alliance_ids = set()
                         options = []
-                        for alliance_id, name in alliances[:25]:  # Discord limit is 25 options
+                        for alliance_id, name in alliances:
+                            if alliance_id in seen_alliance_ids:
+                                continue
+                            seen_alliance_ids.add(alliance_id)
+                            
                             is_current = (alliance_id == current_alliance_id)
                             options.append(
                                 discord.SelectOption(
@@ -3985,6 +3997,8 @@ class BotOperations(commands.Cog):
                                     emoji="✅" if is_current else "🏰"
                                 )
                             )
+                            if len(options) >= 25:
+                                break
 
                         alliance_select = discord.ui.Select(
                             placeholder="Select an alliance to assign...",

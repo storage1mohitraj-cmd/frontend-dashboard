@@ -13,18 +13,18 @@ router = APIRouter(prefix="/api/reminders", tags=["Reminders"])
 class ReminderCreate(BaseModel):
     message: str = ""
     channel_id: str = ""
-    time_str: str = None
-    target_time: str = None  # ISO format from frontend
+    time_str: Optional[str] = None
+    target_time: Optional[str] = None  # ISO format from frontend
     timezone: str = "UTC"    # Timezone from frontend
     recurrence_type: str = "none" # none, daily, weekly, custom
     recurrence_interval: int = 1
-    body: str = None
+    body: Optional[str] = None
     mention: str = "everyone"
-    image_url: str = None
-    thumbnail_url: str = None
-    footer_text: str = None
-    footer_icon_url: str = None
-    author_url: str = None
+    image_url: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    footer_text: Optional[str] = None
+    footer_icon_url: Optional[str] = None
+    author_url: Optional[str] = None
 
 @router.get("/{guild_id}")
 async def get_reminders(request: Request, guild_id: str):

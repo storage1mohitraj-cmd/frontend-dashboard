@@ -13,6 +13,13 @@ class ReminderCreate(BaseModel):
     message: str
     time_str: str
     channel_id: str
+    body: str = None
+    mention: str = "everyone"
+    image_url: str = None
+    thumbnail_url: str = None
+    footer_text: str = None
+    footer_icon_url: str = None
+    author_url: str = None
 
 @router.get("/{guild_id}")
 async def get_reminders(request: Request, guild_id: int):
@@ -30,9 +37,24 @@ async def get_reminders(request: Request, guild_id: int):
     storage = ReminderStorage()
     reminders = storage.get_user_reminders(user_id, limit=50)
     
-    # Filter by guild_id
-    server_reminders = [r for r in reminders if str(r.get("guild_id")) == str(guild_id)]
+    _bot = getattr(request.app.state, 'bot', None)
+    guild_channel_ids = set()
+    if _bot:
+        guild = _bot.get_guild(guild_id)
+        if guild:
+            guild_channel_ids = {str(c.id) for c in guild.channels}
     
+    # Filter by guild_id if available, or check if channel_id belongs to the guild
+    server_reminders = []
+    for r in reminders:
+        r_guild = str(r.get("guild_id")) if r.get("guild_id") else None
+        r_channel = str(r.get("channel_id"))
+        
+        if r_guild == str(guild_id):
+            server_reminders.append(r)
+        elif r_channel in guild_channel_ids:
+            server_reminders.append(r)
+            
     return {"reminders": server_reminders}
 
 @router.post("/{guild_id}")
@@ -59,11 +81,18 @@ async def create_reminder(request: Request, guild_id: int, payload: ReminderCrea
         channel_id=str(payload.channel_id),
         guild_id=str(guild_id),
         message=payload.message,
+        body=payload.body,
         reminder_time=reminder_time,
         is_recurring=recurring_info.get("is_recurring", False),
         recurrence_type=recurring_info.get("type"),
         recurrence_interval=recurring_info.get("interval"),
-        original_pattern=recurring_info.get("pattern")
+        original_pattern=recurring_info.get("pattern"),
+        mention=payload.mention,
+        image_url=payload.image_url,
+        thumbnail_url=payload.thumbnail_url,
+        footer_text=payload.footer_text,
+        footer_icon_url=payload.footer_icon_url,
+        author_url=payload.author_url
     )
     
     if reminder_id == -1:

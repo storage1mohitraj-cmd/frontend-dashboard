@@ -485,6 +485,11 @@
             z-index: 2;
             mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
             -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+            cursor: grab;
+            user-select: none;
+        }
+        .wheel-container:active {
+            cursor: grabbing;
         }
         .wheel-container::-webkit-scrollbar { display: none; }
         .wheel-item {
@@ -1105,6 +1110,36 @@
                 }
                 
                 el.addEventListener('scroll', () => updateWheelSelection(el));
+                
+                // Drag to scroll support
+                let isDown = false;
+                let startY;
+                let scrollTop;
+                
+                el.addEventListener('mousedown', (e) => {
+                    isDown = true;
+                    el.style.scrollSnapType = 'none'; // Disable snapping while dragging
+                    startY = e.pageY - el.offsetTop;
+                    scrollTop = el.scrollTop;
+                });
+                
+                el.addEventListener('mouseleave', () => {
+                    if (isDown) el.style.scrollSnapType = 'y mandatory';
+                    isDown = false;
+                });
+                
+                el.addEventListener('mouseup', () => {
+                    if (isDown) el.style.scrollSnapType = 'y mandatory';
+                    isDown = false;
+                });
+                
+                el.addEventListener('mousemove', (e) => {
+                    if (!isDown) return;
+                    e.preventDefault();
+                    const y = e.pageY - el.offsetTop;
+                    const walk = (y - startY) * 1.5;
+                    el.scrollTop = scrollTop - walk;
+                });
             });
             
             // Initial selection based on current time

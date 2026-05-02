@@ -82,19 +82,37 @@ class WosToolsScraper:
 
                     codes = []
                     for item in data.get('codes', []):
-                        if item.get('status') != 'active':
+                        status = str(item.get('status', '')).strip().lower()
+                        if status != 'active':
                             continue
                         code_str = item.get('code', '').strip()
                         if not code_str:
                             continue
                         date_added = item.get('dateAdded', '')
                         label = item.get('label') or ''
+                        rewards = (
+                            item.get('rewards')
+                            or item.get('reward')
+                            or item.get('rewardText')
+                            or item.get('description')
+                            or label
+                            or 'Rewards not specified'
+                        )
+                        expiry = (
+                            item.get('expiry')
+                            or item.get('expires')
+                            or item.get('expiresAt')
+                            or item.get('expiration')
+                            or item.get('expirationDate')
+                            or 'Unknown'
+                        )
                         codes.append({
                             'code': code_str,
                             'description': label,
-                            'rewards': 'Rewards not specified',
-                            'expiry': 'Unknown',
+                            'rewards': str(rewards).strip() if rewards else 'Rewards not specified',
+                            'expiry': str(expiry).strip() if expiry else 'Unknown',
                             'is_active': True,
+                            'status': status,
                             'source': 'wostools',
                             'date_added': date_added,
                         })
@@ -513,8 +531,16 @@ async def get_active_gift_codes():
             except Exception:
                 wosgift_codes.append(code)  # Assume active if unparseable
 
-    # Merge: wostools (primary) → RSS → HTML, deduplicated by uppercase code
+    # Merge: wostools (primary) → RSS → HTML, deduplicated by uppercase code.
+    # If WosTools has an active list, treat it as the authority and only use
+    # secondary sources to enrich matching codes. This prevents expired or
+    # unverified fallback entries from appearing as active in the dashboard.
     merged_dict = {}
+    wostools_keys = {
+        code_dict.get('code', '').strip().upper()
+        for code_dict in (wostools_codes or [])
+        if code_dict.get('code')
+    }
 
     def _merge_code(code_dict):
         key = code_dict.get('code', '').strip().upper()
@@ -537,10 +563,14 @@ async def get_active_gift_codes():
         _merge_code(code_dict)
 
     for code_dict in (rss_codes or []):
-        _merge_code(code_dict)
+        key = code_dict.get('code', '').strip().upper()
+        if not wostools_keys or key in wostools_keys:
+            _merge_code(code_dict)
 
     for code_dict in wosgift_codes:
-        _merge_code(code_dict)
+        key = code_dict.get('code', '').strip().upper()
+        if not wostools_keys or key in wostools_keys:
+            _merge_code(code_dict)
 
     merged = list(merged_dict.values())
 

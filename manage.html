@@ -864,6 +864,7 @@
                         <select id="reminder-mention">
                             <option value="everyone">@everyone</option>
                             <option value="here">@here</option>
+                            <option value="user">Myself (@user)</option>
                             <option value="none">None</option>
                         </select>
                     </div>
@@ -880,6 +881,16 @@
                     <div class="form-group">
                         <label>Footer Text</label>
                         <input type="text" id="reminder-footer" placeholder="Optional footer">
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div class="form-group">
+                        <label>Footer Icon URL</label>
+                        <input type="text" id="reminder-footer-icon" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>Author URL</label>
+                        <input type="text" id="reminder-author-url" placeholder="https://...">
                     </div>
                 </div>
             </div>
@@ -1476,6 +1487,8 @@
             document.getElementById('reminder-image').value = '';
             document.getElementById('reminder-thumbnail').value = '';
             document.getElementById('reminder-footer').value = '';
+            document.getElementById('reminder-footer-icon').value = '';
+            document.getElementById('reminder-author-url').value = '';
             document.getElementById('reminder-modal').style.display = 'flex';
         }
         function closeReminderModal() { document.getElementById('reminder-modal').style.display = 'none'; }
@@ -1489,6 +1502,8 @@
             const image_url = document.getElementById('reminder-image').value.trim() || null;
             const thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
             const footer_text = document.getElementById('reminder-footer').value.trim() || null;
+            const footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
+            const author_url = document.getElementById('reminder-author-url').value.trim() || null;
             
             if (!message || !time_str || !channel_id) {
                 showNotification('Title, Time, and Channel are required', true);
@@ -1501,7 +1516,8 @@
                     method: 'POST', 
                     body: JSON.stringify({ 
                         message, time_str, channel_id, 
-                        body, mention, image_url, thumbnail_url, footer_text
+                        body, mention, image_url, thumbnail_url, footer_text,
+                        footer_icon_url, author_url
                     }) 
                 });
                 showNotification('Reminder created!');

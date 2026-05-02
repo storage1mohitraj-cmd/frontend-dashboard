@@ -438,12 +438,27 @@
             align-items: center;
             justify-content: center;
             gap: 12px;
-            background: rgba(0,0,0,0.25);
+            background: #000000;
             padding: 20px;
             border-radius: 16px;
             margin: 10px 0;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
             user-select: none;
+            position: relative;
+        }
+        .time-picker-row::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            right: 10px;
+            height: 33px;
+            background: rgba(255,255,255,0.05);
+            transform: translateY(-50%);
+            border-radius: 8px;
+            pointer-events: none;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
         }
         .wheel-container {
             height: 100px;
@@ -453,6 +468,7 @@
             width: 60px;
             text-align: center;
             position: relative;
+            z-index: 2;
             mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
             -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
         }
@@ -464,7 +480,7 @@
             justify-content: center;
             scroll-snap-align: center;
             font-size: 1.1rem;
-            color: var(--text-secondary);
+            color: rgba(255,255,255,0.4);
             transition: all 0.2s;
             cursor: pointer;
         }
@@ -478,20 +494,25 @@
             font-weight: 600;
             font-size: 1.5rem;
             margin: 0 5px;
+            z-index: 2;
         }
         .timezone-group {
             margin-top: 10px;
         }
         .timezone-select {
             width: 100%;
-            background: rgba(255,255,255,0.05);
+            background: #16191f;
             border: 1px solid rgba(255,255,255,0.1);
-            color: white;
-            padding: 10px 14px;
+            color: #fff;
+            padding: 12px 14px;
             border-radius: 8px;
             font-size: 0.95rem;
             outline: none;
             cursor: pointer;
+        }
+        .timezone-select option {
+            background: #16191f;
+            color: #fff;
         }
         .timezone-select:focus {
             border-color: var(--primary);
@@ -933,8 +954,10 @@
                         <span class="wheel-label">:</span>
                         <div class="wheel-container" id="wheel-sec"></div>
                         <div class="wheel-container" id="wheel-ampm" style="width: 70px;">
+                            <div class="wheel-item" style="height:33px;"></div>
                             <div class="wheel-item" data-val="AM">AM</div>
                             <div class="wheel-item" data-val="PM">PM</div>
+                            <div class="wheel-item" style="height:33px;"></div>
                         </div>
                     </div>
                 </div>
@@ -1049,31 +1072,54 @@
                 el.innerHTML = '<div class="wheel-item" style="height:33px;"></div>';
                 for(let i=start; i<=max; i++) {
                     const val = String(i).padStart(2, '0');
-                    el.innerHTML += `<div class="wheel-item" data-val="${val}">${val}</div>`;
+                    const item = document.createElement('div');
+                    item.className = 'wheel-item';
+                    item.dataset.val = val;
+                    item.textContent = val;
+                    item.onclick = () => setWheelValue(el, val);
+                    el.appendChild(item);
                 }
                 el.innerHTML += '<div class="wheel-item" style="height:33px;"></div>';
-                el.onscroll = () => updateWheelSelection(el);
+                el.addEventListener('scroll', () => {
+                    clearTimeout(el.scrollTimeout);
+                    el.scrollTimeout = setTimeout(() => updateWheelSelection(el), 50);
+                });
             };
             
             populate(hours, 12, 1);
             populate(mins, 59);
             populate(secs, 59);
-            ampm.onscroll = () => updateWheelSelection(ampm);
             
-            // Set defaults
+            // Fix AM/PM items
+            ampm.querySelectorAll('.wheel-item[data-val]').forEach(item => {
+                item.onclick = () => setWheelValue(ampm, item.dataset.val);
+            });
+            ampm.addEventListener('scroll', () => {
+                clearTimeout(ampm.scrollTimeout);
+                ampm.scrollTimeout = setTimeout(() => updateWheelSelection(ampm), 50);
+            });
+            
+            // Initial selection
             setTimeout(() => {
-                setWheelValue(hours, '12');
-                setWheelValue(mins, '00');
+                const now = new Date();
+                let h = now.getHours();
+                const p = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                setWheelValue(hours, String(h).padStart(2, '0'));
+                setWheelValue(mins, String(now.getMinutes()).padStart(2, '0'));
                 setWheelValue(secs, '00');
-                setWheelValue(ampm, 'PM');
-            }, 100);
+                setWheelValue(ampm, p);
+            }, 300);
         }
 
         function updateWheelSelection(el) {
-            const items = el.querySelectorAll('.wheel-item');
-            const index = Math.round(el.scrollTop / 33) + 1;
-            items.forEach((item, i) => {
-                if(i === index) item.classList.add('selected');
+            const items = el.querySelectorAll('.wheel-item[data-val]');
+            const scrollTop = el.scrollTop;
+            const index = Math.round(scrollTop / 33);
+            
+            el.querySelectorAll('.wheel-item').forEach((item, i) => {
+                // items include spacers, so offset by 1
+                if(i === index + 1) item.classList.add('selected');
                 else item.classList.remove('selected');
             });
         }
@@ -1088,7 +1134,8 @@
             const index = items.findIndex(item => item.dataset.val == val);
             if(index !== -1) {
                 el.scrollTo({ top: (index - 1) * 33, behavior: 'smooth' });
-                updateWheelSelection(el);
+                // Force selection class after scroll
+                setTimeout(() => updateWheelSelection(el), 300);
             }
         }
 

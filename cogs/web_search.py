@@ -91,84 +91,118 @@ class WebSearch(commands.Cog):
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _run_ddg(query: str, max_results: int, region: str, safesearch: str) -> list:
-        """Synchronous DuckDuckGo search with multi-backend fallback.
-
-        Tries backends in order: api → lite → html.
-        Cloud/VM IPs are often rate-limited on the default 'api' backend,
-        so the fallback backends (lite, html) are critical for reliability.
-        """
+    def _run_ddg_text(query: str, max_results: int, region: str, safesearch: str) -> list:
+        """Text search with multi-backend fallback (api → lite → html)."""
         import time
-
         backends = ["api", "lite", "html"]
-        last_error = None
-
         for backend in backends:
-            for attempt in range(2):  # 2 tries per backend
+            for attempt in range(2):
                 try:
-                    logger.info(f"[WebSearch] Trying DDG backend='{backend}' attempt={attempt+1} query='{query}'")
+                    logger.info(f"[WebSearch] text backend='{backend}' attempt={attempt+1}")
                     ddgs = DDGS()
-                    results = ddgs.text(
-                        query,
-                        region=region,
-                        safesearch=safesearch,
-                        max_results=max_results,
-                        backend=backend,
-                    )
-                    results = list(results) if results else []
-                    if results:
-                        logger.info(f"[WebSearch] DDG backend='{backend}' returned {len(results)} results.")
-                        return results
-                    else:
-                        logger.warning(f"[WebSearch] DDG backend='{backend}' returned 0 results on attempt {attempt+1}.")
-                except TypeError:
-                    # Older DDGS versions don't support 'backend' param — fall back silently
                     try:
-                        logger.warning(f"[WebSearch] backend param unsupported, retrying without it.")
-                        ddgs = DDGS()
-                        results = ddgs.text(query, region=region, safesearch=safesearch, max_results=max_results)
-                        results = list(results) if results else []
-                        if results:
-                            return results
-                    except Exception as e2:
-                        last_error = e2
-                        logger.warning(f"[WebSearch] DDG no-backend fallback error: {e2}")
-                    break  # No point trying other backends if param unsupported
+                        results = list(ddgs.text(
+                            query, region=region, safesearch=safesearch,
+                            max_results=max_results, backend=backend
+                        ) or [])
+                    except TypeError:
+                        # Older DDGS — no backend param
+                        results = list(ddgs.text(
+                            query, region=region, safesearch=safesearch,
+                            max_results=max_results
+                        ) or [])
+                    if results:
+                        logger.info(f"[WebSearch] text backend='{backend}' → {len(results)} results")
+                        return results
+                    logger.warning(f"[WebSearch] text backend='{backend}' attempt {attempt+1} → 0 results")
                 except Exception as e:
-                    last_error = e
-                    logger.warning(f"[WebSearch] DDG backend='{backend}' attempt={attempt+1} error: {e}")
+                    logger.warning(f"[WebSearch] text backend='{backend}' attempt {attempt+1} error: {e}")
                     if attempt == 0:
-                        time.sleep(1.5)  # Short delay before retry
-
-        logger.error(f"[WebSearch] All DDG backends exhausted. Last error: {last_error}")
+                        time.sleep(1)
         return []
 
     @staticmethod
+    def _run_ddg_news(query: str, max_results: int, region: str, safesearch: str) -> list:
+        """News search — better for current events/facts."""
+        try:
+            ddgs = DDGS()
+            results = list(ddgs.news(
+                query, region=region, safesearch=safesearch, max_results=max_results
+            ) or [])
+            # Normalize news fields to match text result schema
+            normalized = []
+            for r in results:
+                normalized.append({
+                    "title": r.get("title", ""),
+                    "href": r.get("url") or r.get("href", ""),
+                    "body": r.get("body") or r.get("excerpt", ""),
+                    "_source": "news",
+                })
+            logger.info(f"[WebSearch] news → {len(normalized)} results")
+            return normalized
+        except Exception as e:
+            logger.warning(f"[WebSearch] news search error: {e}")
+            return []
+
+    @staticmethod
+    def _merge_results(text_results: list, news_results: list, max_total: int) -> list:
+        """Merge text + news results, deduplicate by URL, news first for recency."""
+        seen_urls = set()
+        merged = []
+        for r in news_results + text_results:
+            url = (r.get("href") or r.get("url", "")).rstrip("/")
+            if url and url in seen_urls:
+                continue
+            if url:
+                seen_urls.add(url)
+            merged.append(r)
+            if len(merged) >= max_total:
+                break
+        return merged
+
+    def _run_ddg(self, query: str, max_results: int, region: str, safesearch: str) -> list:
+        """Run text + news searches and return merged deduplicated results."""
+        text = self._run_ddg_text(query, max_results, region, safesearch)
+        news = self._run_ddg_news(query, max_results // 2 + 1, region, safesearch)
+        merged = self._merge_results(text, news, max_results)
+        logger.info(f"[WebSearch] merged: {len(text)} text + {len(news)} news → {len(merged)} total")
+        return merged
+
+    @staticmethod
     def _build_ai_prompt(query: str, results: list) -> list:
-        """Build the message list for the LLM synthesis call."""
+        """Build the message list for the LLM synthesis call.
+
+        The AI uses its own knowledge as primary source, grounded/verified
+        by the search snippets. This ensures good answers even when DDG
+        returns low-quality or outdated pages.
+        """
         snippets = []
         for i, r in enumerate(results, 1):
             title = r.get("title") or ""
-            body = r.get("body") or r.get("snippet") or ""
+            body = (r.get("body") or r.get("snippet") or "")[:400]
             url = r.get("href") or r.get("url") or ""
-            snippets.append(f"[{i}] {title}\n{body}\nURL: {url}")
+            source_tag = "[NEWS]" if r.get("_source") == "news" else "[WEB]"
+            snippets.append(f"[{i}]{source_tag} {title}\n{body}\nURL: {url}")
 
-        search_context = "\n\n".join(snippets)
+        search_context = "\n\n".join(snippets) if snippets else "(no snippets retrieved)"
+
         system = (
-            "You are a smart, concise research assistant. "
-            "Given a user's query and numbered web search snippets, write a clear, well-structured answer. "
-            "Rules:\n"
-            "• Use the search snippets as your primary source — do NOT hallucinate facts.\n"
-            "• Cite sources inline using [1], [2], etc. where relevant.\n"
-            "• Keep your answer under 400 words.\n"
-            "• Use bullet points or short paragraphs for readability.\n"
-            "• If snippets are insufficient, say so honestly.\n"
-            "• End with a short 'Key Takeaway' line."
+            "You are a knowledgeable AI assistant. Answer user queries accurately and directly.\n\n"
+            "You have access to web search snippets to help ground your answer in current information. "
+            "Follow these rules:\n"
+            "• Give a direct, confident answer using your knowledge combined with the search snippets.\n"
+            "• Prefer information from [NEWS] tagged snippets for current events — they are more recent.\n"
+            "• Cite snippets inline as [1], [2], etc. ONLY when they directly support a specific claim.\n"
+            "• If snippets contradict your knowledge, trust the snippets (they are more current).\n"
+            "• If snippets are irrelevant or low quality, rely on your training knowledge and say so briefly.\n"
+            "• Keep the answer under 350 words. Use bullet points for lists, short paragraphs for explanations.\n"
+            "• Do NOT start your answer with 'Based on the provided snippets' — just answer directly.\n"
+            "• End with a bold '**Key Takeaway:**' one-liner."
         )
         user_msg = (
-            f"User Query: {query}\n\n"
-            f"Search Snippets:\n{search_context}\n\n"
-            "Write a comprehensive, accurate answer based only on the above snippets."
+            f"Query: {query}\n\n"
+            f"Search Snippets (use for grounding and citations):\n{search_context}\n\n"
+            "Answer the query directly and confidently."
         )
         return [
             {"role": "system", "content": system},

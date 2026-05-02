@@ -26,6 +26,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://whiteout-survival.vercel.app", 
+        "https://whiteout-survival-bot.vercel.app", 
         "http://localhost:3000", 
         "http://localhost:5500"
     ],

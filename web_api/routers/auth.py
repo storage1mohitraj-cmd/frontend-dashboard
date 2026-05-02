@@ -10,7 +10,7 @@ router = APIRouter(prefix="/api/auth", tags=["Auth"])
 DISCORD_CLIENT_ID = os.getenv("DISCORD_CLIENT_ID")
 DISCORD_CLIENT_SECRET = os.getenv("DISCORD_CLIENT_SECRET")
 # This should match your Vercel redirect URI exactly
-REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "https://whiteout-survival.vercel.app/oauth-callback.html")
+REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI", "https://whiteout-survival-bot.vercel.app/oauth-callback.html")
 
 class CodeExchangeRequest(BaseModel):
     code: str

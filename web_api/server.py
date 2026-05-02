@@ -12,6 +12,8 @@ except ImportError:
 from web_api.routers.auth import router as auth_router
 from web_api.routers.giftcodes import router as giftcodes_router
 from web_api.routers.servers import router as servers_router
+from web_api.routers.guilds import router as guilds_router
+from web_api.routers.settings import router as settings_router
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,8 @@ app.include_router(status_router)
 app.include_router(auth_router)
 app.include_router(giftcodes_router)
 app.include_router(servers_router)
+app.include_router(guilds_router)
+app.include_router(settings_router)
 
 async def start_web_server(port: int = 8080):
     """Starts the FastAPI server on the existing asyncio loop."""

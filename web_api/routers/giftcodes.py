@@ -28,3 +28,13 @@ async def add_giftcode(code: str, reward_text: str = ""):
     # Logic to add code using GiftCodesAdapter
     # e.g., await GiftCodesAdapter.add_code(code, reward_text)
     return {"status": "success", "message": f"Code {code} added."}
+
+@router.get("/{guild_id}/stats")
+async def get_giftcode_stats(guild_id: int):
+    """Fetch giftcode stats for a specific guild."""
+    return {
+        "total_attempts": 0,
+        "successful": 0,
+        "failed": 0,
+        "unique_codes": 0
+    }

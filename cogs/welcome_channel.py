@@ -295,15 +295,23 @@ class WelcomeChannel(commands.Cog):
             if bg_image_url:
                 # Use custom background image
                 try:
-                    async with aiohttp.ClientSession() as session:
-                        async with session.get(bg_image_url) as resp:
-                            if resp.status == 200:
-                                bg_data = await resp.read()
-                                img = Image.open(io.BytesIO(bg_data))
-                                img = img.convert('RGB')
-                                img = img.resize((width, height))
-                            else:
-                                raise Exception(f"Failed to download background image: {resp.status}")
+                    if bg_image_url.startswith('/api/static/'):
+                        # Load from local filesystem
+                        filename = bg_image_url.split('/')[-1]
+                        filepath = os.path.join("data", "uploads", filename)
+                        img = Image.open(filepath)
+                        img = img.convert('RGB')
+                        img = img.resize((width, height))
+                    else:
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(bg_image_url) as resp:
+                                if resp.status == 200:
+                                    bg_data = await resp.read()
+                                    img = Image.open(io.BytesIO(bg_data))
+                                    img = img.convert('RGB')
+                                    img = img.resize((width, height))
+                                else:
+                                    raise Exception(f"Failed to download background image: {resp.status}")
                 except Exception as e:
                     logger.warning(f"Failed to load custom background image, using default: {e}")
                     # Fall back to gradient

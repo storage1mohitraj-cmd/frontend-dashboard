@@ -1,6 +1,9 @@
+import asyncio
+import json
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Request
 import logging
+from urllib.request import Request as UrlRequest, urlopen
 
 try:
     from db.mongo_adapters import GiftCodesAdapter, GiftCodeRedemptionAdapter, mongo_enabled
@@ -14,26 +17,51 @@ except Exception:
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/giftcodes", tags=["Gift Codes"], redirect_slashes=False)
+WOSTOOLS_GIFT_CODES_URL = "https://wostools.net/api/gift-codes"
 
 @router.get("")
 @router.get("/")
 async def get_active_giftcodes():
     """Fetch live active giftcodes with reward and expiry details."""
-    try:
-        if get_active_gift_codes is not None:
+    direct_codes = await _fetch_wostools_active_codes()
+    if direct_codes:
+        return {
+            "codes": direct_codes,
+            "source": "wostools",
+            "last_updated": datetime.now(timezone.utc).isoformat(),
+        }
+
+    if get_active_gift_codes is not None:
+        try:
             live_codes = await get_active_gift_codes()
-            codes = [_normalize_live_code(code) for code in live_codes]
+            codes = [
+                code
+                for code in (_normalize_live_code(code) for code in live_codes)
+                if code["is_active"]
+            ]
+            if codes:
+                return {
+                    "codes": codes,
+                    "source": "live_scrapers",
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                }
+        except Exception as e:
+            logger.warning(f"Live giftcode scraper failed, falling back: {e}")
+
+    try:
+        if not mongo_enabled():
             return {
-                "codes": codes,
-                "source": "live_scrapers",
+                "codes": [],
+                "source": "unavailable",
                 "last_updated": datetime.now(timezone.utc).isoformat(),
             }
 
-        if not mongo_enabled():
-            raise HTTPException(status_code=503, detail="Gift code source not available")
-
         raw = await GiftCodesAdapter.get_all_async()
-        codes = [_normalize_database_code(c) for c in raw]
+        codes = [
+            code
+            for code in (_normalize_database_code(c) for c in raw)
+            if code["is_active"]
+        ]
         return {
             "codes": codes,
             "source": "database",
@@ -42,6 +70,56 @@ async def get_active_giftcodes():
     except Exception as e:
         logger.error(f"Failed to fetch giftcodes: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _fetch_wostools_active_codes() -> list[dict]:
+    def _fetch() -> list[dict]:
+        request = UrlRequest(
+            WOSTOOLS_GIFT_CODES_URL,
+            headers={
+                "Accept": "application/json",
+                "User-Agent": "Mozilla/5.0 WhiteoutSurvivalBot/1.0",
+            },
+        )
+        with urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+
+        codes = payload.get("codes", []) if isinstance(payload, dict) else []
+        return [
+            _normalize_wostools_code(code)
+            for code in codes
+            if str(code.get("status", "")).strip().lower() == "active"
+            and str(code.get("code", "")).strip()
+        ]
+
+    try:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, _fetch)
+    except Exception as e:
+        logger.warning(f"WosTools direct giftcode fetch failed: {e}")
+        return []
+
+
+def _normalize_wostools_code(code: dict) -> dict:
+    return {
+        "code": _first_present(code, ["code"]),
+        "rewards": _first_present(
+            code,
+            ["rewards", "reward", "rewardText", "description", "label"],
+            "Rewards not specified",
+        ),
+        "expiry": _first_present(
+            code,
+            ["expiry", "expires", "expiresAt", "expiration", "expirationDate"],
+            "Unknown",
+        ),
+        "description": _first_present(code, ["description", "label"]),
+        "source": "wostools",
+        "date_added": _first_present(code, ["dateAdded", "date_added", "created_at", "date"]),
+        "status": "active",
+        "validation_status": "active",
+        "is_active": True,
+    }
 
 
 def _first_present(data: dict, keys: list[str], default: str = "") -> str:

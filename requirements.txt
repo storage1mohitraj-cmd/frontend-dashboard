@@ -41,3 +41,5 @@ paddleocr>=2.7.0
 brotli>=1.1.0
 fastapi>=0.111.0
 uvicorn>=0.30.1
+python-multipart>=0.0.9
+aiofiles>=23.2.1

@@ -431,6 +431,71 @@
             .giftcodes-header { flex-direction:column; }
             .giftcodes-header .btn { width:100%; justify-content:center; }
         }
+
+        /* Time Wheel Picker Styles */
+        .time-picker-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            background: rgba(0,0,0,0.25);
+            padding: 20px;
+            border-radius: 16px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.05);
+            user-select: none;
+        }
+        .wheel-container {
+            height: 100px;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            width: 60px;
+            text-align: center;
+            position: relative;
+            mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+        }
+        .wheel-container::-webkit-scrollbar { display: none; }
+        .wheel-item {
+            height: 33px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            scroll-snap-align: center;
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .wheel-item.selected {
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.4rem;
+        }
+        .wheel-label {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 1.5rem;
+            margin: 0 5px;
+        }
+        .timezone-group {
+            margin-top: 10px;
+        }
+        .timezone-select {
+            width: 100%;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            cursor: pointer;
+        }
+        .timezone-select:focus {
+            border-color: var(--primary);
+        }
     </style>
 </head>
 
@@ -850,14 +915,44 @@
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                     <div class="form-group">
-                        <label>Start Date & Time</label>
-                        <input type="datetime-local" id="reminder-target-time">
+                        <label>Start Date</label>
+                        <input type="date" id="reminder-date">
                     </div>
                     <div class="form-group">
                         <label>Channel</label>
                         <select id="reminder-channel" class="guild-channels"></select>
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label>Start Time (Scroll to Select)</label>
+                    <div class="time-picker-row">
+                        <div class="wheel-container" id="wheel-hour"></div>
+                        <span class="wheel-label">:</span>
+                        <div class="wheel-container" id="wheel-min"></div>
+                        <span class="wheel-label">:</span>
+                        <div class="wheel-container" id="wheel-sec"></div>
+                        <div class="wheel-container" id="wheel-ampm" style="width: 70px;">
+                            <div class="wheel-item" data-val="AM">AM</div>
+                            <div class="wheel-item" data-val="PM">PM</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Timezone</label>
+                    <select id="reminder-timezone" class="timezone-select">
+                        <option value="UTC">UTC (Universal Time)</option>
+                        <option value="Asia/Kolkata">IST (India Standard Time)</option>
+                        <option value="America/New_York">EST/EDT (New York)</option>
+                        <option value="America/Los_Angeles">PST/PDT (Los Angeles)</option>
+                        <option value="Europe/London">GMT/BST (London)</option>
+                        <option value="Europe/Berlin">CET/CEST (Berlin)</option>
+                        <option value="Asia/Tokyo">JST (Tokyo)</option>
+                        <option value="Australia/Sydney">AEST/AEDT (Sydney)</option>
+                    </select>
+                </div>
+
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                     <div class="form-group">
                         <label>Repeat / Recurrence</label>
@@ -942,6 +1037,59 @@
             document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
             lucide.createIcons();
+        }
+
+        function initTimeWheels() {
+            const hours = document.getElementById('wheel-hour');
+            const mins = document.getElementById('wheel-min');
+            const secs = document.getElementById('wheel-sec');
+            const ampm = document.getElementById('wheel-ampm');
+            
+            const populate = (el, max, start=0) => {
+                el.innerHTML = '<div class="wheel-item" style="height:33px;"></div>';
+                for(let i=start; i<=max; i++) {
+                    const val = String(i).padStart(2, '0');
+                    el.innerHTML += `<div class="wheel-item" data-val="${val}">${val}</div>`;
+                }
+                el.innerHTML += '<div class="wheel-item" style="height:33px;"></div>';
+                el.onscroll = () => updateWheelSelection(el);
+            };
+            
+            populate(hours, 12, 1);
+            populate(mins, 59);
+            populate(secs, 59);
+            ampm.onscroll = () => updateWheelSelection(ampm);
+            
+            // Set defaults
+            setTimeout(() => {
+                setWheelValue(hours, '12');
+                setWheelValue(mins, '00');
+                setWheelValue(secs, '00');
+                setWheelValue(ampm, 'PM');
+            }, 100);
+        }
+
+        function updateWheelSelection(el) {
+            const items = el.querySelectorAll('.wheel-item');
+            const index = Math.round(el.scrollTop / 33) + 1;
+            items.forEach((item, i) => {
+                if(i === index) item.classList.add('selected');
+                else item.classList.remove('selected');
+            });
+        }
+
+        function getWheelValue(el) {
+            const selected = el.querySelector('.wheel-item.selected');
+            return selected ? selected.dataset.val : '00';
+        }
+
+        function setWheelValue(el, val) {
+            const items = Array.from(el.querySelectorAll('.wheel-item'));
+            const index = items.findIndex(item => item.dataset.val == val);
+            if(index !== -1) {
+                el.scrollTo({ top: (index - 1) * 33, behavior: 'smooth' });
+                updateWheelSelection(el);
+            }
         }
 
         async function fetchData(endpoint, options = {}) {
@@ -1522,10 +1670,24 @@
                 submitBtn.textContent = 'Update Reminder';
                 submitBtn.onclick = () => updateReminder(reminderId);
                 
+                const d = new Date(r.reminder_time);
+                document.getElementById('reminder-date').value = d.toISOString().split('T')[0];
+                
+                let h = d.getHours();
+                const m = String(d.getMinutes()).padStart(2, '0');
+                const s = String(d.getSeconds()).padStart(2, '0');
+                const p = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                
+                setWheelValue(document.getElementById('wheel-hour'), String(h).padStart(2, '0'));
+                setWheelValue(document.getElementById('wheel-min'), m);
+                setWheelValue(document.getElementById('wheel-sec'), s);
+                setWheelValue(document.getElementById('wheel-ampm'), p);
+
                 document.getElementById('reminder-message').value = r.message || '';
-                document.getElementById('reminder-target-time').value = formatDateTimeLocal(r.reminder_time);
                 document.getElementById('reminder-recurrence').value = r.recurrence_type || 'none';
                 document.getElementById('reminder-interval').value = r.recurrence_interval || 1;
+                document.getElementById('reminder-timezone').value = r.timezone || 'UTC';
                 toggleCustomInterval();
 
                 document.getElementById('reminder-body').value = r.body || '';
@@ -1542,12 +1704,22 @@
                 submitBtn.onclick = createReminder;
                 
                 document.getElementById('reminder-message').value = '';
-                // Default to 10 minutes from now
                 const now = new Date();
-                now.setMinutes(now.getMinutes() + 10);
-                document.getElementById('reminder-target-time').value = formatDateTimeLocal(now);
+                document.getElementById('reminder-date').value = now.toISOString().split('T')[0];
+                
+                let h = now.getHours();
+                const m = String(now.getMinutes()).padStart(2, '0');
+                const p = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                
+                setWheelValue(document.getElementById('wheel-hour'), String(h).padStart(2, '0'));
+                setWheelValue(document.getElementById('wheel-min'), m);
+                setWheelValue(document.getElementById('wheel-sec'), '00');
+                setWheelValue(document.getElementById('wheel-ampm'), p);
+
                 document.getElementById('reminder-recurrence').value = 'none';
                 document.getElementById('reminder-interval').value = 1;
+                document.getElementById('reminder-timezone').value = 'UTC';
                 toggleCustomInterval();
 
                 document.getElementById('reminder-body').value = '';
@@ -1581,7 +1753,13 @@
 
         function getReminderFormData() {
             const message = document.getElementById('reminder-message').value.trim();
-            const target_time = document.getElementById('reminder-target-time').value;
+            const date = document.getElementById('reminder-date').value;
+            const hour = getWheelValue(document.getElementById('wheel-hour'));
+            const min = getWheelValue(document.getElementById('wheel-min'));
+            const sec = getWheelValue(document.getElementById('wheel-sec'));
+            const ampm = getWheelValue(document.getElementById('wheel-ampm'));
+            const timezone = document.getElementById('reminder-timezone').value;
+            
             const recurrence_type = document.getElementById('reminder-recurrence').value;
             const recurrence_interval = parseInt(document.getElementById('reminder-interval').value) || 1;
             const channel_id = document.getElementById('reminder-channel').value;
@@ -1593,12 +1771,19 @@
             const footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
             const author_url = document.getElementById('reminder-author-url').value.trim() || null;
             
-            if (!message || !target_time || !channel_id) {
-                showNotification('Title, Time, and Channel are required', true);
+            if (!message || !date || !channel_id) {
+                showNotification('Title, Date, and Channel are required', true);
                 return null;
             }
+
+            // Convert to 24h for target_time
+            let h24 = parseInt(hour);
+            if(ampm === 'PM' && h24 < 12) h24 += 12;
+            if(ampm === 'AM' && h24 === 12) h24 = 0;
+            const target_time = `${date}T${String(h24).padStart(2,'0')}:${min}:${sec}`;
+
             return {
-                message, target_time, recurrence_type, recurrence_interval, channel_id, 
+                message, target_time, timezone, recurrence_type, recurrence_interval, channel_id, 
                 body, mention, image_url, thumbnail_url, footer_text,
                 footer_icon_url, author_url
             };
@@ -1689,6 +1874,7 @@
         }
 
         (async () => {
+            initTimeWheels();
             showLoading(true);
             try {
                 // User info

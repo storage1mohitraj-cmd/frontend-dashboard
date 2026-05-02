@@ -199,13 +199,9 @@ async def _fetch_wosgiftcodes_active_codes() -> list[dict]:
             if not re.match(r"^[A-Za-z0-9]{4,30}$", code):
                 continue
 
-            rewards = cells[1].strip() if len(cells) > 1 else "Rewards not specified"
-            expiry  = cells[2].strip() if len(cells) > 2 else "Unknown"
-            status  = cells[3].strip().lower() if len(cells) > 3 else "active"
-
-            # Only keep active codes
-            if status and status not in ("active", ""):
-                continue
+            rewards = cells[2].strip() if len(cells) > 2 else "Rewards not specified"
+            expiry  = cells[3].strip() if len(cells) > 3 else "Unknown"
+            
             if not rewards or rewards.lower() in ("", "n/a", "-"):
                 rewards = "Rewards not specified"
             if not expiry or expiry.lower() in ("", "n/a", "-"):
@@ -215,7 +211,7 @@ async def _fetch_wosgiftcodes_active_codes() -> list[dict]:
                 "code": code,
                 "rewards": rewards,
                 "expiry": expiry,
-                "description": rewards,
+                "description": cells[1].strip() if len(cells) > 1 else "",
                 "source": "wosgiftcodes",
                 "date_added": "",
                 "status": "active",

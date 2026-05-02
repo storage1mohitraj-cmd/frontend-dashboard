@@ -25,6 +25,9 @@ async def get_guild_stats(guild_id: int, request: Request):
         if guild:
             stats["member_count"] = guild.member_count
             stats["channels"] = len(guild.text_channels)
+            stats["categories"] = len(guild.categories)
+            stats["roles"] = len(guild.roles)
+            stats["icon_url"] = str(guild.icon.url) if guild.icon else None
             
     # You could add alliance count here if you query the DB
     return stats

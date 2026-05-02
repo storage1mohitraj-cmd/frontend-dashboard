@@ -1250,7 +1250,7 @@
             const status = String(code.validation_status || code.status || '').trim().toLowerCase();
             if (['expired', 'invalid', 'inactive', 'failed', 'pending'].includes(status)) return false;
             if (['active', 'valid'].includes(status)) return true;
-            return code.is_active === true;
+            return false;
         }
 
         async function loadGiftCodes(forceRefresh = false) {

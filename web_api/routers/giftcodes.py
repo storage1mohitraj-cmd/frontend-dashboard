@@ -22,7 +22,24 @@ WOSTOOLS_GIFT_CODES_URL = "https://wostools.net/api/gift-codes"
 @router.get("")
 @router.get("/")
 async def get_active_giftcodes():
-    """Fetch live active giftcodes with reward and expiry details."""
+    """Fetch active giftcodes from the bot scraper, with fallbacks."""
+    if get_active_gift_codes is not None:
+        try:
+            live_codes = await get_active_gift_codes()
+            codes = [
+                code
+                for code in (_normalize_live_code(code, trusted_active=True) for code in live_codes)
+                if code["is_active"]
+            ]
+            if codes:
+                return {
+                    "codes": codes,
+                    "source": "bot_scraper",
+                    "last_updated": datetime.now(timezone.utc).isoformat(),
+                }
+        except Exception as e:
+            logger.warning(f"Bot giftcode scraper failed, falling back: {e}")
+
     direct_codes = await _fetch_wostools_active_codes()
     if direct_codes:
         return {
@@ -30,23 +47,6 @@ async def get_active_giftcodes():
             "source": "wostools",
             "last_updated": datetime.now(timezone.utc).isoformat(),
         }
-
-    if get_active_gift_codes is not None:
-        try:
-            live_codes = await get_active_gift_codes()
-            codes = [
-                code
-                for code in (_normalize_live_code(code) for code in live_codes)
-                if code["is_active"]
-            ]
-            if codes:
-                return {
-                    "codes": codes,
-                    "source": "live_scrapers",
-                    "last_updated": datetime.now(timezone.utc).isoformat(),
-                }
-        except Exception as e:
-            logger.warning(f"Live giftcode scraper failed, falling back: {e}")
 
     try:
         if not mongo_enabled():
@@ -130,9 +130,12 @@ def _first_present(data: dict, keys: list[str], default: str = "") -> str:
     return default
 
 
-def _normalize_live_code(code: dict) -> dict:
+def _normalize_live_code(code: dict, trusted_active: bool = False) -> dict:
     status = _first_present(code, ["status", "validation_status"], "").lower()
-    is_active = status in ("active", "valid")
+    if status:
+        is_active = status in ("active", "valid")
+    else:
+        is_active = trusted_active or bool(code.get("is_active", False))
     rewards = _first_present(
         code,
         ["rewards", "reward", "reward_text", "description", "label"],
@@ -151,6 +154,7 @@ def _normalize_live_code(code: dict) -> dict:
         "source": _first_present(code, ["source"], "live"),
         "date_added": _first_present(code, ["date_added", "dateAdded", "created_at", "date"]),
         "validation_status": status or ("active" if is_active else "inactive"),
+        "status": status or ("active" if is_active else "inactive"),
         "is_active": is_active,
     }
 

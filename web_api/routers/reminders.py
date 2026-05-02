@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/reminders", tags=["Reminders"])
 
 class ReminderCreate(BaseModel):
-    message: str
-    channel_id: str
+    message: str = ""
+    channel_id: str = ""
     time_str: str = None
     target_time: str = None  # ISO format from frontend
     timezone: str = "UTC"    # Timezone from frontend
@@ -69,6 +69,7 @@ async def get_reminders(request: Request, guild_id: int):
 
 @router.post("/{guild_id}")
 async def create_reminder(request: Request, guild_id: int, payload: ReminderCreate):
+    logger.info(f"Creating reminder for guild {guild_id}: {payload.json()}")
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -80,17 +81,27 @@ async def create_reminder(request: Request, guild_id: int, payload: ReminderCrea
         user = r.json()
         user_id = user["id"]
 
+    bot = request.app.state.bot
+    cog = bot.get_cog("ReminderSystem")
+    if not cog:
+        raise HTTPException(status_code=503, detail="Reminder system not active")
+
     # Parse time
     reminder_time = None
     recurring_info = {}
     
     if payload.target_time:
         try:
-            # target_time is usually YYYY-MM-DDTHH:MM from <input type="datetime-local">
+            # target_time is usually YYYY-MM-DDTHH:MM:SS
             naive_time = datetime.fromisoformat(payload.target_time.replace('Z', ''))
             
             # Localize to user's timezone
-            user_tz = pytz.timezone(payload.timezone or "UTC")
+            tz_str = payload.timezone or "UTC"
+            try:
+                user_tz = pytz.timezone(tz_str)
+            except Exception:
+                user_tz = pytz.UTC
+            
             localized_time = user_tz.localize(naive_time)
             
             # Convert to UTC for storage (bot runs in UTC)
@@ -166,6 +177,7 @@ async def delete_reminder(request: Request, guild_id: int, reminder_id: int):
 
 @router.patch("/{guild_id}/{reminder_id}")
 async def update_reminder(request: Request, guild_id: int, reminder_id: str, payload: ReminderCreate):
+    logger.info(f"Updating reminder {reminder_id} for guild {guild_id}: {payload.json()}")
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -193,12 +205,17 @@ async def update_reminder(request: Request, guild_id: int, reminder_id: str, pay
             naive_time = datetime.fromisoformat(payload.target_time.replace('Z', ''))
             
             # Localize to user's timezone
-            user_tz = pytz.timezone(payload.timezone or "UTC")
+            tz_str = payload.timezone or "UTC"
+            try:
+                user_tz = pytz.timezone(tz_str)
+            except Exception:
+                user_tz = pytz.UTC
+            
             localized_time = user_tz.localize(naive_time)
             
             # Convert to UTC for storage (bot runs in UTC)
             reminder_time = localized_time.astimezone(pytz.UTC).replace(tzinfo=None)
-
+            
             if payload.recurrence_type != "none":
                 recurring_info = {
                     "is_recurring": True,

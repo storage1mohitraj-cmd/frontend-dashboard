@@ -384,11 +384,24 @@ class WelcomeChannel(commands.Cog):
             # Prepare text content - 3 line layout
             text_x = 280
             
+            # ── Pull custom text from DB settings ──────────────────────
+            def _resolve_img(template: str) -> str:
+                ordinal_sfx = lambda n: f"{n}{'th' if 10<=n%100<=20 else {1:'st',2:'nd',3:'rd'}.get(n%10,'th')}"
+                return (template
+                    .replace('{mention}',      member.display_name)
+                    .replace('{username}',     member.display_name)
+                    .replace('{server}',       member.guild.name)
+                    .replace('{member_count}', ordinal_sfx(member.guild.member_count))
+                    .replace('{date}',         datetime.utcnow().strftime('%B %d, %Y')))
+
+            raw_title    = settings.get('embed_title',    'Welcome {username}') if settings else 'Welcome {username}'
+            raw_subtitle = settings.get('embed_subtitle', 'to {server}')        if settings else 'to {server}'
+
             # Line 1: Welcome username (combined)
-            welcome_text = f"Welcome {member.name}"
+            welcome_text = _resolve_img(raw_title)
             
             # Line 2: to Server Name (large, bold, main focus)
-            server_text = f"to {member.guild.name}"
+            server_text = _resolve_img(raw_subtitle)
             
             # Line 3: Member count with ordinal suffix
             member_count = member.guild.member_count
@@ -501,15 +514,38 @@ class WelcomeChannel(commands.Cog):
             # Create welcome image
             logger.info(f"[WelcomeChannel] Creating welcome image for {member.name} in {member.guild.name}")
             image_buffer = await self.create_welcome_image(member)
-            
+
+            # ── Resolve custom text fields ──────────────────────────────
+            def _resolve(template: str) -> str:
+                """Replace {variables} with real values."""
+                ordinal = lambda n: f"{n}{'th' if 10<=n%100<=20 else {1:'st',2:'nd',3:'rd'}.get(n%10,'th')}"
+                today = datetime.utcnow().strftime('%B %d, %Y')
+                return (template
+                    .replace('{mention}',      member.mention)
+                    .replace('{username}',     member.display_name)
+                    .replace('{server}',       member.guild.name)
+                    .replace('{member_count}', ordinal(member.guild.member_count))
+                    .replace('{date}',         today))
+
+            raw_welcome_text  = settings.get('welcome_text',  'Hi {mention} Welcome to the {server}🥳')
+            raw_footer_text   = settings.get('footer_text',   'Member joined • {date}')
+            raw_embed_color   = settings.get('embed_color',   '#3b82f6')
+
+            welcome_content = _resolve(raw_welcome_text)
+            footer_content  = _resolve(raw_footer_text)
+
+            # Parse hex color → discord.Color
+            try:
+                color_int = int(raw_embed_color.lstrip('#'), 16)
+                embed_color = discord.Color(color_int)
+            except Exception:
+                embed_color = discord.Color.blue()
+
             # Create embed
-            embed = discord.Embed(
-                description=f"Hi {member.mention} Welcome to the {member.guild.name}🥳",
-                color=discord.Color.blue()
-            )
+            embed = discord.Embed(description=welcome_content, color=embed_color)
             embed.set_image(url="attachment://welcome.png")
-            embed.set_footer(text=f"Member joined • {datetime.utcnow().strftime('%B %d, %Y')}")
-            
+            embed.set_footer(text=footer_content)
+
             # Send welcome message
             file = discord.File(image_buffer, filename="welcome.png")
             await channel.send(embed=embed, file=file)

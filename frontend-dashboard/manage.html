@@ -294,6 +294,115 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #232831; border-radius: 10px; }
+
+        /* ── Toggle Switch ────────────────────────────── */
+        .switch { position: relative; display: inline-block; width: 48px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; inset: 0; background: #3a3f4a; border-radius: 26px; cursor: pointer; transition: .3s; }
+        .slider:before { content: ""; position: absolute; width: 18px; height: 18px; left: 4px; bottom: 4px; background: #fff; border-radius: 50%; transition: .3s; }
+        input:checked + .slider { background: var(--primary); }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+        /* ── Welcome editor layout ───────────────────── */
+        .welcome-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+        @media(max-width:900px) { .welcome-layout { grid-template-columns: 1fr; } }
+
+        .welcome-editor { display: flex; flex-direction: column; gap: 16px; }
+
+        textarea {
+            width: 100%; background: #232831; border: 1px solid var(--glass-border);
+            padding: 12px; border-radius: 10px; color: #fff; font-family: inherit;
+            resize: vertical; min-height: 70px; font-size: 0.9rem; line-height: 1.5;
+            transition: border-color 0.2s;
+        }
+        textarea:focus, select:focus, input[type="text"]:focus, input[type="color"]:focus {
+            outline: none; border-color: var(--primary);
+        }
+
+        /* ── Variable chips ──────────────────────────── */
+        .var-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+        .var-chip {
+            background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.3);
+            color: var(--primary); border-radius: 6px; padding: 3px 9px;
+            font-size: 0.75rem; font-family: monospace; cursor: pointer; transition: 0.15s;
+        }
+        .var-chip:hover { background: rgba(139,92,246,0.25); }
+
+        /* ── Upload area ─────────────────────────────── */
+        .upload-area {
+            border: 2px dashed var(--glass-border); border-radius: 12px;
+            padding: 20px; text-align: center; cursor: pointer; transition: 0.2s;
+            background: rgba(255,255,255,0.01); position: relative;
+        }
+        .upload-area:hover, .upload-area.dragover { border-color: var(--primary); background: rgba(139,92,246,0.05); }
+        .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+        .upload-preview-img { max-width: 100%; border-radius: 8px; margin-top: 10px; max-height: 120px; object-fit: cover; display: none; }
+
+        /* ── Embed color row ─────────────────────────── */
+        .color-row { display: flex; align-items: center; gap: 10px; }
+        input[type="color"] {
+            width: 44px; height: 44px; padding: 2px; border-radius: 8px;
+            border: 1px solid var(--glass-border); background: #232831; cursor: pointer;
+        }
+        .color-hex { background: #232831; border: 1px solid var(--glass-border); border-radius: 8px; padding: 10px 12px; color: #fff; font-family: monospace; width: 110px; }
+        .color-swatches { display: flex; gap: 6px; flex-wrap: wrap; }
+        .swatch { width: 24px; height: 24px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: 0.15s; flex-shrink: 0; }
+        .swatch:hover, .swatch.active { border-color: #fff; transform: scale(1.15); }
+
+        /* ── Discord embed preview ───────────────────── */
+        .preview-container {
+            position: sticky; top: 20px; background: #1a1d23;
+            border-radius: 16px; padding: 20px; border: 1px solid var(--glass-border);
+        }
+        .preview-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+        .preview-label span { width: 8px; height: 8px; background: #57f287; border-radius: 50%; display: inline-block; }
+
+        /* Mock Discord chat */
+        .dc-chat { background: #313338; border-radius: 10px; padding: 16px; font-family: 'Inter', sans-serif; }
+        .dc-message { display: flex; gap: 12px; }
+        .dc-bot-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .dc-message-body { flex: 1; min-width: 0; }
+        .dc-message-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+        .dc-bot-name { color: #fff; font-weight: 700; font-size: 0.9rem; }
+        .dc-bot-tag { background: var(--primary); color: #fff; font-size: 0.6rem; padding: 1px 5px; border-radius: 4px; font-weight: 700; }
+        .dc-timestamp { color: #72767d; font-size: 0.7rem; }
+        .dc-text { color: #dbdee1; font-size: 0.88rem; line-height: 1.5; margin-bottom: 8px; }
+        .dc-mention { color: #5865f2; background: rgba(88,101,242,0.15); border-radius: 4px; padding: 0 3px; }
+
+        /* The embed card itself */
+        .dc-embed {
+            border-radius: 4px; overflow: hidden; max-width: 440px;
+            border-left: 4px solid #e53e3e; background: #2b2d31;
+        }
+        .dc-embed-inner { padding: 12px 16px 16px; }
+        .dc-embed-title { color: #fff; font-weight: 700; font-size: 0.95rem; margin-bottom: 2px; }
+        .dc-embed-desc { color: #dbdee1; font-size: 0.875rem; margin-bottom: 10px; }
+        .dc-embed-image { width: 100%; display: block; }
+        .dc-embed-footer { color: #72767d; font-size: 0.72rem; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+
+        /* Image preview inside embed */
+        .dc-embed-img-wrap { position: relative; background: #232831; }
+        .dc-embed-img-placeholder {
+            width: 100%; height: 100px; display: flex; align-items: center; justify-content: center;
+            color: var(--text-muted); font-size: 0.8rem; gap: 8px;
+        }
+
+        /* Section headers inside card */
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--glass-border); }
+        .section-header h3 { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+        .enabled-pill { font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; font-weight: 700; }
+        .enabled-pill.on { background: rgba(87,242,135,0.15); color: #57f287; }
+        .enabled-pill.off { background: rgba(255,255,255,0.06); color: var(--text-muted); }
+
+        /* Modal (config-items, used elsewhere) */
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); z-index: 200; align-items: center; justify-content: center; }
+        .modal-content { background: #1e2229; border-radius: 16px; padding: 28px; width: 100%; max-width: 540px; border: 1px solid var(--glass-border); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-body { display: flex; flex-direction: column; gap: 16px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; }
+        .config-item { display:flex; justify-content:space-between; align-items:center; background:#16191f; border-radius:12px; padding:16px; border:1px solid var(--glass-border); margin-bottom:12px; }
+        .config-info h4 { font-weight:600; margin-bottom:4px; }
+        .config-info p { color:var(--text-muted); font-size:0.85rem; }
     </style>
 </head>
 
@@ -320,8 +429,8 @@
                     <span>Overview</span>
                 </button>
                 <button class="nav-item" onclick="switchTab('welcome')">
-                    <i data-lucide="message-square"></i>
-                    <span>Configuration</span>
+                    <i data-lucide="party-popper"></i>
+                    <span>Welcome</span>
                 </button>
                 <button class="nav-item" onclick="showNotification('Premium required for advanced settings', true)">
                     <i data-lucide="shield-check"></i>
@@ -429,39 +538,172 @@
                 </div>
             </div>
 
-            <!-- Configuration Tab (Welcome) -->
+            <!-- Welcome Tab -->
             <div id="tab-welcome" class="tab-content">
-                <h2 class="section-title">Module Configuration</h2>
-                <section class="card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h3 class="progress-title">Welcome Messages</h3>
-                        <label class="switch">
-                            <input type="checkbox" id="welcome-enabled">
-                            <span class="slider"></span>
-                        </label>
+                <h2 class="section-title">Welcome Messages</h2>
+
+                <div class="card" style="margin-bottom:0;">
+                    <!-- Header row: enable toggle -->
+                    <div class="section-header">
+                        <h3><i data-lucide="message-square" style="width:18px;height:18px;color:var(--primary);"></i> Welcome Configuration</h3>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <span id="enabled-pill" class="enabled-pill off">Disabled</span>
+                            <label class="switch">
+                                <input type="checkbox" id="welcome-enabled" onchange="onToggleEnabled(this)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Post to Channel</label>
-                        <select id="welcome-channel">
-                            <option value="">Select Channel</option>
-                        </select>
-                    </div>
+                    <div class="welcome-layout">
+                        <!-- ───── Left: Settings Editor ───── -->
+                        <div class="welcome-editor">
 
-                    <div class="form-group">
-                        <label>Background Image URL</label>
-                        <input type="text" id="welcome-bg" placeholder="https://example.com/image.png">
-                    </div>
+                            <!-- Channel -->
+                            <div class="form-group">
+                                <label>📢 Post to Channel</label>
+                                <select id="welcome-channel">
+                                    <option value="">Select a channel</option>
+                                </select>
+                            </div>
 
-                    <div class="form-group" style="padding:16px; background:rgba(255,255,255,0.02); border-radius:10px; border:1px dashed var(--glass-border);">
-                        <label>Or Upload Local File</label>
-                        <input type="file" id="welcome-bg-upload" accept="image/*">
-                    </div>
+                            <!-- Welcome Message Text -->
+                            <div class="form-group">
+                                <label>💬 Welcome Message Text</label>
+                                <textarea id="welcome-text" rows="2" placeholder="Hi {mention} Welcome to the {server}🥳" oninput="updatePreview()"></textarea>
+                                <div class="var-chips">
+                                    <span class="var-chip" onclick="insertVar('welcome-text','{mention}')">{mention}</span>
+                                    <span class="var-chip" onclick="insertVar('welcome-text','{username}')">{username}</span>
+                                    <span class="var-chip" onclick="insertVar('welcome-text','{server}')">{server}</span>
+                                    <span class="var-chip" onclick="insertVar('welcome-text','{member_count}')">{member_count}</span>
+                                </div>
+                            </div>
 
-                    <div style="display:flex; justify-content:flex-end; gap:12px;">
-                        <button onclick="saveWelcomeSettings()" class="btn btn-primary">Save Module Settings</button>
+                            <!-- Embed Title (Line 1 on image) -->
+                            <div class="form-group">
+                                <label>🖊️ Image Title (Line 1)</label>
+                                <input type="text" id="embed-title" placeholder="Welcome {username}" oninput="updatePreview()">
+                                <div class="var-chips">
+                                    <span class="var-chip" onclick="insertVar('embed-title','{username}')">{username}</span>
+                                    <span class="var-chip" onclick="insertVar('embed-title','{server}')">{server}</span>
+                                </div>
+                            </div>
+
+                            <!-- Embed Sub-text (Line 2 on image) -->
+                            <div class="form-group">
+                                <label>🖊️ Image Subtitle (Line 2)</label>
+                                <input type="text" id="embed-subtitle" placeholder="to {server}" oninput="updatePreview()">
+                                <div class="var-chips">
+                                    <span class="var-chip" onclick="insertVar('embed-subtitle','{server}')">{server}</span>
+                                    <span class="var-chip" onclick="insertVar('embed-subtitle','{username}')">{username}</span>
+                                </div>
+                            </div>
+
+                            <!-- Footer Text -->
+                            <div class="form-group">
+                                <label>🗒️ Embed Footer Text</label>
+                                <input type="text" id="footer-text" placeholder="Member joined • {date}" oninput="updatePreview()">
+                                <div class="var-chips">
+                                    <span class="var-chip" onclick="insertVar('footer-text','{date}')">{date}</span>
+                                    <span class="var-chip" onclick="insertVar('footer-text','{member_count}')">{member_count}</span>
+                                </div>
+                            </div>
+
+                            <!-- Embed Color -->
+                            <div class="form-group">
+                                <label>🎨 Embed Accent Color</label>
+                                <div class="color-row">
+                                    <input type="color" id="embed-color" value="#e53e3e" oninput="syncColorHex(this)">
+                                    <input type="text" id="embed-color-hex" class="color-hex" value="#e53e3e" placeholder="#e53e3e" oninput="syncColorPicker(this)" maxlength="7">
+                                    <div class="color-swatches">
+                                        <div class="swatch active" style="background:#e53e3e;" title="Red" onclick="setColor('#e53e3e',this)"></div>
+                                        <div class="swatch" style="background:#f6ad55;" title="Orange" onclick="setColor('#f6ad55',this)"></div>
+                                        <div class="swatch" style="background:#fbbf24;" title="Yellow" onclick="setColor('#fbbf24',this)"></div>
+                                        <div class="swatch" style="background:#57f287;" title="Green" onclick="setColor('#57f287',this)"></div>
+                                        <div class="swatch" style="background:#5865f2;" title="Blurple" onclick="setColor('#5865f2',this)"></div>
+                                        <div class="swatch" style="background:#8b5cf6;" title="Purple" onclick="setColor('#8b5cf6',this)"></div>
+                                        <div class="swatch" style="background:#06b6d4;" title="Cyan" onclick="setColor('#06b6d4',this)"></div>
+                                        <div class="swatch" style="background:#f43f5e;" title="Pink" onclick="setColor('#f43f5e',this)"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Background Image -->
+                            <div class="form-group">
+                                <label>🖼️ Background Image URL</label>
+                                <input type="text" id="welcome-bg" placeholder="https://example.com/background.png" oninput="updatePreview()">
+                            </div>
+
+                            <!-- Upload local -->
+                            <div class="form-group">
+                                <label>⬆️ Upload Background Image</label>
+                                <div class="upload-area" id="upload-drop-area">
+                                    <input type="file" id="welcome-bg-upload" accept="image/*" onchange="handleFileSelect(this)">
+                                    <i data-lucide="upload-cloud" style="width:28px;height:28px;color:var(--text-muted);margin-bottom:8px;"></i>
+                                    <p style="color:var(--text-muted);font-size:0.85rem;">Drag & drop or click to upload<br><span style="font-size:0.75rem;opacity:.6;">PNG, JPG, GIF, WEBP up to 8MB</span></p>
+                                    <img id="upload-preview-img" class="upload-preview-img" src="" alt="Preview">
+                                    <p id="upload-filename" style="color:var(--primary);font-size:0.8rem;margin-top:8px;display:none;"></p>
+                                </div>
+                            </div>
+
+                            <!-- Save button -->
+                            <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:4px;">
+                                <button onclick="resetWelcomeForm()" class="btn btn-secondary">
+                                    <i data-lucide="rotate-ccw" style="width:15px;height:15px;"></i> Reset
+                                </button>
+                                <button onclick="saveWelcomeSettings()" class="btn btn-primary" id="save-welcome-btn">
+                                    <i data-lucide="save" style="width:15px;height:15px;"></i> Save Settings
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- ───── Right: Live Discord Preview ───── -->
+                        <div class="preview-container">
+                            <div class="preview-label"><span></span> Live Preview</div>
+                            <div class="dc-chat">
+                                <div class="dc-message">
+                                    <img class="dc-bot-avatar" src="https://cdn.discordapp.com/avatars/1399025185046134866/0b02020a0f6e2c4effffa9e9502f427c.png" alt="Bot">
+                                    <div class="dc-message-body">
+                                        <div class="dc-message-header">
+                                            <span class="dc-bot-name">ICEAngel</span>
+                                            <span class="dc-bot-tag">APP</span>
+                                            <span class="dc-timestamp">Today at 5:44 PM</span>
+                                        </div>
+                                        <div class="dc-text" id="preview-text">
+                                            Hi <span class="dc-mention">@NewMember</span> Welcome to the <strong>Your Server</strong>🥳
+                                        </div>
+                                        <!-- Embed card -->
+                                        <div class="dc-embed" id="preview-embed">
+                                            <div class="dc-embed-img-wrap" id="preview-img-wrap">
+                                                <div class="dc-embed-img-placeholder" id="preview-img-placeholder">
+                                                    <i data-lucide="image" style="width:20px;height:20px;"></i> Background image preview
+                                                </div>
+                                                <img id="preview-embed-image" class="dc-embed-image" src="" alt="" style="display:none;">
+                                            </div>
+                                            <div class="dc-embed-inner">
+                                                <div class="dc-embed-title" id="preview-title">Welcome NewMember</div>
+                                                <div class="dc-embed-desc" id="preview-subtitle">to Your Server</div>
+                                                <div class="dc-embed-footer" id="preview-footer">Member joined • May 02, 2026</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Quick tips -->
+                            <div style="margin-top:16px; padding:12px; background:rgba(139,92,246,0.06); border-radius:10px; border:1px solid rgba(139,92,246,0.15);">
+                                <p style="font-size:0.78rem; color:var(--text-muted); line-height:1.6;">
+                                    <strong style="color:var(--primary);">Variables</strong> are replaced automatically:<br>
+                                    <code style="color:#a78bfa;">{mention}</code> — pings the user<br>
+                                    <code style="color:#a78bfa;">{username}</code> — their display name<br>
+                                    <code style="color:#a78bfa;">{server}</code> — server name<br>
+                                    <code style="color:#a78bfa;">{member_count}</code> — member number<br>
+                                    <code style="color:#a78bfa;">{date}</code> — today's date
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                </section>
+                </div>
             </div>
 
             <!-- Auto Translate Tab -->
@@ -625,19 +867,218 @@
             } catch (e) {}
         }
 
+        // ──────────────────────────────────────────────────
+        //  Welcome: Preview Engine
+        // ──────────────────────────────────────────────────
+        const SAMPLE = { mention: '@NewMember', username: 'NewMember', server: 'Your Server', member_count: '42nd', date: 'May 02, 2026' };
+
+        function applyVars(template) {
+            return (template || '')
+                .replace(/{mention}/g, `<span class="dc-mention">@NewMember</span>`)
+                .replace(/{username}/g, SAMPLE.username)
+                .replace(/{server}/g, `<strong>${SAMPLE.server}</strong>`)
+                .replace(/{member_count}/g, SAMPLE.member_count)
+                .replace(/{date}/g, SAMPLE.date);
+        }
+
+        function applyVarsPlain(template) {
+            return (template || '')
+                .replace(/{mention}/g, '@NewMember')
+                .replace(/{username}/g, SAMPLE.username)
+                .replace(/{server}/g, SAMPLE.server)
+                .replace(/{member_count}/g, SAMPLE.member_count)
+                .replace(/{date}/g, SAMPLE.date);
+        }
+
+        function updatePreview() {
+            // Top message text
+            const welcomeText = document.getElementById('welcome-text').value || 'Hi {mention} Welcome to the {server}🥳';
+            document.getElementById('preview-text').innerHTML = applyVars(welcomeText);
+
+            // Embed title + subtitle
+            const titleVal = document.getElementById('embed-title').value || 'Welcome {username}';
+            const subtitleVal = document.getElementById('embed-subtitle').value || 'to {server}';
+            document.getElementById('preview-title').textContent = applyVarsPlain(titleVal);
+            document.getElementById('preview-subtitle').textContent = applyVarsPlain(subtitleVal);
+
+            // Footer
+            const footerVal = document.getElementById('footer-text').value || 'Member joined • {date}';
+            document.getElementById('preview-footer').textContent = applyVarsPlain(footerVal);
+
+            // Embed accent color
+            const color = document.getElementById('embed-color').value || '#e53e3e';
+            document.getElementById('preview-embed').style.borderLeftColor = color;
+
+            // Background image
+            const bgUrl = document.getElementById('welcome-bg').value;
+            const previewImg = document.getElementById('preview-embed-image');
+            const placeholder = document.getElementById('preview-img-placeholder');
+            if (bgUrl) {
+                previewImg.src = bgUrl;
+                previewImg.style.display = 'block';
+                placeholder.style.display = 'none';
+            } else if (window._uploadedPreviewUrl) {
+                previewImg.src = window._uploadedPreviewUrl;
+                previewImg.style.display = 'block';
+                placeholder.style.display = 'none';
+            } else {
+                previewImg.style.display = 'none';
+                placeholder.style.display = 'flex';
+            }
+
+            lucide.createIcons();
+        }
+
+        // ──────────────────────────────────────────────────
+        //  Color Picker Sync
+        // ──────────────────────────────────────────────────
+        function syncColorHex(picker) {
+            document.getElementById('embed-color-hex').value = picker.value;
+            updatePreview();
+        }
+
+        function syncColorPicker(hexInput) {
+            const val = hexInput.value;
+            if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+                document.getElementById('embed-color').value = val;
+                updatePreview();
+            }
+        }
+
+        function setColor(hex, el) {
+            document.getElementById('embed-color').value = hex;
+            document.getElementById('embed-color-hex').value = hex;
+            document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+            el.classList.add('active');
+            updatePreview();
+        }
+
+        // ──────────────────────────────────────────────────
+        //  Variable Chips – insert at cursor
+        // ──────────────────────────────────────────────────
+        function insertVar(fieldId, variable) {
+            const el = document.getElementById(fieldId);
+            if (!el) return;
+            const start = el.selectionStart ?? el.value.length;
+            const end   = el.selectionEnd   ?? el.value.length;
+            el.value = el.value.slice(0, start) + variable + el.value.slice(end);
+            el.selectionStart = el.selectionEnd = start + variable.length;
+            el.focus();
+            updatePreview();
+        }
+
+        // ──────────────────────────────────────────────────
+        //  Toggle Enabled Pill
+        // ──────────────────────────────────────────────────
+        function onToggleEnabled(cb) {
+            const pill = document.getElementById('enabled-pill');
+            pill.textContent = cb.checked ? 'Enabled' : 'Disabled';
+            pill.className = 'enabled-pill ' + (cb.checked ? 'on' : 'off');
+        }
+
+        // ──────────────────────────────────────────────────
+        //  Drag-and-Drop Upload
+        // ──────────────────────────────────────────────────
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => {
+                window._uploadedPreviewUrl = e.target.result;
+                const img = document.getElementById('upload-preview-img');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                const fnEl = document.getElementById('upload-filename');
+                fnEl.textContent = '✓ ' + file.name;
+                fnEl.style.display = 'block';
+                // Clear URL field so upload takes priority
+                document.getElementById('welcome-bg').value = '';
+                updatePreview();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Setup drag-and-drop events
+        function setupDragDrop() {
+            const area = document.getElementById('upload-drop-area');
+            if (!area) return;
+            area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
+            area.addEventListener('dragleave', () => area.classList.remove('dragover'));
+            area.addEventListener('drop', e => {
+                e.preventDefault();
+                area.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    const input = document.getElementById('welcome-bg-upload');
+                    // Manually set files (uses DataTransfer trick)
+                    const dt = new DataTransfer();
+                    dt.items.add(file);
+                    input.files = dt.files;
+                    handleFileSelect(input);
+                }
+            });
+        }
+
+        // ──────────────────────────────────────────────────
+        //  Reset Form
+        // ──────────────────────────────────────────────────
+        function resetWelcomeForm() {
+            document.getElementById('welcome-text').value    = 'Hi {mention} Welcome to the {server}🥳';
+            document.getElementById('embed-title').value     = 'Welcome {username}';
+            document.getElementById('embed-subtitle').value  = 'to {server}';
+            document.getElementById('footer-text').value     = 'Member joined • {date}';
+            document.getElementById('embed-color').value     = '#e53e3e';
+            document.getElementById('embed-color-hex').value = '#e53e3e';
+            document.getElementById('welcome-bg').value      = '';
+            document.getElementById('upload-preview-img').style.display = 'none';
+            document.getElementById('upload-filename').style.display = 'none';
+            window._uploadedPreviewUrl = null;
+            document.querySelectorAll('.swatch').forEach((s,i) => s.classList.toggle('active', i===0));
+            updatePreview();
+        }
+
+        // ──────────────────────────────────────────────────
+        //  Load / Save
+        // ──────────────────────────────────────────────────
         async function loadWelcomeSettings() {
             try {
-                const settings = await fetchData(`/api/settings/welcome/${guildId}`);
-                document.getElementById('welcome-enabled').checked = settings.enabled;
-                document.getElementById('welcome-channel').value = settings.channel_id || '';
-                document.getElementById('welcome-bg').value = settings.bg_image_url || '';
-            } catch (e) { }
+                const s = await fetchData(`/api/settings/welcome/${guildId}`);
+                const cb = document.getElementById('welcome-enabled');
+                cb.checked = s.enabled;
+                onToggleEnabled(cb);
+
+                document.getElementById('welcome-channel').value       = s.channel_id   || '';
+                document.getElementById('welcome-bg').value            = s.bg_image_url || '';
+                document.getElementById('welcome-text').value          = s.welcome_text  || 'Hi {mention} Welcome to the {server}🥳';
+                document.getElementById('embed-title').value           = s.embed_title   || 'Welcome {username}';
+                document.getElementById('embed-subtitle').value        = s.embed_subtitle|| 'to {server}';
+                document.getElementById('footer-text').value           = s.footer_text   || 'Member joined • {date}';
+
+                const color = s.embed_color || '#e53e3e';
+                document.getElementById('embed-color').value     = color;
+                document.getElementById('embed-color-hex').value = color;
+                // Highlight matching swatch
+                document.querySelectorAll('.swatch').forEach(sw => {
+                    const matches = sw.style.background.replace(/\s/g,'').toLowerCase() === color.toLowerCase()
+                                 || sw.title && sw.style.background.toLowerCase().includes(color.slice(1).toLowerCase());
+                    sw.classList.toggle('active', sw.style.background === color);
+                });
+
+                updatePreview();
+            } catch (e) { console.warn('Failed to load welcome settings:', e); }
         }
 
         async function saveWelcomeSettings() {
+            const btn = document.getElementById('save-welcome-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width:15px;height:15px;animation:spin 1s linear infinite;"></i> Saving…';
+            lucide.createIcons();
             showLoading(true);
+
             try {
                 let bgImageUrl = document.getElementById('welcome-bg').value;
+
+                // Upload file if selected
                 const fileInput = document.getElementById('welcome-bg-upload');
                 if (fileInput.files.length > 0) {
                     const formData = new FormData();
@@ -653,18 +1094,30 @@
                         document.getElementById('welcome-bg').value = bgImageUrl;
                     }
                 }
+
                 await fetchData(`/api/settings/welcome/${guildId}`, {
                     method: 'POST',
                     body: JSON.stringify({
-                        enabled: document.getElementById('welcome-enabled').checked,
-                        channel_id: document.getElementById('welcome-channel').value,
-                        bg_image_url: bgImageUrl
+                        enabled:        document.getElementById('welcome-enabled').checked,
+                        channel_id:     document.getElementById('welcome-channel').value,
+                        bg_image_url:   bgImageUrl,
+                        welcome_text:   document.getElementById('welcome-text').value,
+                        embed_title:    document.getElementById('embed-title').value,
+                        embed_subtitle: document.getElementById('embed-subtitle').value,
+                        embed_color:    document.getElementById('embed-color').value,
+                        footer_text:    document.getElementById('footer-text').value
                     })
                 });
-                showNotification('Welcome settings saved!');
+
+                showNotification('✅ Welcome settings saved!');
             } catch (e) {
                 showNotification('Failed to save settings', true);
-            } finally { showLoading(false); }
+            } finally {
+                showLoading(false);
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" style="width:15px;height:15px;"></i> Save Settings';
+                lucide.createIcons();
+            }
         }
 
         async function loadBirthdaySettings() {
@@ -782,6 +1235,8 @@
                     if (g.id === guildId) {
                         opt.selected = true;
                         document.getElementById('overview-server-name').innerHTML = g.name + ' <span class="plan-badge">Free plan</span>';
+                        // Update preview server name after we know the server
+                        SAMPLE.server = g.name;
                     }
                     selector.appendChild(opt);
                 });
@@ -789,11 +1244,17 @@
                 await loadChannels();
                 await loadGuildStats();
                 await loadGiftStats();
-                await loadWelcomeSettings();
+                await loadWelcomeSettings(); // also calls updatePreview() internally
                 await loadBirthdaySettings();
                 await loadTranslateConfigs();
                 await loadGiftCodes();
-            } catch (e) {} finally { showLoading(false); }
+            } catch (e) { console.error('Init error:', e); } finally { showLoading(false); }
+
+            // Setup drag-and-drop on upload area (DOM guaranteed ready now)
+            setupDragDrop();
+            // Kick off an initial preview render in case no settings exist yet
+            updatePreview();
+            lucide.createIcons();
         })();
     </script>
 </body>

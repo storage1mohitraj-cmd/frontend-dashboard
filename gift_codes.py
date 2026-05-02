@@ -574,6 +574,12 @@ async def get_active_gift_codes():
 
     merged = list(merged_dict.values())
 
+    merged = [
+        code
+        for code in merged
+        if str(code.get('status') or code.get('validation_status') or '').strip().lower() == 'active'
+    ]
+
     if merged:
         logger.info(
             f"get_active_gift_codes: {len(merged)} unique active codes "

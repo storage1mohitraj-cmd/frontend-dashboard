@@ -54,7 +54,7 @@ def _first_present(data: dict, keys: list[str], default: str = "") -> str:
 
 def _normalize_live_code(code: dict) -> dict:
     status = _first_present(code, ["status", "validation_status"], "").lower()
-    is_active = status in ("active", "valid") if status else bool(code.get("is_active", True))
+    is_active = status in ("active", "valid")
     rewards = _first_present(
         code,
         ["rewards", "reward", "reward_text", "description", "label"],

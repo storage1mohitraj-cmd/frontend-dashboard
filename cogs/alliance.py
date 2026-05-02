@@ -156,6 +156,9 @@ class Alliance(commands.Cog):
         """Clean up when cog is unloaded"""
         self.monitor_alliances.cancel()
 
+    # Channel ID for bot-join notifications (owner's logging channel)
+    NOTIFY_CHANNEL_ID = 1500004448393625601
+
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
         """Auto-lock new servers when bot joins: lock /manage and alliance monitor by default."""
@@ -197,6 +200,38 @@ class Alliance(commands.Cog):
                 print(f"   \u26a0\ufe0f Lacking audit log permissions to find bot adder in {guild.name}")
             except Exception as e:
                 print(f"   \u26a0\ufe0f Error finding bot adder: {e}")
+
+            # 4. Send join notification to owner's logging channel
+            try:
+                notify_channel = self.bot.get_channel(self.NOTIFY_CHANNEL_ID)
+                if notify_channel is None:
+                    notify_channel = await self.bot.fetch_channel(self.NOTIFY_CHANNEL_ID)
+                if notify_channel:
+                    total_guilds = len(self.bot.guilds)
+                    owner = guild.owner
+                    owner_text = f"{owner} (`{owner.id}`)" if owner else "Unknown"
+                    adder_text = f"{adder} (`{adder.id}`)" if adder else "Unknown (no audit log access)"
+                    icon_url = guild.icon.url if guild.icon else None
+
+                    notify_embed = discord.Embed(
+                        title="🎉 Bot Added to a New Server!",
+                        color=0x2ECC71,
+                        timestamp=discord.utils.utcnow()
+                    )
+                    notify_embed.add_field(name="🏠 Server Name", value=f"**{guild.name}**", inline=True)
+                    notify_embed.add_field(name="🆔 Server ID", value=f"`{guild.id}`", inline=True)
+                    notify_embed.add_field(name="👥 Member Count", value=str(guild.member_count), inline=True)
+                    notify_embed.add_field(name="👑 Server Owner", value=owner_text, inline=True)
+                    notify_embed.add_field(name="➕ Added By", value=adder_text, inline=True)
+                    notify_embed.add_field(name="📊 Total Servers", value=f"**{total_guilds}** servers", inline=True)
+                    if icon_url:
+                        notify_embed.set_thumbnail(url=icon_url)
+                    notify_embed.set_footer(text="Whiteout Survival Bot • Server Join Log")
+
+                    await notify_channel.send(embed=notify_embed)
+                    print(f"   \u2705 Join notification sent for {guild.name}")
+            except Exception as e:
+                print(f"   \u26a0\ufe0f Failed to send join notification: {e}")
 
             if not adder:
                 adder = guild.owner

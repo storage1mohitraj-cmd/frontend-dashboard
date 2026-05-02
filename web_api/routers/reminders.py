@@ -27,7 +27,7 @@ class ReminderCreate(BaseModel):
     author_url: str = None
 
 @router.get("/{guild_id}")
-async def get_reminders(request: Request, guild_id: int):
+async def get_reminders(request: Request, guild_id: str):
     auth_header = request.headers.get("Authorization")
     if not auth_header:
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -68,7 +68,7 @@ async def get_reminders(request: Request, guild_id: int):
     return {"reminders": server_reminders}
 
 @router.post("/{guild_id}")
-async def create_reminder(request: Request, guild_id: int, payload: ReminderCreate):
+async def create_reminder(request: Request, guild_id: str, payload: ReminderCreate):
     logger.info(f"Creating reminder for guild {guild_id}: {payload.json()}")
     auth_header = request.headers.get("Authorization")
     if not auth_header:
@@ -176,7 +176,7 @@ async def delete_reminder(request: Request, guild_id: int, reminder_id: int):
         raise HTTPException(status_code=400, detail="Failed to delete reminder. It may not exist or does not belong to you.")
 
 @router.patch("/{guild_id}/{reminder_id}")
-async def update_reminder(request: Request, guild_id: int, reminder_id: str, payload: ReminderCreate):
+async def update_reminder(request: Request, guild_id: str, reminder_id: str, payload: ReminderCreate):
     logger.info(f"Updating reminder {reminder_id} for guild {guild_id}: {payload.json()}")
     auth_header = request.headers.get("Authorization")
     if not auth_header:

@@ -2526,7 +2526,7 @@ class ManageGiftCode(commands.Cog):
         
         # Cleanup members with null/empty FIDs from all guilds
         self.logger.info("🧹 Cleaning up members with null/empty FIDs...")
-        cleanup_count = self.AutoRedeemDB.cleanup_null_members(self)
+        cleanup_count = await self.AutoRedeemDB.cleanup_null_members_async(self)
         if cleanup_count > 0:
             self.logger.info(f"✅ Removed {cleanup_count} invalid members from auto-redeem lists")
         

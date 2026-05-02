@@ -968,17 +968,13 @@ async def setup_hook():
     # except Exception as e:
     #     logger.error(f"❌ Failed to initialize music state storage: {e}")
     
-    # Start health check server for Render deployment
+    # Start FastAPI Web Server for dashboard & health checks
     try:
-        from health_server import start_health_server
-        port = await start_health_server()
-        if port:
-            logger.info(f"✅ Health server started on port {port}")
-            logger.info(f"🌐 Health endpoint: http://0.0.0.0:{port}/health")
-        else:
-            logger.warning("⚠️  Health server failed to start (port may be in use)")
+        from web_api.server import start_web_server
+        # Run start_web_server as a background task so it doesn't block setup_hook
+        bot.loop.create_task(start_web_server())
     except Exception as e:
-        logger.error(f"❌ Failed to start health server: {e}")
+        logger.error(f"❌ Failed to start web server: {e}")
     
     # Start keep-alive task for Render
     async def keep_alive_task():

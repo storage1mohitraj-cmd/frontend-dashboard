@@ -39,3 +39,5 @@ paddlepaddle>=2.6.0
 paddleocr>=2.7.0
 # pywin32>=306; sys_platform == 'win32'
 brotli>=1.1.0
+fastapi>=0.111.0
+uvicorn>=0.30.1

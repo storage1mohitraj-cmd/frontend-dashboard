@@ -85,7 +85,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Register all modular routers
 app.include_router(status_router)
 app.include_router(auth_router)
-app.include_router(giftcodes_router, prefix="/api/giftcodes")
+app.include_router(giftcodes_router)
 app.include_router(servers_router)
 app.include_router(guilds_router)
 app.include_router(settings_router)
@@ -97,6 +97,13 @@ app.mount("/api/static", StaticFiles(directory="data/uploads"), name="static")
 async def start_web_server(bot=None, port: int = 8080):
     """Starts the FastAPI server on the existing asyncio loop."""
     app.state.bot = bot
+    
+    # Log all registered routes for debugging
+    logger.info("📋 Registered Routes:")
+    for route in app.routes:
+        if hasattr(route, 'path'):
+            logger.info(f"  {route.methods} {route.path}")
+
     config = uvicorn.Config(
         app=app,
         host="0.0.0.0",

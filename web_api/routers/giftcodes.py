@@ -116,7 +116,7 @@ async def get_active_giftcodes(request: Request):
 
 
 async def _fetch_running_bot_active_codes(request: Request) -> list[dict]:
-    """Read active gift codes from the loaded Discord bot cog, if available."""
+    """Read active gift codes from the loaded Discord bot cog, if available, enriched with scraper data."""
     try:
         bot = getattr(request.app.state, "bot", None)
         if bot is None:
@@ -130,8 +130,19 @@ async def _fetch_running_bot_active_codes(request: Request) -> list[dict]:
         if not active_map:
             return []
 
+        # Fetch rich data from the scraper logic (which already hits wosgiftcodes + wostools)
+        rich_codes = []
+        if get_active_gift_codes is not None:
+            rich_codes = await get_active_gift_codes()
+        
+        enrichment_map = {}
+        for rc in rich_codes:
+            code_key = str(rc.get("code") or "").strip().upper()
+            if code_key:
+                enrichment_map[code_key] = rc
+
         return [
-            _normalize_bot_cog_code(code, expiry)
+            _normalize_bot_cog_code(code, expiry, enrichment_map.get(str(code).strip().upper()))
             for code, expiry in active_map.items()
             if str(code).strip()
         ]
@@ -140,14 +151,18 @@ async def _fetch_running_bot_active_codes(request: Request) -> list[dict]:
         return []
 
 
-def _normalize_bot_cog_code(code: str, expiry: str) -> dict:
+def _normalize_bot_cog_code(code: str, expiry: str, enrichment: dict = None) -> dict:
+    enrichment = enrichment or {}
+    rewards = enrichment.get("rewards") or "Rewards not specified"
+    final_expiry = enrichment.get("expiry") or str(expiry or "Unknown").strip() or "Unknown"
+    
     return {
         "code": str(code).strip(),
-        "rewards": "Rewards not specified",
-        "expiry": str(expiry or "Unknown").strip() or "Unknown",
-        "description": "",
+        "rewards": rewards,
+        "expiry": final_expiry,
+        "description": enrichment.get("description", ""),
         "source": "bot_manage_cog",
-        "date_added": "",
+        "date_added": enrichment.get("date_added", ""),
         "status": "active",
         "validation_status": "active",
         "is_active": True,

@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 import httpx
 import logging
-from datetime import datetime
+import pytz
+from datetime import datetime, timezone as dt_timezone
 
 from cogs.reminder_system import ReminderStorage, TimeParser
 
@@ -14,6 +15,7 @@ class ReminderCreate(BaseModel):
     channel_id: str
     time_str: str = None
     target_time: str = None  # ISO format from frontend
+    timezone: str = "UTC"    # Timezone from frontend
     recurrence_type: str = "none" # none, daily, weekly, custom
     recurrence_interval: int = 1
     body: str = None
@@ -84,8 +86,15 @@ async def create_reminder(request: Request, guild_id: int, payload: ReminderCrea
     
     if payload.target_time:
         try:
-            # datetime-local format is often YYYY-MM-DDTHH:MM
-            reminder_time = datetime.fromisoformat(payload.target_time.replace('Z', ''))
+            # target_time is usually YYYY-MM-DDTHH:MM from <input type="datetime-local">
+            naive_time = datetime.fromisoformat(payload.target_time.replace('Z', ''))
+            
+            # Localize to user's timezone
+            user_tz = pytz.timezone(payload.timezone or "UTC")
+            localized_time = user_tz.localize(naive_time)
+            
+            # Convert to UTC for storage (bot runs in UTC)
+            reminder_time = localized_time.astimezone(pytz.UTC).replace(tzinfo=None)
             
             if payload.recurrence_type != "none":
                 recurring_info = {
@@ -180,7 +189,16 @@ async def update_reminder(request: Request, guild_id: int, reminder_id: str, pay
     
     if payload.target_time:
         try:
-            reminder_time = datetime.fromisoformat(payload.target_time.replace('Z', ''))
+            # target_time is usually YYYY-MM-DDTHH:MM
+            naive_time = datetime.fromisoformat(payload.target_time.replace('Z', ''))
+            
+            # Localize to user's timezone
+            user_tz = pytz.timezone(payload.timezone or "UTC")
+            localized_time = user_tz.localize(naive_time)
+            
+            # Convert to UTC for storage (bot runs in UTC)
+            reminder_time = localized_time.astimezone(pytz.UTC).replace(tzinfo=None)
+
             if payload.recurrence_type != "none":
                 recurring_info = {
                     "is_recurring": True,

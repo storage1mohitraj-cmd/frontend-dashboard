@@ -23,21 +23,41 @@ cd "f:\Whiteout Survival Bot" && git status
 
 ### 2. Stage all changes
 // turbo
-```
+```powershell
 cd "f:\Whiteout Survival Bot" && git add -A
+if (Test-Path "f:\Whiteout Survival Bot\frontend-dashboard\.git") {
+    cd "f:\Whiteout Survival Bot\frontend-dashboard" && git add -A
+}
 ```
 
 ### 3. Commit with a descriptive message (summarize what changed)
-Use a commit message that describes the actual change made, e.g.:
-```
-cd "f:\Whiteout Survival Bot" && git commit -m "feat: <short description of change>"
+Use a commit message that describes the actual change made:
+```powershell
+# Commit for main repo
+cd "f:\Whiteout Survival Bot"
+git commit -m "feat: <description>"
+
+# Commit for dashboard (if needed)
+if (Test-Path "f:\Whiteout Survival Bot\frontend-dashboard\.git") {
+    cd "f:\Whiteout Survival Bot\frontend-dashboard"
+    git commit -m "feat: <description>"
+}
 ```
 If nothing to commit (clean tree), skip steps 3 and 4.
 
 ### 4. Push to GitHub (triggers auto-deploy to Oracle VM)
 // turbo
-```
+```powershell
+# Push main bot repo
 cd "f:\Whiteout Survival Bot" && git push origin main
+
+# Push frontend-dashboard repo (if it exists and has changes)
+if (Test-Path "f:\Whiteout Survival Bot\frontend-dashboard\.git") {
+    cd "f:\Whiteout Survival Bot\frontend-dashboard"
+    git add -A
+    git commit -m "chore: sync with main repo changes"
+    git push origin main
+}
 ```
 
 ### 5. Instant Deploy via SSH

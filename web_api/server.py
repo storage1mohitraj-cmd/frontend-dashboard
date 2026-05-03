@@ -142,6 +142,13 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to load reminders router: {e}")
 
+try:
+    from web_api.routers.alliance_monitor import router as alliance_monitor_router
+    app.include_router(alliance_monitor_router)
+    logger.info("✅ Alliance Monitor router loaded")
+except Exception as e:
+    logger.error(f"❌ Failed to load alliance monitor router: {e}")
+
 os.makedirs("data/uploads", exist_ok=True)
 app.mount("/api/static", StaticFiles(directory="data/uploads"), name="static")
 

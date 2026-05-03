@@ -913,7 +913,7 @@ async def setup_hook():
         "cogs.events",
         "cogs.server_age",
         "cogs.personalise_chat",
-        # "cogs.music",  # Music bot functionality (Disabled)
+        "cogs.music",  # Music bot functionality
         "cogs.voice_conversation",  # Voice chat with AI
         "cogs.tts",  # Text-to-Speech in voice channels
         "cogs.auto_translate",  # Auto-translate with DeepL
@@ -952,21 +952,21 @@ async def setup_hook():
     except Exception as e:
         logger.error(f"❌ Failed to load user profiles: {e}")
     
-    # Initialize playlist storage (Disabled with music system)
-    # try:
-    #     from playlist_storage import playlist_storage
-    #     await playlist_storage.initialize()
-    #     logger.info("✅ Playlist storage initialized")
-    # except Exception as e:
-    #     logger.error(f"❌ Failed to initialize playlist storage: {e}")
+    # Initialize playlist storage
+    try:
+        from playlist_storage import playlist_storage
+        await playlist_storage.initialize()
+        logger.info("✅ Playlist storage initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize playlist storage: {e}")
     
-    # Initialize music state storage (Disabled with music system)
-    # try:
-    #     from music_state_storage import music_state_storage
-    #     await music_state_storage.initialize()
-    #     logger.info("✅ Music state storage initialized")
-    # except Exception as e:
-    #     logger.error(f"❌ Failed to initialize music state storage: {e}")
+    # Initialize music state storage
+    try:
+        from music_state_storage import music_state_storage
+        await music_state_storage.initialize()
+        logger.info("✅ Music state storage initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize music state storage: {e}")
     
     # Start FastAPI Web Server for dashboard & health checks
     try:

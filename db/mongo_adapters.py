@@ -1088,7 +1088,7 @@ class GiftCodesAdapter:
             unique_dbs = []
             seen_db_names = set()
             for db in dbs:
-                if db and db.name not in seen_db_names:
+                if db is not None and db.name not in seen_db_names:
                     unique_dbs.append(db)
                     seen_db_names.add(db.name)
 
@@ -1127,7 +1127,7 @@ class GiftCodesAdapter:
             unique_dbs = []
             seen_db_names = set()
             for db in dbs:
-                if db and db.name not in seen_db_names:
+                if db is not None and db.name not in seen_db_names:
                     unique_dbs.append(db)
                     seen_db_names.add(db.name)
 

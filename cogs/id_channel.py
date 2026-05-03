@@ -134,6 +134,16 @@ class IDChannel(commands.Cog):
             self._log_debug(f"Error in _upsert_member_from_api: {e}")
             return False
 
+    def format_furnace_level(self, furnace_lv):
+        """Format furnace level to FC style if above 30"""
+        if not furnace_lv: return "Lv 0"
+        try:
+            lv = int(furnace_lv)
+            if lv >= 31: return f"FC {lv - 30}"
+            return f"Lv {lv}"
+        except:
+            return str(furnace_lv)
+
     async def process_fid(self, message: discord.Message, fid: int, alliance_id: int):
         """Process a FID from an ID channel"""
         try:
@@ -168,26 +178,30 @@ class IDChannel(commands.Cog):
                     # Add success reaction
                     await message.add_reaction('✅')
                     
-                    # Send confirmation (Old Style: Embed)
-                    furnace_level_name = self.level_mapping.get(furnace_lv, f"Level {furnace_lv}")
+                    # Premium Embed Style as requested by User
+                    formatted_fc = self.format_furnace_level(furnace_lv)
                     
                     success_embed = discord.Embed(
-                        title=f"✅ Member Successfully Added",
-                        description=(
-                            "━━━━━━━━━━━━━━━━━━━━━━\n"
-                            f"**👤 Name:** `{nickname}`\n"
-                            f"**🆔 FID:** `{fid}`\n"
-                            f"**🔥 Furnace Level:** `{furnace_level_name}`\n"
-                            f"**🌍 State:** `{kid}`\n"
-                            "━━━━━━━━━━━━━━━━━━━━━━"
-                        ),
-                        color=discord.Color.green()
+                        title="✨ Auto-Redeem Registered",
+                        description=f"✅ **{nickname}** is now enrolled for automated gift codes.",
+                        color=0x2ecc71 # Green
                     )
+                    
+                    success_embed.add_field(name="Player ID", value=f"`{fid}`", inline=True)
+                    success_embed.add_field(name="Furnace", value=f"`{formatted_fc}`", inline=True)
+                    
+                    # This field indicates auto-redeem is starting (handled by ManageGiftCode cog if same channel)
+                    success_embed.add_field(name="🚀 Auto-Processing", value="`Initializing...`", inline=False)
 
-                    if avatar_image:
-                        success_embed.set_image(url=avatar_image)
-                    if isinstance(stove_lv_content, str) and stove_lv_content.startswith("http"):
-                        success_embed.set_thumbnail(url=stove_lv_content)
+                    if avatar_image and str(avatar_image).startswith('http'):
+                        success_embed.set_thumbnail(url=avatar_image)
+                    
+                    # Standardized footer branding
+                    server_name = message.guild.name if message.guild else "Whiteout Survival"
+                    success_embed.set_footer(
+                        text=f"Whiteout Survival || {server_name} ❄️",
+                        icon_url="https://cdn.discordapp.com/attachments/1435569370389807144/1436745053442805830/unnamed_5.png"
+                    )
 
                     await message.reply(embed=success_embed)
                     
@@ -199,7 +213,7 @@ class IDChannel(commands.Cog):
                             "fid": fid,
                             "nickname": nickname,
                             "alliance_id": alliance_id,
-                            "furnace_level": furnace_level_name
+                            "furnace_level": formatted_fc
                         }
                     )
                 else:
@@ -222,31 +236,44 @@ class IDChannel(commands.Cog):
                 return
             
             content = message.content.strip()
-            if not content.isdigit() or len(content) != 9:
+            # Extract 9-digit codes
+            import re
+            fid_pattern = r'\b\d{7,12}\b'
+            fids = re.findall(fid_pattern, content)
+            
+            if not fids:
                 return
             
-            fid = int(content)
+            # Check if current channel is an ID channel
+            is_id_channel = False
+            alliance_id = 0
             
             # Check MongoDB first
             try:
                 if mongo_enabled() and IDChannelsAdapter:
                     config = await IDChannelsAdapter.get_channel_async(message.guild.id)
                     if config and config.get('channel_id') == message.channel.id:
-                        await self.process_fid(message, fid, config.get('alliance_id', 0))
-                        return
+                        is_id_channel = True
+                        alliance_id = config.get('alliance_id', 0)
             except Exception:
                 pass
 
-            # Fallback to SQLite
-            with sqlite3.connect('db/id_channel.sqlite') as db:
-                cursor = db.cursor()
-                cursor.execute(
-                    "SELECT alliance_id FROM id_channels WHERE channel_id = ?",
-                    (message.channel.id,)
-                )
-                row = cursor.fetchone()
-                if row:
-                    await self.process_fid(message, fid, row[0])
+            if not is_id_channel:
+                # Fallback to SQLite
+                with sqlite3.connect('db/id_channel.sqlite') as db:
+                    cursor = db.cursor()
+                    cursor.execute(
+                        "SELECT alliance_id FROM id_channels WHERE channel_id = ?",
+                        (message.channel.id,)
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        is_id_channel = True
+                        alliance_id = row[0]
+            
+            if is_id_channel:
+                for fid in fids:
+                    await self.process_fid(message, int(fid), alliance_id)
         
         except Exception as e:
             print(f"Error in on_message: {e}")
@@ -288,7 +315,7 @@ class IDChannel(commands.Cog):
                         continue
 
                     content = message.content.strip()
-                    if content.isdigit() and len(content) == 9:
+                    if content.isdigit() and 7 <= len(content) <= 12:
                         await self.process_fid(message, int(content), alliance_id)
         except Exception as e:
             print(f"Error in check_channels_loop: {e}")
@@ -296,7 +323,7 @@ class IDChannel(commands.Cog):
     async def show_id_channel_menu(self, interaction: discord.Interaction):
         """Management menu for ID channels"""
         try:
-            # Check admin permissions (using simple admin check for now)
+            # Check admin permissions
             if not interaction.user.guild_permissions.administrator:
                 await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
                 return
@@ -319,12 +346,6 @@ class IDChannel(commands.Cog):
             await interaction.response.edit_message(embed=embed, view=view)
         except Exception as e:
             print(f"Error in show_id_channel_menu: {e}")
-
-    async def start_channel_listener(self, channel_id: int, alliance_id: int):
-        pass
-
-    async def stop_channel_listener(self, channel_id: int):
-        pass
 
 class IDChannelView(discord.ui.View):
     def __init__(self, cog):

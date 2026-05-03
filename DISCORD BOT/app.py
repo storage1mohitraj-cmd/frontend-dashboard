@@ -1667,6 +1667,10 @@ def setup_logging():
         except Exception:
             pass
 
+    # Enable voice debugging
+    logging.getLogger('discord.voice').setLevel(logging.DEBUG)
+    logging.getLogger('discord.player').setLevel(logging.DEBUG)
+
     return logging.getLogger(__name__)
 
 

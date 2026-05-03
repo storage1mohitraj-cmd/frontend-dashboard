@@ -2488,9 +2488,9 @@
             let tier = Math.floor((adjustedLevel - 1) / 5) + 1;
             let stage = ((adjustedLevel - 1) % 5) + 1;
             if (stage === 5) {
-                return \`FC \${tier}\`;
+                return `FC ${tier}`;
             } else {
-                return \`FC \${tier}-\${stage}\`;
+                return `FC ${tier}-${stage}`;
             }
         }
 
@@ -2499,7 +2499,7 @@
             const btn = document.getElementById('ar-bulk-remove-btn');
             if (checkboxes.length > 0) {
                 btn.style.display = 'inline-flex';
-                btn.innerHTML = \`<i data-lucide="trash-2" style="width: 14px;"></i> Remove Selected (\${checkboxes.length})\`;
+                btn.innerHTML = `<i data-lucide="trash-2" style="width: 14px;"></i> Remove Selected (${checkboxes.length})`;
                 lucide.createIcons();
             } else {
                 btn.style.display = 'none';
@@ -2509,7 +2509,7 @@
         async function bulkRemoveAutoRedeemMembers() {
             const checkboxes = document.querySelectorAll('.ar-member-checkbox:checked');
             if (checkboxes.length === 0) return;
-            if (!confirm(\`Remove \${checkboxes.length} selected members from auto-redeem?\`)) return;
+            if (!confirm(`Remove ${checkboxes.length} selected members from auto-redeem?`)) return;
 
             showLoading(true);
             let successCount = 0;
@@ -2527,7 +2527,7 @@
                 }
             }
 
-            showNotification(\`Removed \${successCount} members\${failCount > 0 ? \` (\${failCount} failed)\` : ''}\`);
+            showNotification(`Removed ${successCount} members${failCount > 0 ? ` (${failCount} failed)` : ''}`);
             toggleBulkRemoveButton(); // Reset button
             loadAutoRedeemMembers();
             showLoading(false);

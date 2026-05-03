@@ -2673,28 +2673,37 @@ class Music(commands.Cog):
                 for attempt in range(max_connect_retries):
                     try:
                         print(f"🔄 Connecting to {target_channel.name} (attempt {attempt + 1}/{max_connect_retries})...")
+                        
+                        # Ensure any old voice client is disconnected before a new attempt
+                        if interaction.guild.voice_client:
+                            print(f"🧹 Force disconnecting existing voice client in {interaction.guild.name}")
+                            try:
+                                await interaction.guild.voice_client.disconnect(force=True)
+                                await asyncio.sleep(1)
+                            except Exception:
+                                pass
+
                         player = await target_channel.connect(
                             cls=CustomPlayer, 
                             timeout=connect_timeout, 
                             self_deaf=True,
-                            reconnect=True  # Enable automatic reconnection
+                            reconnect=True
                         )
                         print(f"✅ Connected to {target_channel.name}")
                         break
                     except asyncio.TimeoutError:
                         if attempt < max_connect_retries - 1:
-                            # Exponential backoff: 2s, 4s, 8s
                             wait_time = 2 ** (attempt + 1)
-                            print(f"⏱️ Connection timeout to {target_channel.name} after {connect_timeout}s, retrying in {wait_time}s... (attempt {attempt + 1}/{max_connect_retries})")
+                            print(f"⏱️ Connection timeout to {target_channel.name} after {connect_timeout}s, retrying in {wait_time}s...")
                             await asyncio.sleep(wait_time)
                         else:
-                            raise asyncio.TimeoutError(f"Unable to connect to {target_channel.name} after {max_connect_retries} attempts (timeout: {connect_timeout}s each). This may be due to network issues or Discord voice server problems.")
-                    except Exception as e:
-                        if attempt < max_connect_retries - 1:
-                            print(f"⚠️ Connection error to {target_channel.name}: {e}, retrying...")
-                            await asyncio.sleep(3)
-                        else:
                             raise
+                    except Exception as e:
+                        print(f"❌ Error connecting to voice: {e}")
+                        if attempt < max_connect_retries - 1:
+                            await asyncio.sleep(2)
+                        else:
+                            raise asyncio.TimeoutError(f"Unable to connect to {target_channel.name} after {max_connect_retries} attempts (timeout: {connect_timeout}s each). This may be due to network issues or Discord voice server problems.")
                 
                 if not player:
                     raise Exception(f"Failed to create player for {target_channel.name}")

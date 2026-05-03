@@ -1,1302 +1,3 @@
-<<<<<<< HEAD
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Server - Whiteout Survival Bot</title>
-  <!-- Modern Typography -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-  
-  <style>
-    :root {
-      --primary: #5865F2;
-      --primary-hover: #4752C4;
-      --accent: #ff8b6b;
-      --bg-dark: #0a0a0c;
-      --glass-bg: rgba(20, 20, 24, 0.65);
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --text-main: #ffffff;
-      --text-muted: #949499;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      font-family: 'Inter', sans-serif;
-      background-color: var(--bg-dark);
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(88, 101, 242, 0.1), transparent 35%),
-        radial-gradient(circle at 90% 80%, rgba(255, 139, 107, 0.08), transparent 35%);
-      color: var(--text-main);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
-    }
-
-    /* Animated background */
-    .bg-animation {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background: url('hero-bg.png') no-repeat center center/cover;
-      opacity: 0.15;
-      z-index: -1;
-      filter: blur(4px) brightness(0.5);
-    }
-
-    header {
-      background: rgba(10, 10, 12, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--glass-border);
-      padding: 16px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
-    }
-
-    .brand {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 800;
-      font-size: 1.3em;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      letter-spacing: -0.5px;
-      cursor: pointer;
-    }
-
-    .brand img {
-      height: 36px;
-      width: 36px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
-    }
-
-    #guild-name-header {
-      font-family: 'Outfit', sans-serif;
-      font-size: 1.3em;
-      font-weight: 800;
-      background: linear-gradient(to right, #ffffff, #a5b4fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-    }
-
-    .btn {
-      background: var(--primary);
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.95em;
-      font-weight: 600;
-      font-family: 'Inter', sans-serif;
-      text-decoration: none;
-      transition: all 0.3s;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .btn:hover {
-      background: var(--primary-hover);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(88, 101, 242, 0.3);
-    }
-
-    .btn.secondary {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--glass-border);
-      color: #fff;
-    }
-
-    .btn.secondary:hover {
-      background: rgba(255,255,255,0.1);
-      border-color: rgba(255,255,255,0.2);
-    }
-
-    .btn.danger {
-      background: rgba(255, 85, 85, 0.1);
-      border: 1px solid rgba(255, 85, 85, 0.3);
-      color: #ff5555;
-    }
-
-    .btn.danger:hover {
-      background: rgba(255, 85, 85, 0.2);
-      border-color: rgba(255, 85, 85, 0.5);
-      box-shadow: none;
-    }
-
-    main {
-      flex: 1;
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 40px 24px;
-      width: 100%;
-    }
-
-    .card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      padding: 32px;
-      margin-bottom: 24px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    }
-
-    .card h2 {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 800;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 24px;
-      border-bottom: 1px solid var(--glass-border);
-      padding-bottom: 8px;
-    }
-
-    .tab {
-      padding: 12px 20px;
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 1em;
-      font-weight: 600;
-      transition: all 0.3s;
-      border-radius: 8px;
-      font-family: 'Inter', sans-serif;
-    }
-
-    .tab:hover {
-      color: #fff;
-      background: rgba(255,255,255,0.05);
-    }
-
-    .tab.active {
-      color: #fff;
-      background: var(--primary);
-      box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
-    }
-
-    .tab-content { display: none; }
-    .tab-content.active { display: block; animation: fadeIn 0.4s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      border-bottom: 1px solid var(--glass-border);
-      padding-bottom: 16px;
-    }
-
-    .card-title {
-      font-size: 1.4em;
-      font-weight: 800;
-      margin: 0;
-      font-family: 'Outfit', sans-serif;
-    }
-
-    .setting-group { margin-bottom: 24px; }
-
-    label {
-      display: block;
-      margin-bottom: 8px;
-      color: var(--text-muted);
-      font-size: 0.9em;
-      text-transform: uppercase;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    input[type="text"], select {
-      width: 100%;
-      background: rgba(0,0,0,0.4);
-      border: 1px solid var(--glass-border);
-      color: #fff;
-      padding: 12px 16px;
-      border-radius: 8px;
-      outline: none;
-      font-size: 1em;
-      transition: border-color 0.3s;
-      font-family: 'Inter', sans-serif;
-    }
-
-    input[type="text"]:focus, select:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
-    }
-
-    select option { background: var(--bg-dark); }
-
-    .switch-group {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px 0;
-    }
-
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 52px;
-      height: 28px;
-    }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: rgba(255,255,255,0.1);
-      transition: .4s;
-      border-radius: 30px;
-    }
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 20px; width: 20px;
-      left: 4px; bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    input:checked + .slider { background-color: #3ba55c; }
-    input:checked + .slider:before { transform: translateX(24px); }
-
-    .config-item, .gift-code-item {
-      background: rgba(0,0,0,0.3);
-      border: 1px solid var(--glass-border);
-      border-radius: 12px;
-      padding: 16px 20px;
-      margin-bottom: 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      transition: transform 0.2s;
-    }
-    .config-item:hover, .gift-code-item:hover { transform: translateX(4px); border-color: rgba(255,255,255,0.15); }
-
-    .config-info h4, .gift-info h4 { margin: 0 0 6px 0; color: #fff; font-size: 1.1em; font-family: 'Outfit', sans-serif; }
-    .config-info p, .gift-info p { margin: 0; color: var(--text-muted); font-size: 0.9em; }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .stat-card {
-      background: rgba(0,0,0,0.3);
-      padding: 24px;
-      border-radius: 16px;
-      border: 1px solid var(--glass-border);
-      text-align: center;
-      transition: transform 0.3s;
-    }
-    .stat-card:hover { transform: translateY(-4px); border-color: var(--primary); }
-
-    .stat-value {
-      font-size: 2.5em;
-      font-weight: 800;
-      color: var(--primary);
-      margin-bottom: 8px;
-      font-family: 'Outfit', sans-serif;
-    }
-    .stat-label { color: var(--text-muted); font-size: 0.95em; font-weight: 500; }
-
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0; top: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-content {
-      background: #1a1a1f;
-      border: 1px solid var(--glass-border);
-      padding: 32px;
-      border-radius: 20px;
-      width: 500px;
-      max-width: 90%;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-    }
-    .modal-header { margin-bottom: 24px; border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; }
-    #modal-title { font-family: 'Outfit', sans-serif; font-size: 1.5em; }
-
-    .modal-footer {
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      margin-top: 32px;
-    }
-
-    .loading-overlay {
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(10, 10, 12, 0.8);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 2000;
-    }
-
-    .spinner {
-      width: 48px; height: 48px;
-      border: 4px solid rgba(255, 255, 255, 0.1);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .notification {
-      position: fixed;
-      bottom: 24px; right: 24px;
-      padding: 16px 24px;
-      border-radius: 12px;
-      background: #3ba55c;
-      color: #fff;
-      font-weight: 500;
-      transform: translateY(100px);
-      transition: transform 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-      z-index: 3000;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    }
-    .notification.show { transform: translateY(0); }
-    .notification.error { background: #ed4245; }
-
-    .empty-state {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--text-muted);
-      background: rgba(0,0,0,0.2);
-      border-radius: 12px;
-      border: 1px dashed var(--glass-border);
-    }
-
-    /* ── Gift Code UI ───────────────────────────── */
-    .giftcodes-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; }
-    .giftcodes-meta { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; display: flex; gap: 16px; }
-    .giftcode-card { background: #1a1e26; border-radius: 12px; padding: 20px; border: 1px solid var(--glass-border); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
-    .giftcode-card:hover { border-color: var(--primary); transform: translateX(4px); }
-    .giftcode-info h4 { font-family: 'Outfit', sans-serif; font-size: 1.1rem; margin-bottom: 4px; color: var(--text-main); }
-    .giftcode-info p { font-size: 0.85rem; color: var(--text-muted); }
-    .giftcode-tag { background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; margin-left: 8px; }
-    
-    .automation-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-    @media(max-width: 900px) { .automation-grid { grid-template-columns: 1fr; } }
-    
-    .members-table-container { background: #1a1e26; border-radius: 12px; border: 1px solid var(--glass-border); overflow: hidden; }
-    .members-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    .members-table th { background: #232831; padding: 12px 16px; text-align: left; font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); letter-spacing: 1px; }
-    .members-table td { padding: 12px 16px; border-top: 1px solid var(--glass-border); }
-    .member-nick { display: flex; align-items: center; gap: 10px; font-weight: 600; }
-    .member-avatar { width: 28px; height: 28px; border-radius: 50%; background: #232831; }
-    .member-fid { font-family: monospace; color: var(--text-muted); font-size: 0.8rem; }
-    .btn-icon { padding: 6px; border-radius: 6px; background: rgba(255,255,255,0.05); color: var(--text-muted); border:none; cursor:pointer; }
-    .btn-icon:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-
-    .enabled-pill { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-    .enabled-pill.on { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-    .enabled-pill.off { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-
-    .dc-mention { background: rgba(88, 101, 242, 0.15); color: #5865F2; padding: 0 4px; border-radius: 4px; font-weight: 500; }
-    
-    .color-row { display: flex; align-items: center; gap: 10px; }
-
-    @media (max-width: 768px) {
-      #guild-name-header { display: none; }
-      .tabs { flex-wrap: wrap; }
-      .tab { width: calc(50% - 6px); text-align: center; }
-    }
-  </style>
-</head>
-
-<body>
-  <div class="bg-animation"></div>
-    <header>
-        <div class="brand" onclick="window.location.href='dashboard.html'">
-            <img src="https://cdn.discordapp.com/avatars/1399025185046134866/0b02020a0f6e2c4effffa9e9502f427c.png"
-                alt="Bot Avatar">
-            <span>Whiteout Survival Bot</span>
-        </div>
-        <div id="guild-name-header" style="font-weight: 600; font-size: 1.1em; color: #5865F2;"></div>
-        <div class="account-area">
-            <a href="dashboard.html" class="btn secondary">Back to Dashboard</a>
-        </div>
-    </header>
-
-    <main>
-        <!-- Statistics Overview -->
-        <div class="card">
-            <h2 style="margin-top: 0;">Server Statistics</h2>
-            <div class="stats-grid" id="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-value" id="stat-translations">-</div>
-                    <div class="stat-label">Translation Configs</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="stat-redemptions">-</div>
-                    <div class="stat-label">Gift Code Redemptions</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="stat-welcome">-</div>
-                    <div class="stat-label">Welcome Status</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" id="stat-birthday">-</div>
-                    <div class="stat-label">Birthday Status</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tabs -->
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('welcome')">Welcome Channel</button>
-            <button class="tab" onclick="switchTab('translate')">Auto Translate</button>
-            <button class="tab" onclick="switchTab('birthday')">Birthday Settings</button>
-            <button class="tab" onclick="switchTab('giftcodes')">Gift Codes</button>
-        </div>
-
-        <!-- Welcome Channel Tab -->
-        <div id="tab-welcome" class="tab-content active">
-            <section class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Welcome Channel</h2>
-                    <div class="switch-group" style="padding:0">
-                        <label class="switch">
-                            <input type="checkbox" id="welcome-enabled">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="setting-group">
-                    <label for="welcome-channel">Channel</label>
-                    <select id="welcome-channel">
-                        <option value="">Loading channels...</option>
-                    </select>
-                </div>
-
-                <div class="setting-group">
-                    <label for="welcome-bg">Background Image URL (Optional)</label>
-                    <input type="text" id="welcome-bg" placeholder="https://example.com/image.png">
-                </div>
-
-                <div style="display: flex; justify-content: flex-end;">
-                    <button onclick="saveWelcomeSettings()" class="btn">Save Changes</button>
-                </div>
-            </section>
-        </div>
-
-        <!-- Auto Translate Tab -->
-        <div id="tab-translate" class="tab-content">
-            <section class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Auto Translate</h2>
-                    <button onclick="openTranslateModal()" class="btn">Add Config</button>
-                </div>
-
-                <div id="translate-configs-list"></div>
-            </section>
-        </div>
-
-        <!-- Birthday Settings Tab -->
-        <div id="tab-birthday" class="tab-content">
-            <section class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Birthday Settings</h2>
-                </div>
-
-                <div class="setting-group">
-                    <label for="birthday-channel">Birthday Wishes Channel</label>
-                    <select id="birthday-channel" class="guild-channels">
-                        <option value="">Select a channel</option>
-                    </select>
-                </div>
-
-                <div style="display: flex; justify-content: flex-end;">
-                    <button onclick="saveBirthdaySettings()" class="btn">Save Changes</button>
-                </div>
-            </section>
-        </div>
-
-        <!-- Gift Codes Tab -->
-        <div id="tab-giftcodes" class="tab-content">
-            <div class="giftcodes-header">
-                <div>
-                    <h2 class="section-title" style="margin-bottom:0;">Gift Code Management</h2>
-                    <p>Configure auto-redeem, registration channels, and track active codes. 🚀</p>
-                </div>
-                <button onclick="loadGiftCodeDashboard()" class="btn btn-secondary">
-                    <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
-                    Refresh
-                </button>
-            </div>
-
-            <!-- Automation & Configuration -->
-            <div class="automation-grid">
-                <div class="card" style="margin-bottom: 0;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h3 style="font-family:'Outfit'; font-size:1.1rem;">Automation Settings</h3>
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <span id="ar-enabled-pill" class="enabled-pill off">Disabled</span>
-                            <label class="switch">
-                                <input type="checkbox" id="ar-enabled" onchange="onToggleAREnabled(this)">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Auto-Redeem Channel</label>
-                        <select id="ar-channel" class="guild-channels">
-                            <option value="">Select channel</option>
-                        </select>
-                        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">Channel where bot listens for FIDs for auto-redemption.</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Registration Channel</label>
-                        <select id="reg-channel" class="guild-channels">
-                            <option value="">Select channel</option>
-                        </select>
-                        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">Channel where new players register their FIDs.</p>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Latest Code Channel</label>
-                        <select id="poster-channel" class="guild-channels">
-                            <option value="">Select channel</option>
-                        </select>
-                        <p style="font-size:0.75rem; color:var(--text-muted); margin-top:6px;">Channel where the bot posts new gift codes automatically.</p>
-                    </div>
-
-                    <button id="save-ar-settings-btn" onclick="saveARSettings()" class="btn btn-primary" style="width:100%; justify-content:center;">
-                        <i data-lucide="save" style="width:16px;height:16px;"></i>
-                        Save Configuration
-                    </button>
-                </div>
-
-                <div class="card" style="margin-bottom: 0; display:flex; flex-direction:column;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h3 style="font-family:'Outfit'; font-size:1.1rem;">Auto-Redeem Members</h3>
-                        <button onclick="showAddMemberModal()" class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;">
-                            <i data-lucide="plus" style="width:14px;height:14px;"></i> Add
-                        </button>
-                    </div>
-                    
-                    <div class="members-table-container" style="flex:1; min-height:200px; max-height:400px; overflow-y:auto;">
-                        <table class="members-table">
-                            <thead>
-                                <tr>
-                                    <th>Member</th>
-                                    <th>FID</th>
-                                    <th>Level</th>
-                                    <th style="width:40px;"></th>
-                                </tr>
-                            </thead>
-                            <tbody id="ar-members-list">
-                                <!-- Members will be loaded here -->
-                                <tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:40px;">Loading members...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <h3 class="section-title" style="font-size:1.1rem; margin-top:32px; margin-bottom:16px;">Active Gift Codes</h3>
-            <div id="giftcodes-meta" class="giftcodes-meta"></div>
-            <div id="giftcodes-list"></div>
-        </div>
-
-        <!-- Add Member Modal -->
-        <div id="add-member-modal" class="modal">
-            <div class="modal-content" style="max-width:400px;">
-                <div class="modal-header">
-                    <h3>Add Member</h3>
-                    <button onclick="closeAddMemberModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
-                        <i data-lucide="x"></i>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label>Player ID (FID)</label>
-                        <div style="display:flex; gap:8px;">
-                            <input type="text" id="add-member-fid" placeholder="e.g. 123456789" maxlength="9">
-                            <button onclick="verifyFID()" id="verify-fid-btn" class="btn btn-secondary" style="padding:10px;"><i data-lucide="search"></i></button>
-                        </div>
-                    </div>
-                    <div id="fid-result" style="display:none; margin-bottom:16px; padding:12px; background:rgba(255,255,255,0.03); border-radius:10px; border:1px solid var(--glass-border);">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <img id="fid-avatar" src="" style="width:40px; height:40px; border-radius:50%; background:#232831;">
-                            <div>
-                                <div id="fid-nickname" style="font-weight:700;">-</div>
-                                <div id="fid-level" style="font-size:0.8rem; color:var(--text-muted);">-</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button onclick="closeAddMemberModal()" class="btn btn-secondary">Cancel</button>
-                    <button id="confirm-add-member-btn" onclick="confirmAddMember()" class="btn btn-primary" disabled>Add Member</button>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <!-- Translate Config Modal -->
-    <div id="translate-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-title" style="margin:0">New Auto-Translate Config</h3>
-            </div>
-
-            <input type="hidden" id="config-id">
-
-            <div class="setting-group">
-                <label for="config-name">Configuration Name</label>
-                <input type="text" id="config-name" placeholder="English to Spanish">
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div class="setting-group">
-                    <label for="source-lang">Source Language</label>
-                    <select id="source-lang">
-                        <option value="auto">Auto-Detect</option>
-                        <option value="en">English</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="ja">Japanese</option>
-                        <option value="zh">Chinese</option>
-                        <option value="ru">Russian</option>
-                        <option value="ko">Korean</option>
-                        <option value="hi">Hindi</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label for="target-lang">Target Language</label>
-                    <select id="target-lang">
-                        <option value="en">English</option>
-                        <option value="es">Spanish</option>
-                        <option value="fr">French</option>
-                        <option value="de">German</option>
-                        <option value="ja">Japanese</option>
-                        <option value="zh">Chinese</option>
-                        <option value="ru">Russian</option>
-                        <option value="ko">Korean</option>
-                        <option value="hi">Hindi</option>
-                    </select>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div class="setting-group">
-                    <label for="source-channel">Source Channel</label>
-                    <select id="source-channel" class="guild-channels">
-                        <option value="">Select Channel</option>
-                    </select>
-                </div>
-                <div class="setting-group">
-                    <label for="target-channel">Target Channel</label>
-                    <select id="target-channel" class="guild-channels">
-                        <option value="">Select Channel</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="setting-group">
-                <label for="translate-style">Posting Style</label>
-                <select id="translate-style">
-                    <option value="webhook">Webhook (as user)</option>
-                    <option value="bot">Bot (as bot)</option>
-                </select>
-            </div>
-
-            <div class="switch-group">
-                <span>Delete original message</span>
-                <label class="switch">
-                    <input type="checkbox" id="delete-original">
-                    <span class="slider"></span>
-                </label>
-            </div>
-
-            <div class="modal-footer">
-                <button onclick="closeTranslateModal()" class="btn secondary">Cancel</button>
-                <button onclick="saveTranslateConfig()" class="btn">Save Config</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="loading" class="loading-overlay">
-        <div class="spinner"></div>
-    </div>
-
-    <div id="notification" class="notification">Settings saved successfully!</div>
-
-    <script>
-        const CONFIG = {
-            API_BASE: 'http://140.245.241.54:8080',  // Direct connection to Oracle VM
-            LANG_NAMES: {
-                'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
-                'ja': 'Japanese', 'zh': 'Chinese', 'ru': 'Russian', 'ko': 'Korean', 'hi': 'Hindi', 'auto': 'Auto-Detect'
-            }
-        };
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const guildId = urlParams.get('id');
-
-        if (!guildId) {
-            window.location.href = 'dashboard.html';
-        }
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
-            if (event && event.target) {
-                event.target.classList.add('active');
-            }
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            
-            if (tabName === 'giftcodes') {
-                loadGiftCodeDashboard();
-            }
-        }
-
-        async function fetchData(endpoint, options = {}) {
-            const token = localStorage.getItem('discord_access_token');
-            if (!token) {
-                window.location.href = 'login.html';
-                return;
-            }
-
-            try {
-                const response = await fetch(CONFIG.API_BASE + endpoint, {
-                    ...options,
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                        ...(options.headers || {})
-                    }
-                });
-
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return await response.json();
-            } catch (e) {
-                console.error('Fetch error:', e);
-                showNotification(e.message, true);
-                throw e;
-            }
-        }
-
-        function showLoading(show) {
-            document.getElementById('loading').style.display = show ? 'flex' : 'none';
-        }
-
-        function showNotification(message, isError = false) {
-            const n = document.getElementById('notification');
-            n.textContent = message;
-            n.className = 'notification' + (isError ? ' error' : '') + ' show';
-            setTimeout(() => n.classList.remove('show'), 3000);
-        }
-
-        async function loadGuildStats() {
-            try {
-                const stats = await fetchData(`/api/guilds/${guildId}/stats`);
-                document.getElementById('stat-translations').textContent = stats.translation_configs || 0;
-                document.getElementById('stat-redemptions').textContent = stats.total_redemptions || 0;
-                document.getElementById('stat-welcome').textContent = stats.welcome_enabled ? '✓' : '✗';
-                document.getElementById('stat-birthday').textContent = stats.birthday_enabled ? '✓' : '✗';
-            } catch (e) {
-                console.error('Failed to load guild stats');
-            }
-        }
-
-        async function loadChannels() {
-            try {
-                const channels = await fetchData(`/api/guilds/${guildId}/channels`);
-                const selects = document.querySelectorAll('#welcome-channel, .guild-channels, #birthday-channel');
-
-                selects.forEach(select => {
-                    select.innerHTML = '<option value="">Select a channel</option>';
-                    channels.forEach(ch => {
-                        const opt = document.createElement('option');
-                        opt.value = ch.id;
-                        opt.textContent = '#' + ch.name;
-                        select.appendChild(opt);
-                    });
-                });
-            } catch (e) {
-                console.error('Failed to load channels');
-            }
-        }
-
-        async function loadWelcomeSettings() {
-            try {
-                const settings = await fetchData(`/api/settings/welcome/${guildId}`);
-                document.getElementById('welcome-enabled').checked = settings.enabled;
-                document.getElementById('welcome-channel').value = settings.channel_id || '';
-                document.getElementById('welcome-bg').value = settings.bg_image_url || '';
-            } catch (e) { }
-        }
-
-        async function saveWelcomeSettings() {
-            showLoading(true);
-            try {
-                await fetchData(`/api/settings/welcome/${guildId}`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        enabled: document.getElementById('welcome-enabled').checked,
-                        channel_id: document.getElementById('welcome-channel').value,
-                        bg_image_url: document.getElementById('welcome-bg').value
-                    })
-                });
-                showNotification('Welcome settings saved!');
-                loadGuildStats();
-            } catch (e) {
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function loadBirthdaySettings() {
-            try {
-                const settings = await fetchData(`/api/settings/birthday/${guildId}`);
-                document.getElementById('birthday-channel').value = settings.channel_id || '';
-            } catch (e) { }
-        }
-
-        async function saveBirthdaySettings() {
-            showLoading(true);
-            try {
-                await fetchData(`/api/settings/birthday/${guildId}`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        channel_id: document.getElementById('birthday-channel').value
-                    })
-                });
-                showNotification('Birthday settings saved!');
-                loadGuildStats();
-            } catch (e) {
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // ──────────────────────────────────────────────────
-        //  Gift Code Automation
-        // ──────────────────────────────────────────────────
-        async function loadGiftCodeDashboard() {
-            showLoading(true);
-            try {
-                await Promise.all([
-                    loadGiftCodes(true),
-                    loadARSettings(),
-                    loadARMembers()
-                ]);
-            } catch (e) {
-                console.error('Error loading gift code dashboard:', e);
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function loadARSettings() {
-            try {
-                const s = await fetchData(`/api/giftcodes/settings/${guildId}`);
-                const cb = document.getElementById('ar-enabled');
-                cb.checked = s.auto_redeem_enabled;
-                onToggleAREnabled(cb);
-
-                document.getElementById('ar-channel').value = s.auto_redeem_channel_id || '';
-                document.getElementById('reg-channel').value = s.registration_channel_id || '';
-                document.getElementById('poster-channel').value = s.latest_code_channel_id || '';
-            } catch (e) { console.warn('Failed to load AR settings:', e); }
-        }
-
-        function onToggleAREnabled(cb) {
-            const pill = document.getElementById('ar-enabled-pill');
-            pill.textContent = cb.checked ? 'Enabled' : 'Disabled';
-            pill.className = 'enabled-pill ' + (cb.checked ? 'on' : 'off');
-        }
-
-        async function saveARSettings() {
-            const btn = document.getElementById('save-ar-settings-btn');
-            btn.disabled = true;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i data-lucide="loader-2" style="width:16px;height:16px;animation:spin 1s linear infinite;"></i> Saving...';
-            lucide.createIcons();
-
-            try {
-                await fetchData(`/api/giftcodes/settings/${guildId}`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        auto_redeem_enabled: document.getElementById('ar-enabled').checked,
-                        auto_redeem_channel_id: document.getElementById('ar-channel').value,
-                        registration_channel_id: document.getElementById('reg-channel').value,
-                        latest_code_channel_id: document.getElementById('poster-channel').value
-                    })
-                });
-                showNotification('✅ Automation settings saved!');
-            } catch (e) {
-                showNotification('Failed to save settings', true);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-                lucide.createIcons();
-            }
-        }
-
-        async function loadARMembers() {
-            const list = document.getElementById('ar-members-list');
-            try {
-                const res = await fetchData(`/api/giftcodes/members/${guildId}`);
-                const members = res.members || [];
-                
-                if (members.length === 0) {
-                    list.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--text-muted); padding:40px;">No members configured for auto-redeem.</td></tr>';
-                    return;
-                }
-
-                list.innerHTML = members.map(m => `
-                    <tr>
-                        <td>
-                            <div class="member-nick">
-                                <img class="member-avatar" src="${m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
-                                <span>${m.nickname || 'Unknown'}</span>
-                            </div>
-                        </td>
-                        <td><span class="member-fid">${m.fid}</span></td>
-                        <td><span style="font-size:0.8rem;">Lv.${m.furnace_lv || 0}</span></td>
-                        <td style="text-align:right;">
-                            <button onclick="removeMember('${m.fid}')" class="btn-icon" title="Remove member">
-                                <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).join('');
-                lucide.createIcons();
-            } catch (e) {
-                console.error('Failed to load members:', e);
-                list.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#ef4444; padding:40px;">Failed to load members: ${e.message}</td></tr>`;
-            }
-        }
-
-        function showAddMemberModal() {
-            document.getElementById('add-member-modal').style.display = 'flex';
-            document.getElementById('add-member-fid').value = '';
-            document.getElementById('fid-result').style.display = 'none';
-            document.getElementById('confirm-add-member-btn').disabled = true;
-            window._verifiedMember = null;
-        }
-
-        function closeAddMemberModal() {
-            document.getElementById('add-member-modal').style.display = 'none';
-        }
-
-        async function verifyFID() {
-            const fid = document.getElementById('add-member-fid').value.trim();
-            if (!/^\d{9}$/.test(fid)) {
-                showNotification('FID must be exactly 9 digits', true);
-                return;
-            }
-
-            const btn = document.getElementById('verify-fid-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" style="width:16px;height:16px;animation:spin 1s linear infinite;"></i>';
-            lucide.createIcons();
-
-            try {
-                const res = await fetchData('/api/giftcodes/player-info', {
-                    method: 'POST',
-                    body: JSON.stringify({ fid })
-                });
-
-                if (res.status === 'success') {
-                    const data = res.data;
-                    window._verifiedMember = data;
-                    document.getElementById('fid-nickname').textContent = data.nickname;
-                    document.getElementById('fid-level').textContent = 'Furnace Lv.' + data.furnace_lv;
-                    document.getElementById('fid-avatar').src = data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png';
-                    document.getElementById('fid-result').style.display = 'block';
-                    document.getElementById('confirm-add-member-btn').disabled = false;
-                }
-            } catch (e) {
-                showNotification('Player not found or API error', true);
-                document.getElementById('fid-result').style.display = 'none';
-                document.getElementById('confirm-add-member-btn').disabled = true;
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="search"></i>';
-                lucide.createIcons();
-            }
-        }
-
-        async function confirmAddMember() {
-            if (!window._verifiedMember) return;
-            const btn = document.getElementById('confirm-add-member-btn');
-            btn.disabled = true;
-            btn.innerHTML = '<i data-lucide="loader-2" style="width:16px;height:16px;animation:spin 1s linear infinite;"></i> Adding...';
-            lucide.createIcons();
-
-            try {
-                await fetchData(`/api/giftcodes/members/${guildId}/add`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        fid: window._verifiedMember.fid,
-                        nickname: window._verifiedMember.nickname,
-                        furnace_lv: window._verifiedMember.furnace_lv,
-                        avatar_image: window._verifiedMember.avatar_image
-                    })
-                });
-                showNotification('✅ Member added successfully!');
-                closeAddMemberModal();
-                loadARMembers();
-            } catch (e) {
-                showNotification('Failed to add member', true);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Add Member';
-                lucide.createIcons();
-            }
-        }
-
-        async function removeMember(fid) {
-            if (!confirm(`Are you sure you want to remove player ${fid} from auto-redeem?`)) return;
-            
-            try {
-                await fetchData(`/api/giftcodes/members/${guildId}/remove`, {
-                    method: 'POST',
-                    body: JSON.stringify({ fid })
-                });
-                showNotification('✅ Member removed');
-                loadARMembers();
-            } catch (e) {
-                showNotification('Failed to remove member', true);
-            }
-        }
-
-        async function loadGiftCodeStats() {
-            try {
-                const stats = await fetchData(`/api/giftcodes/${guildId}/stats`);
-                document.getElementById('gift-total').textContent = stats.total_attempts || 0;
-                document.getElementById('gift-success').textContent = stats.successful || 0;
-                document.getElementById('gift-failed').textContent = stats.failed || 0;
-                document.getElementById('gift-unique').textContent = stats.unique_codes || 0;
-            } catch (e) {
-                console.error('Failed to load gift code stats');
-            }
-        }
-
-        async function loadGiftCodes() {
-            try {
-                const data = await fetchData(`/api/giftcodes`);
-                const codes = data.codes || data || [];
-                const list = document.getElementById('giftcodes-list');
-                list.innerHTML = '';
-
-                if (codes.length === 0) {
-                    list.innerHTML = '<div class="empty-state">No gift codes found</div>';
-                    return;
-                }
-
-                codes.forEach(code => {
-                    const div = document.createElement('div');
-                    div.className = 'gift-code-item';
-                    div.innerHTML = `
-            <div class="gift-info">
-              <h4>${code.code}</h4>
-              <p>Status: ${code.validation_status || 'Unknown'}</p>
-            </div>
-          `;
-                    list.appendChild(div);
-                });
-            } catch (e) {
-                console.error('Failed to load gift codes');
-            }
-        }
-
-        async function loadTranslateConfigs() {
-            try {
-                const configs = await fetchData(`/api/settings/translate/${guildId}`);
-                const list = document.getElementById('translate-configs-list');
-                list.innerHTML = '';
-
-                if (configs.length === 0) {
-                    list.innerHTML = '<div class="empty-state">No configurations created yet</div>';
-                    return;
-                }
-
-                configs.forEach(cfg => {
-                    const div = document.createElement('div');
-                    div.className = 'config-item';
-                    div.innerHTML = `
-            <div class="config-info">
-              <h4>${cfg.name}</h4>
-              <p>${CONFIG.LANG_NAMES[cfg.source_language || 'auto']} → ${CONFIG.LANG_NAMES[cfg.target_language]}</p>
-              <p style="font-size:0.8em; opacity:0.7;">Style: ${cfg.style} | Status: ${cfg.enabled ? 'Enabled' : 'Disabled'}</p>
-            </div>
-            <div style="display:flex; gap:8px;">
-              <button onclick="editTranslateConfig('${cfg.config_id}')" class="btn secondary">Edit</button>
-              <button onclick="deleteTranslateConfig('${cfg.config_id}')" class="btn danger">Delete</button>
-            </div>
-          `;
-                    list.appendChild(div);
-                });
-            } catch (e) {
-                console.error('Failed to load translate configs');
-            }
-        }
-
-        function openTranslateModal(config = null) {
-            const modal = document.getElementById('translate-modal');
-            const title = document.getElementById('modal-title');
-
-            if (config) {
-                title.textContent = 'Edit Auto-Translate Config';
-                document.getElementById('config-id').value = config.config_id;
-                document.getElementById('config-name').value = config.name;
-                document.getElementById('source-lang').value = config.source_language || 'auto';
-                document.getElementById('target-lang').value = config.target_language;
-                document.getElementById('source-channel').value = config.source_channel_id;
-                document.getElementById('target-channel').value = config.target_channel_id;
-                document.getElementById('translate-style').value = config.style || 'webhook';
-                document.getElementById('delete-original').checked = config.delete_original || false;
-            } else {
-                title.textContent = 'New Auto-Translate Config';
-                document.getElementById('config-id').value = '';
-                document.getElementById('config-name').value = '';
-                document.getElementById('delete-original').checked = false;
-            }
-
-            modal.style.display = 'flex';
-        }
-
-        function closeTranslateModal() {
-            document.getElementById('translate-modal').style.display = 'none';
-        }
-
-        async function saveTranslateConfig() {
-            const data = {
-                config_id: document.getElementById('config-id').value,
-                name: document.getElementById('config-name').value,
-                source_language: document.getElementById('source-lang').value,
-                target_language: document.getElementById('target-lang').value,
-                source_channel_id: document.getElementById('source-channel').value,
-                target_channel_id: document.getElementById('target-channel').value,
-                style: document.getElementById('translate-style').value,
-                delete_original: document.getElementById('delete-original').checked
-            };
-
-            if (!data.name || !data.source_channel_id || !data.target_channel_id) {
-                showNotification('Please fill in all required fields', true);
-                return;
-            }
-
-            showLoading(true);
-            try {
-                await fetchData(`/api/settings/translate/${guildId}`, {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-                showNotification('Configuration saved!');
-                closeTranslateModal();
-                loadTranslateConfigs();
-                loadGuildStats();
-            } catch (e) {
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function editTranslateConfig(id) {
-            showLoading(true);
-            try {
-                const configs = await fetchData(`/api/settings/translate/${guildId}`);
-                const config = configs.find(c => c.config_id === id);
-                if (config) {
-                    openTranslateModal(config);
-                }
-            } catch (e) {
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        async function deleteTranslateConfig(id) {
-            if (!confirm('Are you sure you want to delete this configuration?')) return;
-
-            showLoading(true);
-            try {
-                await fetchData(`/api/settings/translate/${guildId}/${id}`, {
-                    method: 'DELETE'
-                });
-                showNotification('Configuration deleted');
-                loadTranslateConfigs();
-                loadGuildStats();
-            } catch (e) {
-            } finally {
-                showLoading(false);
-            }
-        }
-
-        // Initialize
-        (async () => {
-            showLoading(true);
-            try {
-                // Load guild name from servers list
-                const guildsResponse = await fetchData('/api/servers');
-                const guilds = Array.isArray(guildsResponse) ? guildsResponse : (guildsResponse.servers || []);
-                const guild = guilds.find(g => g.id === guildId);
-                if (guild) {
-                    document.getElementById('guild-name-header').textContent = guild.name;
-                    document.title = `Manage ${guild.name} - Whiteout Survival Bot`;
-                }
-
-                await loadChannels();
-                await loadGuildStats();
-                await loadWelcomeSettings();
-                await loadBirthdaySettings();
-                await loadTranslateConfigs();
-                await loadGiftCodeDashboard();
-            } catch (e) {
-            } finally {
-                showLoading(false);
-            }
-        })();
-    </script>
-</body>
-
-</html>
-=======
 <!DOCTYPE html>
 <html lang="en">
 
@@ -1831,6 +532,187 @@
             .giftcodes-header .btn { width:100%; justify-content:center; }
         }
 
+        /* ── Auto-Redeem Management ─────────────────── */
+        .auto-redeem-section {
+            background: linear-gradient(145deg, #1e2229 0%, #16191f 100%);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 28px;
+            margin-bottom: 32px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        .auto-redeem-section::before {
+            content: '';
+            position: absolute;
+            top: 0; right: 0;
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+            pointer-events: none;
+        }
+        .ar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .ar-header-left {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .ar-icon-box {
+            width: 42px; height: 42px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .ar-icon-box.purple { background: rgba(139,92,246,0.15); color: var(--primary); }
+        .ar-icon-box.emerald { background: rgba(16,185,129,0.15); color: #34d399; }
+        .ar-icon-box.amber { background: rgba(251,191,36,0.15); color: #fbbf24; }
+        .ar-header-left h3 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem; font-weight: 700;
+        }
+        .ar-header-left p {
+            color: var(--text-muted); font-size: 0.85rem; margin-top: 2px;
+        }
+        .ar-status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 14px; border-radius: 20px;
+            font-size: 0.78rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .ar-status-badge.active { background: rgba(16,185,129,0.14); color: #34d399; border: 1px solid rgba(52,211,153,0.25); }
+        .ar-status-badge.inactive { background: rgba(255,255,255,0.04); color: var(--text-muted); border: 1px solid var(--glass-border); }
+        .ar-status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+        }
+        .ar-status-badge.active .ar-status-dot { background: #34d399; box-shadow: 0 0 8px rgba(52,211,153,0.5); animation: pulse-dot 2s ease-in-out infinite; }
+        .ar-status-badge.inactive .ar-status-dot { background: var(--text-muted); }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+        .ar-config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        @media(max-width: 900px) { .ar-config-grid { grid-template-columns: 1fr; } }
+        .ar-config-card {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 14px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .ar-config-label {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.85rem; font-weight: 600; color: var(--text-muted);
+        }
+        .ar-config-label i { width: 16px; height: 16px; }
+
+        .ar-members-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 16px; padding-top: 20px;
+            border-top: 1px solid var(--glass-border);
+        }
+        .ar-members-header h4 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem; font-weight: 700;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .ar-member-count {
+            background: rgba(139,92,246,0.12); color: var(--primary);
+            padding: 2px 10px; border-radius: 10px;
+            font-size: 0.75rem; font-weight: 700;
+        }
+        .ar-members-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .ar-member-card {
+            background: rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: all 0.2s;
+        }
+        .ar-member-card:hover {
+            background: rgba(255,255,255,0.02);
+            border-color: rgba(255,255,255,0.08);
+        }
+        .ar-member-avatar {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+            background: #232831;
+            flex-shrink: 0;
+        }
+        .ar-member-info {
+            flex: 1; min-width: 0;
+        }
+        .ar-member-info h5 {
+            font-weight: 600; font-size: 0.92rem;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .ar-member-info p {
+            color: var(--text-muted); font-size: 0.78rem; margin-top: 2px;
+        }
+        .ar-member-remove {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            border: 1px solid rgba(239,68,68,0.2);
+            background: rgba(239,68,68,0.08);
+            color: #f87171;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+        .ar-member-remove:hover {
+            background: rgba(239,68,68,0.2);
+            border-color: rgba(239,68,68,0.4);
+        }
+        .ar-empty-members {
+            text-align: center; padding: 32px 20px;
+            color: var(--text-muted); font-size: 0.9rem;
+            background: rgba(0,0,0,0.15);
+            border-radius: 12px;
+            border: 1px dashed rgba(255,255,255,0.06);
+        }
+        .ar-save-row {
+            display: flex; justify-content: flex-end;
+            gap: 12px; margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--glass-border);
+        }
+
+        /* Add Member Modal */
+        .add-member-lookup {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            min-height: 80px;
+            border: 1px solid rgba(255,255,255,0.04);
+            margin-top: 8px;
+        }
+
         /* Time Wheel Picker Styles */
         .time-picker-row {
             display: flex;
@@ -2337,6 +1219,92 @@
                     </div>
                 </div>
 
+                <!-- ── Auto-Redeem Management Section ── -->
+                <div class="auto-redeem-section" id="auto-redeem-section">
+                    <div class="ar-header">
+                        <div class="ar-header-left">
+                            <div class="ar-icon-box purple">
+                                <i data-lucide="bot" style="width: 22px;"></i>
+                            </div>
+                            <div>
+                                <h3>Auto-Redeem Management</h3>
+                                <p>Configure automatic gift code redemption for registered players</p>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <span id="ar-status-badge" class="ar-status-badge inactive">
+                                <span class="ar-status-dot"></span>
+                                Inactive
+                            </span>
+                            <label class="switch">
+                                <input type="checkbox" id="ar-enabled-toggle" onchange="onAutoRedeemToggle(this)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Channel Configuration -->
+                    <div class="ar-config-grid">
+                        <div class="ar-config-card">
+                            <div class="ar-config-label">
+                                <i data-lucide="hash"></i>
+                                Auto-Redeem Log Channel
+                            </div>
+                            <select id="ar-log-channel" class="guild-channels">
+                                <option value="">Select a channel</option>
+                            </select>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+                                Redemption results will be posted to this channel
+                            </p>
+                        </div>
+                        <div class="ar-config-card">
+                            <div class="ar-config-label">
+                                <i data-lucide="user-plus"></i>
+                                Player Registration Channel
+                            </div>
+                            <select id="ar-register-channel" class="guild-channels">
+                                <option value="">Select a channel</option>
+                            </select>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+                                Players write their FID here to register for auto-redeem
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="ar-save-row" style="border-top: none; padding-top: 0; margin-top: 0;">
+                        <button onclick="saveAutoRedeemSettings()" class="btn btn-primary" id="ar-save-btn">
+                            <i data-lucide="save" style="width: 15px;"></i>
+                            Save Auto-Redeem Settings
+                        </button>
+                    </div>
+
+                    <!-- Members Management -->
+                    <div class="ar-members-header">
+                        <h4>
+                            <i data-lucide="users" style="width: 18px; color: var(--primary);"></i>
+                            Registered Members
+                            <span id="ar-member-count" class="ar-member-count">0</span>
+                        </h4>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="ar-bulk-remove-btn" onclick="bulkRemoveAutoRedeemMembers()" class="btn btn-danger" style="padding: 8px 14px; display: none;">
+                                <i data-lucide="trash-2" style="width: 14px;"></i>
+                                Remove Selected
+                            </button>
+                            <button onclick="loadAutoRedeemMembers()" class="btn btn-secondary" style="padding: 8px 14px;">
+                                <i data-lucide="refresh-cw" style="width: 14px;"></i>
+                                Refresh
+                            </button>
+                            <button onclick="openAddMemberModal()" class="btn btn-primary" style="padding: 8px 14px;">
+                                <i data-lucide="user-plus" style="width: 14px;"></i>
+                                Add Member
+                            </button>
+                        </div>
+                    </div>
+                    <div id="ar-members-list" class="ar-members-grid">
+                        <div class="ar-empty-members">Loading members...</div>
+                    </div>
+                </div>
+
                 <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 700; margin: 32px 0 16px 0; display: flex; align-items: center; gap: 10px;">
                     <i data-lucide="list" style="width: 18px; color: var(--primary);"></i>
                     Active Codes Directory
@@ -2506,6 +1474,47 @@
         </div>
     </div>
 
+    <!-- Add Member Modal -->
+    <div id="add-member-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                    <div class="ar-icon-box emerald" style="width: 32px; height: 32px;">
+                        <i data-lucide="user-plus" style="width: 16px;"></i>
+                    </div>
+                    Add Member to Auto-Redeem
+                </h3>
+                <button onclick="closeAddMemberModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Player FID (9 digits)</label>
+                    <div class="player-input-wrap">
+                        <input type="text" id="add-member-fid" placeholder="e.g. 123456789" maxlength="9">
+                        <button onclick="lookupMemberForAdd()" class="btn btn-primary" id="lookup-member-btn">
+                            <i data-lucide="search" style="width: 16px;"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="add-member-preview" class="add-member-lookup">
+                    <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
+                        Enter a FID and search to verify the player
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAddMemberModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="confirmAddMember()" class="btn btn-primary" id="confirm-add-member-btn" disabled>
+                    <i data-lucide="user-check" style="width: 15px;"></i>
+                    Add to Auto-Redeem
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="loading" class="loading-overlay"><div class="spinner"></div></div>
     <div id="notification" class="notification">Action completed</div>
 
@@ -2669,17 +1678,9 @@
                         ...(options.headers || {})
                     }
                 });
-                
-                const data = await response.json().catch(() => ({}));
-                
-                if (!response.ok) {
-                    const errorMsg = data.message || data.detail || `HTTP error! status: ${response.status}`;
-                    console.error('API Error:', data);
-                    throw new Error(errorMsg);
-                }
-                return data;
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
             } catch (e) {
-                console.error('Fetch failed:', e);
                 showNotification(e.message, true);
                 throw e;
             }
@@ -2719,7 +1720,7 @@
         async function loadChannels() {
             try {
                 const channels = await fetchData(`/api/guilds/${guildId}/channels`);
-                const selects = document.querySelectorAll('#welcome-channel, .guild-channels, #birthday-channel, #source-channel, #target-channel');
+                const selects = document.querySelectorAll('#welcome-channel, .guild-channels, #birthday-channel, #source-channel, #target-channel, #ar-log-channel, #ar-register-channel');
                 selects.forEach(select => {
                     select.innerHTML = '<option value="">Select a channel</option>';
                     channels.forEach(ch => {
@@ -3347,6 +2348,286 @@
             }
         }
 
+        // ──────────────────────────────────────────────────
+        //  Auto-Redeem Management
+        // ──────────────────────────────────────────────────
+        let pendingAddMember = null;
+
+        function onAutoRedeemToggle(cb) {
+            const badge = document.getElementById('ar-status-badge');
+            if (cb.checked) {
+                badge.className = 'ar-status-badge active';
+                badge.innerHTML = '<span class="ar-status-dot"></span> Active';
+            } else {
+                badge.className = 'ar-status-badge inactive';
+                badge.innerHTML = '<span class="ar-status-dot"></span> Inactive';
+            }
+        }
+
+        async function loadAutoRedeemSettings() {
+            try {
+                const settings = await fetchData(`/api/giftcodes/settings/${guildId}`);
+                const toggle = document.getElementById('ar-enabled-toggle');
+                toggle.checked = settings.auto_redeem_enabled || false;
+                onAutoRedeemToggle(toggle);
+
+                if (settings.auto_redeem_channel_id) {
+                    document.getElementById('ar-log-channel').value = settings.auto_redeem_channel_id;
+                }
+                if (settings.registration_channel_id) {
+                    document.getElementById('ar-register-channel').value = settings.registration_channel_id;
+                }
+            } catch (e) {
+                console.warn('Failed to load auto-redeem settings:', e);
+            }
+        }
+
+        async function saveAutoRedeemSettings() {
+            const btn = document.getElementById('ar-save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width:15px;height:15px;animation:spin 1s linear infinite;"></i> Saving…';
+            lucide.createIcons();
+
+            try {
+                await fetchData(`/api/giftcodes/settings/${guildId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        auto_redeem_enabled: document.getElementById('ar-enabled-toggle').checked,
+                        auto_redeem_channel_id: document.getElementById('ar-log-channel').value || null,
+                        registration_channel_id: document.getElementById('ar-register-channel').value || null,
+                        latest_code_channel_id: null
+                    })
+                });
+                showNotification('✅ Auto-Redeem settings saved!');
+            } catch (e) {
+                showNotification('Failed to save auto-redeem settings', true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="save" style="width:15px;height:15px;"></i> Save Auto-Redeem Settings';
+                lucide.createIcons();
+            }
+        }
+
+        async function loadAutoRedeemMembers() {
+            const list = document.getElementById('ar-members-list');
+            const countBadge = document.getElementById('ar-member-count');
+            list.innerHTML = '<div class="ar-empty-members">Loading members...</div>';
+
+            try {
+                const data = await fetchData(`/api/giftcodes/members/${guildId}`);
+                const members = data.members || [];
+                countBadge.textContent = members.length;
+
+                if (members.length === 0) {
+                    list.innerHTML = `
+                        <div class="ar-empty-members">
+                            <i data-lucide="users" style="width: 32px; height: 32px; margin-bottom: 10px; opacity: 0.3;"></i><br>
+                            No members registered for auto-redeem yet.<br>
+                            <span style="font-size: 0.8rem; opacity: 0.6;">Use the "Add Member" button or set up a registration channel.</span>
+                        </div>`;
+                    lucide.createIcons();
+                    return;
+                }
+
+                list.innerHTML = '';
+                members.forEach(m => {
+                    const fid = m.fid || m._id || 'Unknown';
+                    const nick = m.nickname || 'Unknown Player';
+                    const furnace = m.furnace_lv || 0;
+                    const formattedFurnace = formatFurnaceLevel(furnace);
+                    const avatar = m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    const addedAt = m.added_at ? new Date(m.added_at).toLocaleDateString() : '';
+
+                    const card = document.createElement('div');
+                    card.className = 'ar-member-card';
+                    card.innerHTML = `
+                        <input type="checkbox" class="ar-member-checkbox" value="${escapeAttribute(fid)}" data-name="${escapeAttribute(nick)}" onchange="toggleBulkRemoveButton()" style="margin-right: 4px; accent-color: var(--primary); cursor: pointer; width: 16px; height: 16px;">
+                        <img src="${escapeAttribute(avatar)}" class="ar-member-avatar" alt="Avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                        <div class="ar-member-info">
+                            <h5>${escapeHTML(nick)}</h5>
+                            <p>FID: ${escapeHTML(fid)} • Furnace Lv ${formattedFurnace}${addedAt ? ' • Added ' + addedAt : ''}</p>
+                        </div>
+                        <button class="ar-member-remove" onclick="removeAutoRedeemMember('${escapeAttribute(fid)}', '${escapeAttribute(nick)}')" title="Remove member">
+                            <i data-lucide="x" style="width: 14px;"></i>
+                        </button>
+                    `;
+                    list.appendChild(card);
+                });
+                toggleBulkRemoveButton(); // Hide bulk remove if checkboxes are refreshed
+                lucide.createIcons();
+            } catch (e) {
+                list.innerHTML = '<div class="ar-empty-members">Failed to load members. Try again.</div>';
+                countBadge.textContent = '?';
+            }
+        }
+
+        async function removeAutoRedeemMember(fid, nickname) {
+            if (!confirm(`Remove ${nickname} (FID: ${fid}) from auto-redeem?`)) return;
+
+            showLoading(true);
+            try {
+                await fetchData(`/api/giftcodes/members/${guildId}/remove`, {
+                    method: 'POST',
+                    body: JSON.stringify({ fid })
+                });
+                showNotification(`Removed ${nickname} from auto-redeem`);
+                loadAutoRedeemMembers();
+            } catch (e) {
+                showNotification('Failed to remove member', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        function formatFurnaceLevel(lv) {
+            if (!lv) return "0";
+            let val = parseInt(lv);
+            if (isNaN(val)) return String(lv);
+            if (val <= 30) return String(val);
+            let adjustedLevel = val - 30;
+            let tier = Math.floor((adjustedLevel - 1) / 5) + 1;
+            let stage = ((adjustedLevel - 1) % 5) + 1;
+            if (stage === 5) {
+                return \`FC \${tier}\`;
+            } else {
+                return \`FC \${tier}-\${stage}\`;
+            }
+        }
+
+        function toggleBulkRemoveButton() {
+            const checkboxes = document.querySelectorAll('.ar-member-checkbox:checked');
+            const btn = document.getElementById('ar-bulk-remove-btn');
+            if (checkboxes.length > 0) {
+                btn.style.display = 'inline-flex';
+                btn.innerHTML = \`<i data-lucide="trash-2" style="width: 14px;"></i> Remove Selected (\${checkboxes.length})\`;
+                lucide.createIcons();
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        async function bulkRemoveAutoRedeemMembers() {
+            const checkboxes = document.querySelectorAll('.ar-member-checkbox:checked');
+            if (checkboxes.length === 0) return;
+            if (!confirm(\`Remove \${checkboxes.length} selected members from auto-redeem?\`)) return;
+
+            showLoading(true);
+            let successCount = 0;
+            let failCount = 0;
+
+            for (const cb of checkboxes) {
+                try {
+                    await fetchData(\`/api/giftcodes/members/\${guildId}/remove\`, {
+                        method: 'POST',
+                        body: JSON.stringify({ fid: cb.value })
+                    });
+                    successCount++;
+                } catch (e) {
+                    failCount++;
+                }
+            }
+
+            showNotification(\`Removed \${successCount} members\${failCount > 0 ? \` (\${failCount} failed)\` : ''}\`);
+            toggleBulkRemoveButton(); // Reset button
+            loadAutoRedeemMembers();
+            showLoading(false);
+        }
+
+        function openAddMemberModal() {
+            pendingAddMember = null;
+            document.getElementById('add-member-fid').value = '';
+            document.getElementById('confirm-add-member-btn').disabled = true;
+            document.getElementById('add-member-preview').innerHTML = `
+                <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
+                    Enter a FID and search to verify the player
+                </div>`;
+            document.getElementById('add-member-modal').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function closeAddMemberModal() {
+            document.getElementById('add-member-modal').style.display = 'none';
+            pendingAddMember = null;
+        }
+
+        async function lookupMemberForAdd() {
+            const fidInput = document.getElementById('add-member-fid');
+            const fid = fidInput.value.trim();
+            const preview = document.getElementById('add-member-preview');
+            const btn = document.getElementById('lookup-member-btn');
+            const confirmBtn = document.getElementById('confirm-add-member-btn');
+
+            if (!fid || fid.length !== 9 || !/^\d+$/.test(fid)) {
+                showNotification('Please enter a valid 9-digit FID', true);
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; animation: spin 1s linear infinite;"></i>';
+            lucide.createIcons();
+            confirmBtn.disabled = true;
+            pendingAddMember = null;
+
+            try {
+                const res = await fetchData('/api/giftcodes/player-info', {
+                    method: 'POST',
+                    body: JSON.stringify({ fid })
+                });
+
+                if (res.status === 'success' && res.data) {
+                    pendingAddMember = res.data;
+                    preview.innerHTML = `
+                        <img src="${res.data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
+                             class="player-avatar-large" alt="Avatar" 
+                             onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                        <div class="player-meta">
+                            <h4>${escapeHTML(res.data.nickname)}</h4>
+                            <p>FID: ${res.data.fid} • Furnace Lv ${formatFurnaceLevel(res.data.furnace_lv || 0)}</p>
+                        </div>
+                        <div style="margin-left: auto; color: #34d399;"><i data-lucide="check-circle" style="width: 22px;"></i></div>`;
+                    confirmBtn.disabled = false;
+                }
+            } catch (e) {
+                preview.innerHTML = '<div style="color: #ef4444; font-size: 0.9rem; text-align: center; width: 100%;">Player not found or error fetching data</div>';
+                confirmBtn.disabled = true;
+                pendingAddMember = null;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="search" style="width: 16px;"></i>';
+                lucide.createIcons();
+            }
+        }
+
+        async function confirmAddMember() {
+            if (!pendingAddMember) return;
+
+            const confirmBtn = document.getElementById('confirm-add-member-btn');
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i data-lucide="loader-2" style="width:15px;animation:spin 1s linear infinite;"></i> Adding...';
+            lucide.createIcons();
+
+            try {
+                await fetchData(`/api/giftcodes/members/${guildId}/add`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        fid: pendingAddMember.fid,
+                        nickname: pendingAddMember.nickname || 'Unknown',
+                        furnace_lv: pendingAddMember.furnace_lv || 0,
+                        avatar_image: pendingAddMember.avatar_image || ''
+                    })
+                });
+                showNotification(`✅ ${pendingAddMember.nickname} added to auto-redeem!`);
+                closeAddMemberModal();
+                loadAutoRedeemMembers();
+            } catch (e) {
+                showNotification('Failed to add member', true);
+            } finally {
+                confirmBtn.disabled = false;
+                confirmBtn.innerHTML = '<i data-lucide="user-check" style="width:15px;"></i> Add to Auto-Redeem';
+                lucide.createIcons();
+            }
+        }
+
         function openTranslateModal(config = null) {
             document.getElementById('translate-modal').style.display = 'flex';
         }
@@ -3649,6 +2930,8 @@
                 await loadBirthdaySettings();
                 await loadTranslateConfigs();
                 await loadGiftCodes();
+                await loadAutoRedeemSettings();
+                await loadAutoRedeemMembers();
                 await loadReminders();
             } catch (e) { console.error('Init error:', e); } finally { showLoading(false); }
 
@@ -3656,18 +2939,8 @@
             setupDragDrop();
             // Kick off an initial preview render in case no settings exist yet
             updatePreview();
-            // Fetch bot branding separately
-            fetchData('/api/status').then(data => {
-                if (data.bot_avatar) {
-                    document.querySelectorAll('.brand img').forEach(img => {
-                        img.src = data.bot_avatar;
-                    });
-                }
-            }).catch(() => {});
-
             lucide.createIcons();
         })();
     </script>
 </body>
 </html>
->>>>>>> 774eec0 (feat: implement dynamic bot branding and improve error reporting)

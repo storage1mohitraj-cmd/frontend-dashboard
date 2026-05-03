@@ -713,15 +713,23 @@ class VoiceChannelButton(discord.ui.Button):
             
             # Connect bot to the voice channel
             try:
-                # If there's a stuck voice client, try to clear it
+                # If bot is already in a channel, just move it instead of forcing a disconnect
                 if interaction.guild.voice_client:
-                    try:
-                        await interaction.guild.voice_client.disconnect(force=True)
-                        await asyncio.sleep(1)
-                    except:
-                        pass
-                
-                player = await self.channel.connect(cls=CustomPlayer, timeout=90.0, self_deaf=True)
+                    if getattr(interaction.guild.voice_client, "channel", None) == self.channel:
+                        player = interaction.guild.voice_client
+                    else:
+                        try:
+                            await interaction.guild.voice_client.move_to(self.channel)
+                            player = interaction.guild.voice_client
+                        except Exception:
+                            try:
+                                await interaction.guild.voice_client.disconnect(force=True)
+                                await asyncio.sleep(1)
+                            except:
+                                pass
+                            player = await self.channel.connect(cls=CustomPlayer, timeout=90.0, self_deaf=True)
+                else:
+                    player = await self.channel.connect(cls=CustomPlayer, timeout=90.0, self_deaf=True)
                 player.text_channel = interaction.channel
                 
                 # Optimize voice quality
@@ -1693,10 +1701,10 @@ class Music(commands.Cog):
         if os.getenv("LAVALINK_USE_FALLBACKS", "true").lower() == "true":
             fallback_specs = [
                 {
-                    "host": "lava-v3.ajieblogs.eu.org",
-                    "port": 80,
+                    "host": "lava-v4.ajieblogs.eu.org",
+                    "port": 443,
                     "password": "https://dsc.gg/ajidevserver",
-                    "secure": False
+                    "secure": True
                 },
                 {
                     "host": "lavalink.oops.wtf",
@@ -1816,10 +1824,10 @@ class Music(commands.Cog):
             print("   LAVALINK_PASSWORD=www.freelavalink.ga")
             print("   LAVALINK_SECURE=true")
             print("\n2. Or use this alternative:")
-            print("   LAVALINK_HOST=lava-v3.ajieblogs.eu.org")
-            print("   LAVALINK_PORT=80")
+            print("   LAVALINK_HOST=lava-v4.ajieblogs.eu.org")
+            print("   LAVALINK_PORT=443")
             print("   LAVALINK_PASSWORD=https://dsc.gg/ajidevserver")
-            print("   LAVALINK_SECURE=false")
+            print("   LAVALINK_SECURE=true")
             print("\n3. Self-host Lavalink (see MUSIC_SETUP.md)")
             print("="*70 + "\n")
             
@@ -2220,13 +2228,22 @@ class Music(commands.Cog):
                         import time
                         start_time = time.time()
                         
-                        # If there's a stuck voice client, try to clear it
+                        # Use existing client or move it, avoiding forced disconnects that break Wavelink
                         if member.guild.voice_client:
-                            try:
-                                await member.guild.voice_client.disconnect(force=True)
-                                await asyncio.sleep(1)
-                            except:
-                                pass
+                            if getattr(member.guild.voice_client, "channel", None) == voice_channel:
+                                player = member.guild.voice_client
+                                break
+                            else:
+                                try:
+                                    await member.guild.voice_client.move_to(voice_channel)
+                                    player = member.guild.voice_client
+                                    break
+                                except Exception:
+                                    try:
+                                        await member.guild.voice_client.disconnect(force=True)
+                                        await asyncio.sleep(1)
+                                    except:
+                                        pass
                         
                         player = await voice_channel.connect(
                             cls=CustomPlayer, 
@@ -2798,14 +2815,25 @@ class Music(commands.Cog):
                     try:
                         print(f"🔄 Connecting to {target_channel.name} (attempt {attempt + 1}/{max_connect_retries})...")
                         
-                        # Ensure any old voice client is disconnected before a new attempt
+                        # Attempt to use existing client or move it to avoid Wavelink session breaks
                         if interaction.guild.voice_client:
-                            print(f"🧹 Force disconnecting existing voice client in {interaction.guild.name}")
-                            try:
-                                await interaction.guild.voice_client.disconnect(force=True)
-                                await asyncio.sleep(1)
-                            except Exception:
-                                pass
+                            if getattr(interaction.guild.voice_client, "channel", None) == target_channel:
+                                player = interaction.guild.voice_client
+                                print(f"✅ Already connected to {target_channel.name}")
+                                break
+                            else:
+                                try:
+                                    await interaction.guild.voice_client.move_to(target_channel)
+                                    player = interaction.guild.voice_client
+                                    print(f"🚚 Moved to {target_channel.name}")
+                                    break
+                                except Exception as e:
+                                    print(f"⚠️ Move failed, forcing disconnect: {e}")
+                                    try:
+                                        await interaction.guild.voice_client.disconnect(force=True)
+                                        await asyncio.sleep(1)
+                                    except Exception:
+                                        pass
 
                         player = await target_channel.connect(
                             cls=CustomPlayer, 
@@ -3299,15 +3327,23 @@ class Music(commands.Cog):
             # Check if user is in voice channel
             if interaction.user.voice and interaction.user.voice.channel:
                 try:
-                    # If there's a stuck voice client, try to clear it
+                    # Avoid force-disconnecting existing valid clients
                     if interaction.guild.voice_client:
-                        try:
-                            await interaction.guild.voice_client.disconnect(force=True)
-                            await asyncio.sleep(1)
-                        except:
-                            pass
-                    
-                    player = await interaction.user.voice.channel.connect(cls=CustomPlayer, timeout=90.0)
+                        if getattr(interaction.guild.voice_client, "channel", None) == interaction.user.voice.channel:
+                            player = interaction.guild.voice_client
+                        else:
+                            try:
+                                await interaction.guild.voice_client.move_to(interaction.user.voice.channel)
+                                player = interaction.guild.voice_client
+                            except Exception:
+                                try:
+                                    await interaction.guild.voice_client.disconnect(force=True)
+                                    await asyncio.sleep(1)
+                                except:
+                                    pass
+                                player = await interaction.user.voice.channel.connect(cls=CustomPlayer, timeout=90.0)
+                    else:
+                        player = await interaction.user.voice.channel.connect(cls=CustomPlayer, timeout=90.0)
                     player.text_channel = interaction.channel
                 except Exception as e:
                     await interaction.response.send_message(

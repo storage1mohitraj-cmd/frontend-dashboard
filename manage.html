@@ -3378,6 +3378,19 @@
             // Kick off an initial preview render in case no settings exist yet
             updatePreview();
             lucide.createIcons();
+
+            // Auto-refresh mechanism for active tabs
+            setInterval(() => {
+                if (document.hidden) return; // Don't refresh if page is not visible
+                
+                if (currentTab === 'alliance-monitor') {
+                    loadAllianceMonitorData();
+                } else if (currentTab === 'auto-redeem') {
+                    loadAutoRedeemMembers();
+                } else if (currentTab === 'giftcodes') {
+                    loadGiftCodes();
+                }
+            }, 60000); // 60 seconds
         })();
     </script>
 </body>

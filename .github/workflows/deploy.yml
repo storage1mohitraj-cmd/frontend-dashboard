@@ -70,6 +70,16 @@ jobs:
           # Pull latest code
           echo ""
           echo "📥 Pulling latest code..."
+          
+          # Fix for submodule-to-folder transitions
+          # If these exist as directories but have .git files/folders inside, they will block git reset
+          for item in "PROJECT_MIGRATION" "temp_frontend_repo" "temp_frontend_repo_2"; do
+            if [ -d "$item" ] && [ -e "$item/.git" ]; then
+              echo "🧹 Cleaning up legacy submodule artifacts in $item"
+              rm -rf "$item/.git"
+            fi
+          done
+
           # Make sure we're on the right branch
           git checkout main || git checkout -b main
           git fetch origin main
@@ -99,12 +109,15 @@ jobs:
           echo ""
           echo "🔄 Restarting bot..."
           # Find PM2 process name (default: discordbot)
-          PROCESS_NAME=$(pm2 list | grep -E "discordbot|bot" | awk '{print $2}' | head -n 1)
-          if [ -z "$PROCESS_NAME" ]; then
+          # Try to get the exact process name from pm2 jlist for better reliability
+          PROCESS_NAME=$(pm2 jlist | jq -r '.[] | select(.name | test("discordbot|bot")) | .name' | head -n 1)
+          
+          if [ -z "$PROCESS_NAME" ] || [ "$PROCESS_NAME" = "null" ]; then
             PROCESS_NAME="discordbot"
           fi
           
           echo "🔄 Using process name: $PROCESS_NAME"
+          # Try to restart, if fails (like if process doesn't exist), start it
           pm2 restart "$PROCESS_NAME" --update-env || pm2 start app.py --name "$PROCESS_NAME"
           
           echo "✅ Bot restarted"

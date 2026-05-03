@@ -922,6 +922,7 @@ async def setup_hook():
         "cogs.personalise_chat",
         "cogs.music",  # Music bot functionality
         "cogs.voicetest", # Diagnostic cog
+        "cogs.presence",  # Rotating Rich Presence
         "cogs.voice_conversation",  # Voice chat with AI
         "cogs.tts",  # Text-to-Speech in voice channels
         "cogs.auto_translate",  # Auto-translate with DeepL

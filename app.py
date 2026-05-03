@@ -883,6 +883,12 @@ intents.presences = True
 intents.voice_states = True  # Explicitly enable for music functionality
 bot = commands.Bot(command_prefix='!', intents=intents)
 
+@bot.event
+async def on_socket_raw_receive(msg):
+    """Low-level monitor for the entire bot's gateway"""
+    if b'VOICE' in msg:
+        print(f"📡 [RAW_GATEWAY] Received voice-related packet: {msg[:200]}...")
+
 # Load cogs
 async def setup_hook():
     """Load cogs when bot starts"""

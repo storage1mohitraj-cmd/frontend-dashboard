@@ -444,7 +444,12 @@
             grid-template-columns: 1.2fr 2fr;
             gap: 24px;
         }
-        @media(max-width: 900px) { .redeem-grid { grid-template-columns: 1fr; } }
+        @media(max-width: 900px) { 
+            .redeem-grid { grid-template-columns: 1fr; } 
+            #reminder-modal .modal-body { grid-template-columns: 1fr !important; }
+            #reminder-modal .modal-content { max-width: 95% !important; margin: 10px; }
+            .reminder-preview-side { order: -1; margin-bottom: 20px; }
+        }
         
         .player-input-wrap { display: flex; gap: 10px; margin-bottom: 16px; }
         .player-info-display {
@@ -817,79 +822,6 @@
         .timezone-select:focus {
             border-color: var(--primary);
         }
-
-        /* Alliance Monitor Styles */
-        .member-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.2s;
-        }
-        .member-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            transform: translateY(-2px);
-            border-color: rgba(139, 92, 246, 0.3);
-        }
-        .member-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 2px solid var(--glass-border);
-        }
-        .member-info h4 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 120px;
-        }
-        .member-info p {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-        .furnace-badge {
-            background: rgba(245, 158, 11, 0.1);
-            color: var(--accent);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            font-weight: 700;
-        }
-
-        .history-item {
-            background: rgba(255, 255, 255, 0.02);
-            border-radius: 10px;
-            padding: 12px;
-            border-left: 3px solid var(--primary);
-            font-size: 0.85rem;
-        }
-        .history-item .time {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-bottom: 4px;
-        }
-        .history-item .content {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .history-item .change-tag {
-            font-weight: 700;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-        }
-        .change-tag.furnace { background: rgba(245, 158, 11, 0.1); color: var(--accent); }
-        .change-tag.name { background: rgba(139, 92, 246, 0.1); color: var(--primary); }
-        .change-tag.avatar { background: rgba(16, 185, 129, 0.1); color: #10b981; }
     </style>
 </head>
 
@@ -919,6 +851,10 @@
                     <i data-lucide="party-popper"></i>
                     <span>Welcome</span>
                 </button>
+                <button class="nav-item" onclick="switchTab('alliance')">
+                    <i data-lucide="shield"></i>
+                    <span>Alliance Monitor</span>
+                </button>
                 <button class="nav-item" onclick="showNotification('Premium required for advanced settings', true)">
                     <i data-lucide="shield-check"></i>
                     <span>Premium/Pro</span>
@@ -942,10 +878,6 @@
                 <button class="nav-item" onclick="switchTab('reminders')">
                     <i data-lucide="clock"></i>
                     <span>Reminders</span>
-                </button>
-                <button class="nav-item" onclick="switchTab('alliance-monitor')">
-                    <i data-lucide="activity"></i>
-                    <span>Alliance Monitor</span>
                 </button>
             </div>
         </div>
@@ -1209,6 +1141,102 @@
                 </div>
             </div>
 
+            <!-- Alliance Monitor Tab -->
+            <div id="tab-alliance" class="tab-content">
+                <h2 class="section-title">Alliance Monitor</h2>
+                
+                <div class="card">
+                    <div class="section-header">
+                        <h3><i data-lucide="shield" style="width:18px;height:18px;color:var(--primary);"></i> Monitor Configuration</h3>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <span id="monitor-enabled-pill" class="enabled-pill off">Disabled</span>
+                            <label class="switch">
+                                <input type="checkbox" id="monitor-enabled" onchange="toggleMonitor(this)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="welcome-layout">
+                        <div class="welcome-editor">
+                            <div class="form-group">
+                                <label>📢 Log Channel</label>
+                                <select id="monitor-channel" class="guild-channels">
+                                    <option value="">Select a channel</option>
+                                </select>
+                            </div>
+
+                            <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:12px;">
+                                <button onclick="saveMonitorSettings()" class="btn btn-primary">
+                                    <i data-lucide="save" style="width:15px;height:15px;"></i> Save Monitor Settings
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="preview-container" style="background: var(--card-bg);">
+                            <div class="preview-label"><span></span> Feature Overview</div>
+                            <div style="padding: 10px;">
+                                <ul style="list-style: none; display: grid; gap: 12px;">
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="user-check" style="width: 18px; color: var(--primary);"></i>
+                                        <span>Track player name changes</span>
+                                    </li>
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="flame" style="width: 18px; color: #f59e0b;"></i>
+                                        <span>Monitor furnace level changes</span>
+                                    </li>
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="image" style="width: 18px; color: #10b981;"></i>
+                                        <span>Detect avatar changes</span>
+                                    </li>
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="map" style="width: 18px; color: #3b82f6;"></i>
+                                        <span>Monitor State movement</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+                    <div class="card">
+                        <div class="section-header">
+                            <h3><i data-lucide="history" style="width:18px;height:18px;color:var(--primary);"></i> Recent Activity</h3>
+                            <button onclick="loadMonitorHistory()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
+                                <i data-lucide="refresh-cw" style="width: 12px;"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="monitor-history-list" style="max-height: 400px; overflow-y: auto; display: grid; gap: 10px;">
+                            <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading history...</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="section-header">
+                            <div style="display: flex; flex-direction: column;">
+                                <h3><i data-lucide="users" style="width:18px;height:18px;color:var(--primary);"></i> Monitored Members</h3>
+                                <p id="monitor-total-members" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Total: 0 members</p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="openAddMonitorPlayerModal()" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;">
+                                    <i data-lucide="plus" style="width: 12px;"></i> Add
+                                </button>
+                                <button id="remove-selected-monitor-btn" onclick="removeSelectedMonitorMembers()" class="btn btn-danger" style="padding: 4px 10px; font-size: 0.8rem; display: none;">
+                                    <i data-lucide="trash-2" style="width: 12px;"></i> Remove
+                                </button>
+                                <button onclick="loadMonitoredMembers()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
+                                    <i data-lucide="refresh-cw" style="width: 12px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="monitor-members-list" style="max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;">
+                            <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading members...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Auto Translate Tab -->
             <div id="tab-translate" class="tab-content">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
@@ -1232,97 +1260,6 @@
                         <button onclick="saveBirthdaySettings()" class="btn btn-primary">Save Birthday Config</button>
                     </div>
                 </section>
-            </div>
-
-            <!-- Alliance Monitor Tab -->
-            <div id="tab-alliance-monitor" class="tab-content">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-                    <div>
-                        <h2 class="section-title" style="margin:0;">Alliance Monitor</h2>
-                        <p style="color:var(--text-muted); font-size:0.9rem;">Track name changes, furnace levels, and player avatars in real-time. 👁️</p>
-                    </div>
-                    <div style="display:flex; gap:12px;">
-                        <button onclick="loadAllianceMonitorData()" class="btn btn-secondary">
-                            <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
-                            Refresh Data
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Monitoring Configuration -->
-                <div class="card" style="margin-bottom:32px; border-left: 4px solid var(--primary);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <div style="display:flex; align-items:center; gap:12px;">
-                            <div style="background:rgba(139, 92, 246, 0.1); padding:10px; border-radius:10px; color:var(--primary);">
-                                <i data-lucide="settings-2"></i>
-                            </div>
-                            <h3 style="font-family:'Outfit'; font-size:1.1rem;">Monitoring Settings</h3>
-                        </div>
-                        <div style="display:flex; align-items:center; gap:10px;">
-                            <span id="monitor-status-text" style="font-size:0.8rem; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Disabled</span>
-                            <label class="switch">
-                                <input type="checkbox" id="monitor-enabled" onchange="toggleMonitorStatusText()">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-                        <div class="form-group">
-                            <label>Alliance to Monitor</label>
-                            <select id="monitor-alliance" class="form-control" style="width:100%; background:var(--bg-dark); border:1px solid var(--glass-border); color:#fff; padding:10px; border-radius:8px;">
-                                <option value="">Select Alliance</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Log Channel</label>
-                            <select id="monitor-channel" class="guild-channels" style="width:100%; background:var(--bg-dark); border:1px solid var(--glass-border); color:#fff; padding:10px; border-radius:8px;">
-                                <option value="">Select Channel</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div style="display:flex; justify-content:flex-end; margin-top:20px;">
-                        <button onclick="saveMonitorSettings()" class="btn btn-primary">
-                            <i data-lucide="save"></i>
-                            Save Configuration
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Main Grid: Members and History -->
-                <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:24px;">
-                    <!-- Members Section -->
-                    <div class="card">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                            <h3 style="font-family:'Outfit'; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
-                                <i data-lucide="users" style="width:18px; color:var(--primary);"></i>
-                                Current Members
-                            </h3>
-                            <span id="monitor-member-count" class="badge">0 Members</span>
-                        </div>
-                        
-                        <div id="monitor-members-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; max-height:600px; overflow-y:auto; padding-right:8px;">
-                            <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">
-                                No members loaded. Enable monitoring to start tracking.
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- History Section -->
-                    <div class="card">
-                        <h3 style="font-family:'Outfit'; font-size:1.1rem; margin-bottom:20px; display:flex; align-items:center; gap:8px;">
-                            <i data-lucide="history" style="width:18px; color:var(--primary);"></i>
-                            Recent Activity
-                        </h3>
-                        
-                        <div id="monitor-history-list" style="display:flex; flex-direction:column; gap:12px; max-height:600px; overflow-y:auto; padding-right:8px;">
-                            <div style="text-align:center; padding:40px; color:var(--text-muted);">
-                                No recent activity found.
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Gift Codes Tab -->
@@ -1350,9 +1287,9 @@
                     <div class="redeem-grid">
                         <div class="redeem-left">
                             <div class="form-group">
-                                <label>Enter Player ID</label>
+                                <label>Enter Player FID</label>
                                 <div class="player-input-wrap">
-                                    <input type="text" id="redeem-id" placeholder="e.g. 123456789" maxlength="9">
+                                    <input type="text" id="redeem-fid" placeholder="e.g. 123456789" maxlength="9">
                                     <button onclick="fetchPlayerInfo()" class="btn btn-primary" id="fetch-player-btn">
                                         <i data-lucide="search" style="width: 16px;"></i>
                                     </button>
@@ -1361,7 +1298,7 @@
 
                             <div id="player-info-container" class="player-info-display">
                                 <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
-                                    Enter ID and search to fetch player details
+                                    Enter FID and search to fetch player details
                                 </div>
                             </div>
 
@@ -1434,7 +1371,7 @@
                                 <option value="">Select a channel</option>
                             </select>
                             <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
-                                Players write their ID here to register for auto-redeem
+                                Players write their FID here to register for auto-redeem
                             </p>
                         </div>
                     </div>
@@ -1508,41 +1445,14 @@
                     <input type="text" id="config-name" placeholder="e.g. Chat Sync">
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group"><label>Source Lang</label><select id="source-lang"></select></div>
-                    <div class="form-group"><label>Target Lang</label><select id="target-lang"></select></div>
+                    <div class="form-group"><label>Source Lang</label><select id="source-lang"><option value="auto">Auto</option><option value="en">English</option></select></div>
+                    <div class="form-group"><label>Target Lang</label><select id="target-lang"><option value="en">English</option><option value="fr">French</option></select></div>
                 </div>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                     <div class="form-group"><label>Source Channel</label><select id="source-channel" class="guild-channels"></select></div>
                     <div class="form-group"><label>Target Channel</label><select id="target-channel" class="guild-channels"></select></div>
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group"><label>Style</label><select id="translate-style"><option value="webhook">Webhook</option><option value="bot">Bot Post</option></select></div>
-                    <div class="form-group"><label>Min Text Length</label><input type="number" id="translate-min-len" value="10" min="1"></div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:10px;">
-                        <label class="switch"><input type="checkbox" id="translate-delete-orig"><span class="slider"></span></label>
-                        <span style="font-size:0.85rem; color:var(--text-muted);">Delete Original</span>
-                    </div>
-                    <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:10px;">
-                        <label class="switch"><input type="checkbox" id="translate-ignore-same" checked><span class="slider"></span></label>
-                        <span style="font-size:0.85rem; color:var(--text-muted);">Ignore if source is target</span>
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:10px;">
-                        <label class="switch"><input type="checkbox" id="translate-match-source"><span class="slider"></span></label>
-                        <span style="font-size:0.85rem; color:var(--text-muted);">Match specified source only</span>
-                    </div>
-                    <div class="form-group" style="display:flex; align-items:center; gap:10px; padding-top:10px;">
-                        <label class="switch"><input type="checkbox" id="translate-skip-attach"><span class="slider"></span></label>
-                        <span style="font-size:0.85rem; color:var(--text-muted);">Skip if has attachments</span>
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group"><label>Auto-Disappear (s)</label><input type="number" id="translate-disappear" value="0" min="0"></div>
-                    <div class="form-group"><label>Attachment Mode</label><select id="translate-attach-mode"><option value="link">Post Link</option><option value="ignore">Ignore</option></select></div>
-                </div>
+                <div class="form-group"><label>Style</label><select id="translate-style"><option value="webhook">Webhook</option><option value="embed">Embed</option></select></div>
             </div>
             <div class="modal-footer">
                 <button onclick="closeTranslateModal()" class="btn btn-secondary">Cancel</button>
@@ -1553,112 +1463,156 @@
 
     <!-- Reminder Modal -->
     <div id="reminder-modal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 900px;">
             <div class="modal-header">
                 <h3>New Reminder</h3>
                 <button onclick="closeReminderModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>Title Message</label>
-                    <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!">
-                </div>
-                <div class="form-group">
-                    <label>Description (Body)</label>
-                    <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 60px;"></textarea>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+            <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                <!-- Left Side: Form -->
+                <div class="reminder-form" style="max-height: 70vh; overflow-y: auto; padding-right: 12px;">
                     <div class="form-group">
-                        <label>Start Date</label>
-                        <input type="date" id="reminder-date">
+                        <label>Title Message</label>
+                        <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()">
                     </div>
                     <div class="form-group">
-                        <label>Channel</label>
-                        <select id="reminder-channel" class="guild-channels"></select>
+                        <label>Description (Body)</label>
+                        <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 60px;" oninput="updateReminderPreview()"></textarea>
                     </div>
-                </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label>Start Date</label>
+                            <input type="date" id="reminder-date">
+                        </div>
+                        <div class="form-group">
+                            <label>Channel</label>
+                            <select id="reminder-channel" class="guild-channels"></select>
+                        </div>
+                    </div>
 
-                <div class="form-group">
-                    <label>Start Time (Scroll to Select)</label>
-                    <div class="time-picker-row">
-                        <div class="wheel-container" id="wheel-hour"></div>
-                        <span class="wheel-label">:</span>
-                        <div class="wheel-container" id="wheel-min"></div>
-                        <span class="wheel-label">:</span>
-                        <div class="wheel-container" id="wheel-sec"></div>
-                        <div class="wheel-container" id="wheel-ampm" style="width: 70px;">
-                            <div class="wheel-item" style="height:33px;"></div>
-                            <div class="wheel-item" data-val="AM">AM</div>
-                            <div class="wheel-item" data-val="PM">PM</div>
-                            <div class="wheel-item" style="height:33px;"></div>
+                    <div class="form-group">
+                        <label>Start Time (Scroll to Select)</label>
+                        <div class="time-picker-row">
+                            <div class="wheel-container" id="wheel-hour"></div>
+                            <span class="wheel-label">:</span>
+                            <div class="wheel-container" id="wheel-min"></div>
+                            <span class="wheel-label">:</span>
+                            <div class="wheel-container" id="wheel-sec"></div>
+                            <div class="wheel-container" id="wheel-ampm" style="width: 70px;">
+                                <div class="wheel-item" style="height:33px;"></div>
+                                <div class="wheel-item" data-val="AM">AM</div>
+                                <div class="wheel-item" data-val="PM">PM</div>
+                                <div class="wheel-item" style="height:33px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Timezone</label>
+                        <select id="reminder-timezone" class="timezone-select">
+                            <option value="UTC">UTC (Universal Time)</option>
+                            <option value="Asia/Kolkata">IST (India Standard Time)</option>
+                            <option value="America/New_York">EST/EDT (New York)</option>
+                            <option value="America/Los_Angeles">PST/PDT (Los Angeles)</option>
+                            <option value="Europe/London">GMT/BST (London)</option>
+                            <option value="Europe/Berlin">CET/CEST (Berlin)</option>
+                            <option value="Asia/Tokyo">JST (Tokyo)</option>
+                            <option value="Australia/Sydney">AEST/AEDT (Sydney)</option>
+                        </select>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label>Repeat / Recurrence</label>
+                            <select id="reminder-recurrence" onchange="toggleCustomInterval()">
+                                <option value="none">One-time</option>
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="custom">Every X days...</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="custom-interval-group" style="display:none;">
+                            <label>Repeat every (days)</label>
+                            <input type="number" id="reminder-interval" min="1" value="1">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label>Mention</label>
+                            <select id="reminder-mention" onchange="updateReminderPreview()">
+                                <option value="everyone">@everyone</option>
+                                <option value="here">@here</option>
+                                <option value="user">Myself (@user)</option>
+                                <option value="none">None</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Image URL</label>
+                            <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label>Thumbnail URL</label>
+                            <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()">
+                        </div>
+                        <div class="form-group">
+                            <label>Footer Text</label>
+                            <input type="text" id="reminder-footer" placeholder="Optional footer" oninput="updateReminderPreview()">
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label>Footer Icon URL</label>
+                            <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()">
+                        </div>
+                        <div class="form-group">
+                            <label>Author URL</label>
+                            <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
                         </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label>Timezone</label>
-                    <select id="reminder-timezone" class="timezone-select">
-                        <option value="UTC">UTC (Universal Time)</option>
-                        <option value="Asia/Kolkata">IST (India Standard Time)</option>
-                        <option value="America/New_York">EST/EDT (New York)</option>
-                        <option value="America/Los_Angeles">PST/PDT (Los Angeles)</option>
-                        <option value="Europe/London">GMT/BST (London)</option>
-                        <option value="Europe/Berlin">CET/CEST (Berlin)</option>
-                        <option value="Asia/Tokyo">JST (Tokyo)</option>
-                        <option value="Australia/Sydney">AEST/AEDT (Sydney)</option>
-                    </select>
-                </div>
-
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group">
-                        <label>Repeat / Recurrence</label>
-                        <select id="reminder-recurrence" onchange="toggleCustomInterval()">
-                            <option value="none">One-time</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="custom">Every X days...</option>
-                        </select>
+                <!-- Right Side: Preview -->
+                <div class="reminder-preview-side">
+                    <div class="preview-label"><span></span> Live Reminder Preview</div>
+                    <div class="dc-chat">
+                        <div class="dc-message">
+                            <img class="dc-bot-avatar" src="/logo.gif" alt="Bot">
+                            <div class="dc-message-body">
+                                <div class="dc-message-header">
+                                    <span class="dc-bot-name">ICEAngel</span>
+                                    <span class="dc-bot-tag">APP</span>
+                                    <span class="dc-timestamp">Reminder</span>
+                                </div>
+                                <div id="reminder-preview-mention" class="dc-text" style="margin-bottom: 4px;">@everyone</div>
+                                <!-- Embed card -->
+                                <div class="dc-embed" id="reminder-preview-embed" style="border-left-color: #8b5cf6;">
+                                    <div class="dc-embed-inner">
+                                        <div style="display: flex; gap: 12px;">
+                                            <div style="flex: 1;">
+                                                <div class="dc-embed-title" id="reminder-preview-title">Bear Trap starts now!</div>
+                                                <div class="dc-embed-desc" id="reminder-preview-body">Optional detailed text</div>
+                                            </div>
+                                            <img id="reminder-preview-thumbnail" src="" style="width: 80px; height: 80px; border-radius: 4px; object-fit: cover; display: none;">
+                                        </div>
+                                        <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 8px; border-radius: 4px;">
+                                        <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 8px;">
+                                            <img id="reminder-preview-footer-icon" src="" style="width: 18px; height: 18px; border-radius: 50%; display: none;">
+                                            <span id="reminder-preview-footer-text"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="form-group" id="custom-interval-group" style="display:none;">
-                        <label>Repeat every (days)</label>
-                        <input type="number" id="reminder-interval" min="1" value="1">
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group">
-                        <label>Mention</label>
-                        <select id="reminder-mention">
-                            <option value="everyone">@everyone</option>
-                            <option value="here">@here</option>
-                            <option value="user">Myself (@user)</option>
-                            <option value="none">None</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Image URL</label>
-                        <input type="text" id="reminder-image" placeholder="https://...">
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group">
-                        <label>Thumbnail URL</label>
-                        <input type="text" id="reminder-thumbnail" placeholder="https://...">
-                    </div>
-                    <div class="form-group">
-                        <label>Footer Text</label>
-                        <input type="text" id="reminder-footer" placeholder="Optional footer">
-                    </div>
-                </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group">
-                        <label>Footer Icon URL</label>
-                        <input type="text" id="reminder-footer-icon" placeholder="https://...">
-                    </div>
-                    <div class="form-group">
-                        <label>Author URL</label>
-                        <input type="text" id="reminder-author-url" placeholder="https://...">
+                    
+                    <div style="margin-top:16px; padding:12px; background:rgba(139,92,246,0.06); border-radius:10px; border:1px solid rgba(139,92,246,0.15);">
+                        <p style="font-size:0.78rem; color:var(--text-muted); line-height:1.6;">
+                            This is how your reminder will appear in Discord. Use URLs for images and icons.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -1685,9 +1639,9 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Player ID (9 digits)</label>
+                    <label>Player FID (9 digits)</label>
                     <div class="player-input-wrap">
-                        <input type="text" id="add-member-id" placeholder="e.g. 123456789" maxlength="9">
+                        <input type="text" id="add-member-fid" placeholder="e.g. 123456789" maxlength="9">
                         <button onclick="lookupMemberForAdd()" class="btn btn-primary" id="lookup-member-btn">
                             <i data-lucide="search" style="width: 16px;"></i>
                         </button>
@@ -1696,7 +1650,7 @@
 
                 <div id="add-member-preview" class="add-member-lookup">
                     <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
-                            <p>Enter an ID and search to verify the player</p>
+                        Enter a FID and search to verify the player
                     </div>
                 </div>
             </div>
@@ -1710,6 +1664,47 @@
         </div>
     </div>
 
+    <!-- Add Monitor Player Modal -->
+    <div id="add-monitor-player-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                    <div class="ar-icon-box purple" style="width: 32px; height: 32px;">
+                        <i data-lucide="user-plus" style="width: 16px;"></i>
+                    </div>
+                    Add Player to Monitor
+                </h3>
+                <button onclick="closeAddMonitorPlayerModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Player FID (9 digits)</label>
+                    <div class="player-input-wrap">
+                        <input type="text" id="add-monitor-fid" placeholder="e.g. 123456789" maxlength="9">
+                        <button onclick="lookupMonitorPlayer()" class="btn btn-primary" id="lookup-monitor-player-btn">
+                            <i data-lucide="search" style="width: 16px;"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="add-monitor-preview" class="add-member-lookup">
+                    <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
+                        Enter a FID and search to verify the player
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAddMonitorPlayerModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="confirmAddMonitorPlayer()" class="btn btn-primary" id="confirm-add-monitor-player-btn" disabled>
+                    <i data-lucide="user-check" style="width: 15px;"></i>
+                    Add to Monitor
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="loading" class="loading-overlay"><div class="spinner"></div></div>
     <div id="notification" class="notification">Action completed</div>
 
@@ -1717,14 +1712,8 @@
         const CONFIG = {
             API_BASE: '',
             LANG_NAMES: {
-                'ar': '🇸🇦 Arabic', 'bg': '🇧🇬 Bulgarian', 'cs': '🇨🇿 Czech', 'da': '🇩🇰 Danish',
-                'de': '🇩🇪 German', 'el': '🇬🇷 Greek', 'en': '🇬🇧 English', 'es': '🇪🇸 Spanish',
-                'et': '🇪🇪 Estonian', 'fi': '🇫🇮 Finnish', 'fr': '🇫🇷 French', 'hu': '🇭🇺 Hungarian',
-                'id': '🇮🇩 Indonesian', 'it': '🇮🇹 Italian', 'ja': '🇯🇵 Japanese', 'ko': '🇰🇷 Korean',
-                'lt': '🇱🇹 Lithuanian', 'lv': '🇱🇻 Latvian', 'nb': '🇳🇴 Norwegian', 'nl': '🇳🇱 Dutch',
-                'pl': '🇵🇱 Polish', 'pt': '🇵🇹 Portuguese', 'ro': '🇷🇴 Romanian', 'ru': '🇷🇺 Russian',
-                'sk': '🇸🇰 Slovak', 'sl': '🇸🇮 Slovenian', 'sv': '🇸🇪 Swedish', 'tr': '🇹🇷 Turkish',
-                'uk': '🇺🇦 Ukrainian', 'zh': '🇨🇳 Chinese', 'hi': '🇮🇳 Hindi', 'auto': '🔄 Auto-Detect'
+                'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+                'ja': 'Japanese', 'zh': 'Chinese', 'ru': 'Russian', 'ko': 'Korean', 'hi': 'Hindi', 'auto': 'Auto-Detect'
             }
         };
 
@@ -1742,13 +1731,11 @@
             document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
             
-            // Auto-load data for the tab
-            if (tabName === 'welcome') loadWelcomeSettings();
-            if (tabName === 'translate') loadTranslateConfigs();
-            if (tabName === 'birthday') loadBirthdaySettings();
-            if (tabName === 'giftcodes') loadGiftCodes();
-            if (tabName === 'reminders') loadReminders();
-            if (tabName === 'alliance-monitor') loadAllianceMonitorData();
+            if (tabName === 'alliance') {
+                loadMonitorSettings();
+                loadMonitorHistory();
+                loadMonitoredMembers();
+            }
             
             lucide.createIcons();
         }
@@ -2214,42 +2201,28 @@
             } catch (e) { } finally { showLoading(false); }
         }
 
-        let translateConfigsMap = {};
-
         async function loadTranslateConfigs() {
             try {
                 const configs = await fetchData(`/api/settings/translate/${guildId}`);
                 const list = document.getElementById('translate-configs-list');
                 list.innerHTML = '';
-                translateConfigsMap = {};
-                
-                if (configs.length === 0) { 
-                    list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">No pipelines found. Click "Add Pipeline" to get started!</div>'; 
-                    return; 
-                }
-                
+                if (configs.length === 0) { list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">No pipelines found.</div>'; return; }
                 configs.forEach(cfg => {
-                    translateConfigsMap[cfg.config_id] = cfg;
                     const div = document.createElement('div');
                     div.className = 'config-item';
-                    const statusIcon = cfg.enabled ? '✅' : '❌';
                     div.innerHTML = `
                         <div class="config-info">
-                            <h4 style="display:flex; align-items:center; gap:8px;">${statusIcon} ${escapeHTML(cfg.name)}</h4>
-                            <p>${CONFIG.LANG_NAMES[cfg.source_language] || cfg.source_language} → ${CONFIG.LANG_NAMES[cfg.target_language] || cfg.target_language}</p>
-                            <p style="font-size:0.75rem; opacity:0.7;">Style: ${cfg.style} | Min Len: ${cfg.min_text_length || 10}</p>
+                            <h4>${cfg.name}</h4>
+                            <p>${CONFIG.LANG_NAMES[cfg.source_language || 'auto']} → ${CONFIG.LANG_NAMES[cfg.target_language]}</p>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <button onclick="editTranslateConfig('${cfg.config_id}')" class="btn btn-secondary"><i data-lucide="edit-2" style="width:14px;"></i> Edit</button>
-                            <button onclick="deleteTranslateConfig('${cfg.config_id}')" class="btn btn-danger"><i data-lucide="trash" style="width:14px;"></i> Delete</button>
+                            <button onclick="editTranslateConfig('${cfg.config_id}')" class="btn btn-secondary">Edit</button>
+                            <button onclick="deleteTranslateConfig('${cfg.config_id}')" class="btn btn-danger">Delete</button>
                         </div>
                     `;
                     list.appendChild(div);
                 });
-                lucide.createIcons();
-            } catch (e) {
-                console.error('Failed to load translate configs:', e);
-            }
+            } catch (e) {}
         }
 
         function escapeHTML(value) {
@@ -2298,21 +2271,6 @@
             if (['expired', 'invalid', 'inactive', 'failed'].includes(status)) return false;
             if (['active', 'valid', 'pending', ''].includes(status)) return true;
             return false;
-        }
-
-        function formatFurnaceLevel(lv) {
-            if (!lv) return "0";
-            let val = parseInt(lv);
-            if (isNaN(val)) return String(lv);
-            if (val <= 30) return String(val);
-            let adjustedLevel = val - 30;
-            let tier = Math.floor((adjustedLevel - 1) / 5) + 1;
-            let stage = ((adjustedLevel - 1) % 5) + 1;
-            if (stage === 5) {
-                return `FC ${tier}`;
-            } else {
-                return `FC ${tier}-${stage}`;
-            }
         }
 
         async function loadGiftCodes(forceRefresh = false) {
@@ -2473,13 +2431,13 @@
         }
 
         async function fetchPlayerInfo() {
-            const idInput = document.getElementById('redeem-id');
-            const fid = idInput.value.trim();
+            const fidInput = document.getElementById('redeem-fid');
+            const fid = fidInput.value.trim();
             const container = document.getElementById('player-info-container');
             const btn = document.getElementById('fetch-player-btn');
 
             if (!fid || fid.length !== 9 || !/^\d+$/.test(fid)) {
-                showNotification('Please enter a valid 9-digit ID', true);
+                showNotification('Please enter a valid 9-digit FID', true);
                 return;
             }
 
@@ -2490,7 +2448,7 @@
             try {
                 const res = await fetchData('/api/giftcodes/player-info', {
                     method: 'POST',
-                    body: JSON.stringify({ id: fid })
+                    body: JSON.stringify({ fid })
                 });
 
                 if (res.status === 'success') {
@@ -2499,7 +2457,7 @@
                         <img src="${res.data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="player-avatar-large" alt="Avatar">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
-                            <p>ID: ${res.data.id} • ${res.data.furnace_lv_formatted}</p>
+                            <p>FID: ${res.data.fid} • ${res.data.furnace_lv_formatted}</p>
                         </div>
                     `;
                     updateRedeemButtonState();
@@ -2533,7 +2491,7 @@
                 const res = await fetchData('/api/giftcodes/redeem', {
                     method: 'POST',
                     body: JSON.stringify({
-                        id: currentPlayer.id,
+                        fid: currentPlayer.fid,
                         codes: codesArray,
                         guild_id: guildId
                     })
@@ -2670,7 +2628,7 @@
 
                 list.innerHTML = '';
                 members.forEach(m => {
-                    const fid = m.id || m.fid || m._id || 'Unknown';
+                    const fid = m.fid || m._id || 'Unknown';
                     const nick = m.nickname || 'Unknown Player';
                     const furnace = m.furnace_lv || 0;
                     const formattedFurnace = formatFurnaceLevel(furnace);
@@ -2684,7 +2642,7 @@
                         <img src="${escapeAttribute(avatar)}" class="ar-member-avatar" alt="Avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                         <div class="ar-member-info">
                             <h5>${escapeHTML(nick)}</h5>
-                            <p>ID: ${escapeHTML(fid)} • ${formattedFurnace}${addedAt ? ' • Added ' + addedAt : ''}</p>
+                            <p>FID: ${escapeHTML(fid)} • Furnace Lv ${formattedFurnace}${addedAt ? ' • Added ' + addedAt : ''}</p>
                         </div>
                         <button class="ar-member-remove" onclick="removeAutoRedeemMember('${escapeAttribute(fid)}', '${escapeAttribute(nick)}')" title="Remove member">
                             <i data-lucide="x" style="width: 14px;"></i>
@@ -2701,13 +2659,13 @@
         }
 
         async function removeAutoRedeemMember(fid, nickname) {
-            if (!confirm(`Remove ${nickname} (ID: ${fid}) from auto-redeem?`)) return;
+            if (!confirm(`Remove ${nickname} (FID: ${fid}) from auto-redeem?`)) return;
 
             showLoading(true);
             try {
                 await fetchData(`/api/giftcodes/members/${guildId}/remove`, {
                     method: 'POST',
-                    body: JSON.stringify({ id: fid })
+                    body: JSON.stringify({ fid })
                 });
                 showNotification(`Removed ${nickname} from auto-redeem`);
                 loadAutoRedeemMembers();
@@ -2718,6 +2676,20 @@
             }
         }
 
+        function formatFurnaceLevel(lv) {
+            if (!lv) return "0";
+            let val = parseInt(lv);
+            if (isNaN(val)) return String(lv);
+            if (val <= 30) return String(val);
+            let adjustedLevel = val - 30;
+            let tier = Math.floor((adjustedLevel - 1) / 5) + 1;
+            let stage = ((adjustedLevel - 1) % 5) + 1;
+            if (stage === 5) {
+                return `FC ${tier}`;
+            } else {
+                return `FC ${tier}-${stage}`;
+            }
+        }
 
         function toggleBulkRemoveButton() {
             const checkboxes = document.querySelectorAll('.ar-member-checkbox:checked');
@@ -2744,7 +2716,7 @@
                 try {
                     await fetchData(`/api/giftcodes/members/${guildId}/remove`, {
                         method: 'POST',
-                        body: JSON.stringify({ id: cb.value })
+                        body: JSON.stringify({ fid: cb.value })
                     });
                     successCount++;
                 } catch (e) {
@@ -2760,11 +2732,11 @@
 
         function openAddMemberModal() {
             pendingAddMember = null;
-            document.getElementById('add-member-id').value = '';
+            document.getElementById('add-member-fid').value = '';
             document.getElementById('confirm-add-member-btn').disabled = true;
             document.getElementById('add-member-preview').innerHTML = `
                 <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
-                    Enter an ID and search to verify the player
+                    Enter a FID and search to verify the player
                 </div>`;
             document.getElementById('add-member-modal').style.display = 'flex';
             lucide.createIcons();
@@ -2776,14 +2748,14 @@
         }
 
         async function lookupMemberForAdd() {
-            const idInput = document.getElementById('add-member-id');
-            const fid = idInput.value.trim();
+            const fidInput = document.getElementById('add-member-fid');
+            const fid = fidInput.value.trim();
             const preview = document.getElementById('add-member-preview');
             const btn = document.getElementById('lookup-member-btn');
             const confirmBtn = document.getElementById('confirm-add-member-btn');
 
             if (!fid || fid.length !== 9 || !/^\d+$/.test(fid)) {
-                showNotification('Please enter a valid 9-digit ID', true);
+                showNotification('Please enter a valid 9-digit FID', true);
                 return;
             }
 
@@ -2796,7 +2768,7 @@
             try {
                 const res = await fetchData('/api/giftcodes/player-info', {
                     method: 'POST',
-                    body: JSON.stringify({ id: fid })
+                    body: JSON.stringify({ fid })
                 });
 
                 if (res.status === 'success' && res.data) {
@@ -2807,7 +2779,7 @@
                              onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
-                            <p>ID: ${res.data.id} • ${formatFurnaceLevel(res.data.furnace_lv || 0)}</p>
+                            <p>FID: ${res.data.fid} • Furnace Lv ${formatFurnaceLevel(res.data.furnace_lv || 0)}</p>
                         </div>
                         <div style="margin-left: auto; color: #34d399;"><i data-lucide="check-circle" style="width: 22px;"></i></div>`;
                     confirmBtn.disabled = false;
@@ -2835,7 +2807,7 @@
                 await fetchData(`/api/giftcodes/members/${guildId}/add`, {
                     method: 'POST',
                     body: JSON.stringify({
-                        id: pendingAddMember.id,
+                        fid: pendingAddMember.fid,
                         nickname: pendingAddMember.nickname || 'Unknown',
                         furnace_lv: pendingAddMember.furnace_lv || 0,
                         avatar_image: pendingAddMember.avatar_image || ''
@@ -2854,126 +2826,39 @@
         }
 
         function openTranslateModal(config = null) {
-            const modal = document.getElementById('translate-modal');
-            const title = document.getElementById('modal-title');
-            const saveBtn = modal.querySelector('.btn-primary');
-            
-            // Populate language selects if empty
-            const srcSelect = document.getElementById('source-lang');
-            const targetSelect = document.getElementById('target-lang');
-            
-            if (srcSelect.options.length === 0) {
-                // Keep auto at top for source
-                const sortedKeys = Object.keys(CONFIG.LANG_NAMES).filter(k => k !== 'auto').sort((a,b) => CONFIG.LANG_NAMES[a].localeCompare(CONFIG.LANG_NAMES[b]));
-                
-                srcSelect.innerHTML = `<option value="auto">${CONFIG.LANG_NAMES['auto']}</option>`;
-                sortedKeys.forEach(k => {
-                    srcSelect.innerHTML += `<option value="${k}">${CONFIG.LANG_NAMES[k]}</option>`;
-                });
-                
-                targetSelect.innerHTML = '';
-                sortedKeys.forEach(k => {
-                    targetSelect.innerHTML += `<option value="${k}">${CONFIG.LANG_NAMES[k]}</option>`;
-                });
-            }
-
-            if (config) {
-                title.textContent = 'Edit Translation Pipeline';
-                document.getElementById('config-id').value = config.config_id;
-                document.getElementById('config-name').value = config.name || '';
-                document.getElementById('source-lang').value = config.source_language || 'auto';
-                document.getElementById('target-lang').value = config.target_language || 'en';
-                document.getElementById('source-channel').value = config.source_channel_id || '';
-                document.getElementById('target-channel').value = config.target_channel_id || '';
-                document.getElementById('translate-style').value = config.style || 'webhook';
-                document.getElementById('translate-min-len').value = config.min_text_length || 10;
-                document.getElementById('translate-delete-orig').checked = config.delete_original || false;
-                document.getElementById('translate-ignore-same').checked = config.ignore_if_source_is_target !== false;
-                document.getElementById('translate-match-source').checked = config.ignore_if_source_is_not_input || false;
-                document.getElementById('translate-skip-attach').checked = config.skip_attachments || false;
-                document.getElementById('translate-disappear').value = config.auto_disappear || 0;
-                document.getElementById('translate-attach-mode').value = config.attachment_mode || 'link';
-                saveBtn.textContent = 'Update Pipeline';
-            } else {
-                title.textContent = 'New Translation Pipeline';
-                document.getElementById('config-id').value = '';
-                document.getElementById('config-name').value = '';
-                document.getElementById('source-lang').value = 'auto';
-                document.getElementById('target-lang').value = 'en';
-                document.getElementById('source-channel').value = '';
-                document.getElementById('target-channel').value = '';
-                document.getElementById('translate-style').value = 'webhook';
-                document.getElementById('translate-min-len').value = 10;
-                document.getElementById('translate-delete-orig').checked = false;
-                document.getElementById('translate-ignore-same').checked = true;
-                document.getElementById('translate-match-source').checked = false;
-                document.getElementById('translate-skip-attach').checked = false;
-                document.getElementById('translate-disappear').value = 0;
-                document.getElementById('translate-attach-mode').value = 'link';
-                saveBtn.textContent = 'Save Pipeline';
-            }
-            
-            modal.style.display = 'flex';
-            lucide.createIcons();
+            document.getElementById('translate-modal').style.display = 'flex';
         }
-        
         function closeTranslateModal() { document.getElementById('translate-modal').style.display = 'none'; }
 
-        function editTranslateConfig(id) {
-            const config = translateConfigsMap[id];
-            if (config) {
-                openTranslateModal(config);
-            } else {
-                showNotification('Configuration not found', true);
-            }
-        }
-
         async function saveTranslateConfig() {
-            const configId = document.getElementById('config-id').value;
             const data = {
-                config_id: configId || null,
+                config_id: document.getElementById('config-id').value,
                 name: document.getElementById('config-name').value,
                 source_language: document.getElementById('source-lang').value,
                 target_language: document.getElementById('target-lang').value,
                 source_channel_id: document.getElementById('source-channel').value,
                 target_channel_id: document.getElementById('target-channel').value,
                 style: document.getElementById('translate-style').value,
-                min_text_length: parseInt(document.getElementById('translate-min-len').value) || 10,
-                delete_original: document.getElementById('translate-delete-orig').checked,
-                ignore_if_source_is_target: document.getElementById('translate-ignore-same').checked,
-                ignore_if_source_is_not_input: document.getElementById('translate-match-source').checked,
-                skip_attachments: document.getElementById('translate-skip-attach').checked,
-                auto_disappear: parseInt(document.getElementById('translate-disappear').value) || 0,
-                attachment_mode: document.getElementById('translate-attach-mode').value,
+                delete_original: false,
                 enabled: true
             };
-            
-            if (!data.name || !data.target_channel_id || !data.source_channel_id) {
-                showNotification('Please fill in name and channels', true);
-                return;
-            }
-
             showLoading(true);
             try {
                 await fetchData(`/api/settings/translate/${guildId}`, { method: 'POST', body: JSON.stringify(data) });
-                showNotification(configId ? 'Pipeline updated!' : 'Pipeline created!');
+                showNotification('Pipeline saved!');
                 closeTranslateModal();
                 loadTranslateConfigs();
-            } catch (e) {
-                showNotification('Failed to save pipeline', true);
-            } finally { showLoading(false); }
+            } catch (e) {} finally { showLoading(false); }
         }
 
         async function deleteTranslateConfig(id) {
-            if (!confirm('Are you sure you want to delete this translation pipeline?')) return;
+            if (!confirm('Delete this pipeline?')) return;
             showLoading(true);
             try {
                 await fetchData(`/api/settings/translate/${guildId}/${id}`, { method: 'DELETE' });
-                showNotification('Pipeline deleted');
+                showNotification('Deleted');
                 loadTranslateConfigs();
-            } catch (e) {
-                showNotification('Failed to delete pipeline', true);
-            } finally { showLoading(false); }
+            } catch (e) {} finally { showLoading(false); }
         }
 
         function toggleCustomInterval() {
@@ -3056,6 +2941,7 @@
                 toggleCustomInterval();
 
                 document.getElementById('reminder-body').value = '';
+                document.getElementById('reminder-mention').value = 'everyone';
                 document.getElementById('reminder-image').value = '';
                 document.getElementById('reminder-thumbnail').value = '';
                 document.getElementById('reminder-footer').value = '';
@@ -3063,8 +2949,72 @@
                 document.getElementById('reminder-author-url').value = '';
             }
             document.getElementById('reminder-modal').style.display = 'flex';
+            updateReminderPreview();
         }
         function closeReminderModal() { document.getElementById('reminder-modal').style.display = 'none'; }
+
+        // ──────────────────────────────────────────────────
+        //  Reminders: Preview Engine
+        // ──────────────────────────────────────────────────
+        function updateReminderPreview() {
+            const message = document.getElementById('reminder-message').value || 'Bear Trap starts now!';
+            const body = document.getElementById('reminder-body').value || 'Optional detailed text';
+            const mention = document.getElementById('reminder-mention').value;
+            const image = document.getElementById('reminder-image').value;
+            const thumbnail = document.getElementById('reminder-thumbnail').value;
+            const footerText = document.getElementById('reminder-footer').value;
+            const footerIcon = document.getElementById('reminder-footer-icon').value;
+
+            // Mention
+            const mentionEl = document.getElementById('reminder-preview-mention');
+            if (mention === 'none') {
+                mentionEl.style.display = 'none';
+            } else {
+                mentionEl.style.display = 'block';
+                mentionEl.innerHTML = mention === 'user' ? `<span class="dc-mention">@${document.getElementById('user-name').textContent}</span>` : `<span class="dc-mention">@${mention}</span>`;
+            }
+
+            // Title & Body
+            document.getElementById('reminder-preview-title').textContent = message;
+            document.getElementById('reminder-preview-body').textContent = body;
+            document.getElementById('reminder-preview-body').style.display = body ? 'block' : 'none';
+
+            // Thumbnail
+            const thumbImg = document.getElementById('reminder-preview-thumbnail');
+            if (thumbnail) {
+                thumbImg.src = thumbnail;
+                thumbImg.style.display = 'block';
+            } else {
+                thumbImg.style.display = 'none';
+            }
+
+            // Image
+            const mainImg = document.getElementById('reminder-preview-image');
+            if (image) {
+                mainImg.src = image;
+                mainImg.style.display = 'block';
+            } else {
+                mainImg.style.display = 'none';
+            }
+
+            // Footer
+            const footerContainer = document.getElementById('reminder-preview-footer-container');
+            const footerTextEl = document.getElementById('reminder-preview-footer-text');
+            const footerIconEl = document.getElementById('reminder-preview-footer-icon');
+
+            if (footerText || footerIcon) {
+                footerContainer.style.display = 'flex';
+                footerTextEl.textContent = footerText || '';
+                if (footerIcon) {
+                    footerIconEl.src = footerIcon;
+                    footerIconEl.style.display = 'block';
+                } else {
+                    footerIconEl.style.display = 'none';
+                }
+            } else {
+                footerContainer.style.display = 'none';
+            }
+        }
 
         async function updateReminder(id) {
             const data = getReminderFormData();
@@ -3207,127 +3157,307 @@
         }
 
         // ──────────────────────────────────────────────────
-        //  Alliance Monitor
+        //  Alliance Monitor: Management
         // ──────────────────────────────────────────────────
-        function toggleMonitorStatusText() {
-            const cb = document.getElementById('monitor-enabled');
-            const text = document.getElementById('monitor-status-text');
-            text.textContent = cb.checked ? 'Active' : 'Disabled';
-            text.style.color = cb.checked ? 'var(--primary)' : 'var(--text-muted)';
-        }
-
-        async function loadAllianceMonitorData() {
+        // ──────────────────────────────────────────────────
+        //  Alliance Monitor: Management
+        // ──────────────────────────────────────────────────
+        async function loadMonitorSettings() {
             try {
-                showLoading(true);
-                const [status, members, history] = await Promise.all([
-                    fetchData(`/api/alliance-monitor/status/${guildId}`),
-                    fetchData(`/api/alliance-monitor/members/${guildId}`),
-                    fetchData(`/api/alliance-monitor/history/${guildId}`)
-                ]);
-
-                // Update settings
-                const cb = document.getElementById('monitor-enabled');
-                cb.checked = status.enabled;
-                toggleMonitorStatusText();
+                const settings = await fetchData(`/api/alliance-monitor/status/${guildId}`);
                 
-                document.getElementById('monitor-alliance').value = status.alliance_id || "";
-                document.getElementById('monitor-channel').value = status.channel_id || "";
+                const channelSelect = document.getElementById('monitor-channel');
+                const toggle = document.getElementById('monitor-enabled');
+                const pill = document.getElementById('monitor-enabled-pill');
 
-                // Update members
-                const membersList = document.getElementById('monitor-members-list');
-                document.getElementById('monitor-member-count').textContent = `${members.length} Members`;
+                if (channelSelect) channelSelect.value = settings.channel_id || '';
                 
-                if (members.length === 0) {
-                    membersList.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">No members found.</div>';
-                } else {
-                    membersList.innerHTML = members.map(m => `
-                        <div class="member-card">
-                            <img src="${m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="member-avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
-                            <div class="member-info">
-                                <h4>${escapeHTML(m.nickname)}</h4>
-                                <p>ID: ${m.id || m.fid}</p>
-                                <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
-                                    <span class="furnace-badge">${formatFurnaceLevel(m.furnace_lv)}</span>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('');
+                if (toggle) toggle.checked = settings.enabled;
+                
+                if (pill) {
+                    if (settings.enabled) {
+                        pill.textContent = 'Active';
+                        pill.className = 'enabled-pill on';
+                    } else {
+                        pill.textContent = 'Disabled';
+                        pill.className = 'enabled-pill off';
+                    }
                 }
-
-                // Update history
-                const historyList = document.getElementById('monitor-history-list');
-                if (history.length === 0) {
-                    historyList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">No recent activity.</div>';
-                } else {
-                    historyList.innerHTML = history.map(h => `
-                        <div class="history-item">
-                            <div class="time">${new Date(h.timestamp).toLocaleString()}</div>
-                            <div class="content">
-                                <span class="change-tag ${h.type}">${h.type}</span>
-                                <strong>${escapeHTML(h.nickname)}</strong> 
-                                ${h.value_text || 'updated their profile'}
-                            </div>
-                        </div>
-                    `).join('');
-                }
-
-                lucide.createIcons();
             } catch (e) {
-                console.error('Error loading monitor data:', e);
-            } finally {
-                showLoading(false);
+                console.error('Failed to load monitor settings:', e);
             }
         }
 
         async function saveMonitorSettings() {
+            const channel_id = document.getElementById('monitor-channel').value;
             const enabled = document.getElementById('monitor-enabled').checked;
-            const allianceId = document.getElementById('monitor-alliance').value;
-            const channelId = document.getElementById('monitor-channel').value;
 
-            if (!allianceId || !channelId) {
-                alert('Please select both an alliance and a log channel.');
+            if (!channel_id) {
+                showNotification('Please select a log channel', true);
                 return;
             }
 
+            showLoading(true);
             try {
-                showLoading(true);
-                const res = await fetchData('/api/alliance-monitor/settings', {
+                await fetchData('/api/alliance-monitor/settings', {
                     method: 'POST',
                     body: JSON.stringify({
-                        guild_id: parseInt(guildId),
-                        alliance_id: parseInt(allianceId),
-                        channel_id: parseInt(channelId),
+                        guild_id: guildId,
+                        channel_id: channel_id,
                         enabled: enabled
                     })
                 });
-
-                if (res.status === 'success') {
-                    alert('Monitoring settings saved successfully! 🚀');
-                    loadAllianceMonitorData();
-                } else {
-                    alert('Error: ' + res.message);
-                }
+                showNotification('Monitor settings saved');
+                loadMonitorSettings();
             } catch (e) {
-                alert('Failed to save settings.');
+                showNotification('Failed to save monitor settings', true);
             } finally {
                 showLoading(false);
             }
         }
 
-        async function loadAlliances() {
+        async function toggleMonitor(checkbox) {
+            const pill = document.getElementById('monitor-enabled-pill');
+            if (checkbox.checked) {
+                pill.textContent = 'Active';
+                pill.className = 'enabled-pill on';
+            } else {
+                pill.textContent = 'Disabled';
+                pill.className = 'enabled-pill off';
+            }
+        }
+
+
+        async function loadMonitorHistory() {
+            const list = document.getElementById('monitor-history-list');
+            if (!list) return;
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading activity...</div>';
             try {
-                const alliances = await fetchData('/api/alliance-monitor/alliances');
-                const selector = document.getElementById('monitor-alliance');
-                if (!selector) return;
+                const history = await fetchData(`/api/alliance-monitor/history/${guildId}`);
+                if (history.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No recent changes detected.</div>';
+                    return;
+                }
                 
-                selector.innerHTML = '<option value="">Select Alliance</option>';
-                alliances.forEach(a => {
-                    const opt = document.createElement('option');
-                    opt.value = a.id;
-                    opt.textContent = a.name;
-                    selector.appendChild(opt);
+                list.innerHTML = '';
+                history.forEach(event => {
+                    const div = document.createElement('div');
+                    div.style.padding = '12px';
+                    div.style.background = 'rgba(255,255,255,0.03)';
+                    div.style.borderRadius = '8px';
+                    div.style.display = 'flex';
+                    div.style.alignItems = 'center';
+                    div.style.gap = '12px';
+                    
+                    let icon = 'activity';
+                    let iconColor = 'var(--primary)';
+                    if (event.type === 'furnace') { icon = 'flame'; iconColor = '#f59e0b'; }
+                    else if (event.type === 'name') { icon = 'user-check'; iconColor = '#10b981'; }
+                    else if (event.type === 'avatar') { icon = 'image'; iconColor = '#3b82f6'; }
+                    
+                    const time = new Date(event.timestamp).toLocaleString();
+                    
+                    div.innerHTML = `
+                        <div style="background: rgba(255,255,255,0.05); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i data-lucide="${icon}" style="width: 16px; color: ${iconColor};"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 0.9rem; color: #fff;">${escapeHTML(event.nickname)}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHTML(event.value_text)}</div>
+                        </div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap;">${time}</div>
+                    `;
+                    list.appendChild(div);
                 });
-            } catch (e) { console.error('Error loading alliances:', e); }
+                lucide.createIcons();
+            } catch (e) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Failed to load activity history.</div>';
+            }
+        }
+
+        async function loadMonitoredMembers() {
+            const list = document.getElementById('monitor-members-list');
+            const totalEl = document.getElementById('monitor-total-members');
+            if (!list) return;
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading members...</div>';
+            try {
+                const members = await fetchData(`/api/alliance-monitor/members/${guildId}`);
+                if (totalEl) totalEl.textContent = `Total: ${members.length} members`;
+                
+                if (members.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No members found. Add players to start monitoring.</div>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                members.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'selectable-code'; // Reusing style
+                    div.style.padding = '12px';
+                    div.style.textAlign = 'center';
+                    div.style.display = 'flex';
+                    div.style.flexDirection = 'column';
+                    div.style.alignItems = 'center';
+                    div.dataset.fid = m.id;
+                    
+                    const avatar = m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    
+                    div.innerHTML = `
+                        <div class="check-icon" style="top: 5px; right: 5px;"><i data-lucide="check" style="width: 10px;"></i></div>
+                        <img src="${avatar}" style="width: 48px; height: 48px; border-radius: 50%; margin-bottom: 8px; border: 2px solid var(--glass-border);">
+                        <div style="font-weight: 700; font-size: 0.9rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;" title="${escapeHTML(m.nickname)}">${escapeHTML(m.nickname)}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin: 2px 0;">ID: ${m.id}</div>
+                        <div style="font-size: 0.75rem; color: #f59e0b; font-weight: 600;">Lv. ${formatFurnaceLevel(m.furnace_lv)}</div>
+                        <button onclick="removeMonitorMember('${m.id}')" style="background: none; border: none; color: #ef4444; cursor: pointer; margin-top: 8px; font-size: 0.7rem; display: flex; align-items: center; gap: 4px;">
+                            <i data-lucide="trash-2" style="width: 12px;"></i> Remove
+                        </button>
+                    `;
+                    
+                    div.onclick = (e) => {
+                        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                        div.classList.toggle('selected');
+                        updateMonitorBatchUI();
+                    };
+                    
+                    list.appendChild(div);
+                });
+                lucide.createIcons();
+            } catch (e) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Failed to load members.</div>';
+            }
+        }
+
+        function updateMonitorBatchUI() {
+            const selected = document.querySelectorAll('#monitor-members-list .selectable-code.selected');
+            const btn = document.getElementById('remove-selected-monitor-btn');
+            if (selected.length > 0) {
+                btn.style.display = 'inline-flex';
+                btn.innerHTML = `<i data-lucide="trash-2" style="width: 12px;"></i> Remove (${selected.length})`;
+            } else {
+                btn.style.display = 'none';
+            }
+            lucide.createIcons();
+        }
+
+        async function removeMonitorMember(fid) {
+            if (!confirm(`Remove player ${fid} from monitoring?`)) return;
+            showLoading(true);
+            try {
+                await fetchData(`/api/alliance-monitor/members/${fid}`, { method: 'DELETE' });
+                showNotification('Player removed');
+                loadMonitoredMembers();
+            } catch (e) {
+                showNotification('Failed to remove player', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function removeSelectedMonitorMembers() {
+            const selected = Array.from(document.querySelectorAll('#monitor-members-list .selectable-code.selected')).map(el => el.dataset.fid);
+            if (selected.length === 0) return;
+            
+            if (!confirm(`Remove ${selected.length} selected players from monitoring?`)) return;
+            
+            showLoading(true);
+            try {
+                await fetchData('/api/alliance-monitor/members/remove-batch', {
+                    method: 'POST',
+                    body: JSON.stringify({ fids: selected })
+                });
+                showNotification(`Successfully removed ${selected.length} members`);
+                loadMonitoredMembers();
+                document.getElementById('remove-selected-monitor-btn').style.display = 'none';
+            } catch (e) {
+                showNotification('Failed to remove members', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Add Monitor Player Modal Functions
+        function openAddMonitorPlayerModal() {
+            document.getElementById('add-monitor-player-modal').style.display = 'flex';
+            document.getElementById('add-monitor-fid').value = '';
+            document.getElementById('add-monitor-preview').innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">Enter a FID and search to verify the player</div>';
+            document.getElementById('confirm-add-monitor-player-btn').disabled = true;
+            lucide.createIcons();
+        }
+
+        function closeAddMonitorPlayerModal() {
+            document.getElementById('add-monitor-player-modal').style.display = 'none';
+        }
+
+        let _lastMonitorLookup = null;
+        async function lookupMonitorPlayer() {
+            const fid = document.getElementById('add-monitor-fid').value;
+            if (!fid || fid.length < 5) {
+                showNotification('Please enter a valid FID', true);
+                return;
+            }
+
+            const btn = document.getElementById('lookup-monitor-player-btn');
+            const preview = document.getElementById('add-monitor-preview');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; animation: spin 1s linear infinite;"></i>';
+            lucide.createIcons();
+
+            try {
+                const data = await fetchData(`/api/alliance-monitor/members/lookup/${fid}`);
+                if (data) {
+                    _lastMonitorLookup = data;
+                    preview.innerHTML = `
+                        <div class="player-info-display" style="width: 100%; margin-top: 0; background: rgba(255,255,255,0.03);">
+                            <img src="${data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="player-avatar-large">
+                            <div class="player-meta">
+                                <h4>${escapeHTML(data.nickname)}</h4>
+                                <p>FID: ${data.id} • Furnace Lv. ${formatFurnaceLevel(data.level)}</p>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('confirm-add-monitor-player-btn').disabled = false;
+                } else {
+                    preview.innerHTML = '<div style="color: #ef4444; font-size: 0.9rem; text-align: center; width: 100%;">Player not found or error fetching data</div>';
+                    document.getElementById('confirm-add-monitor-player-btn').disabled = true;
+                }
+            } catch (e) {
+                preview.innerHTML = '<div style="color: #ef4444; font-size: 0.9rem; text-align: center; width: 100%;">Error searching for player</div>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="search" style="width: 16px;"></i>';
+                lucide.createIcons();
+            }
+        }
+
+        async function confirmAddMonitorPlayer() {
+            if (!_lastMonitorLookup) return;
+            
+            const btn = document.getElementById('confirm-add-monitor-player-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width:15px;animation:spin 1s linear infinite;"></i> Adding...';
+            lucide.createIcons();
+
+            try {
+                await fetchData('/api/alliance-monitor/members/add', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        guild_id: guildId,
+                        fid: String(_lastMonitorLookup.id),
+                        nickname: _lastMonitorLookup.nickname,
+                        furnace_lv: _lastMonitorLookup.level,
+                        avatar_image: _lastMonitorLookup.avatar_image
+                    })
+                });
+                showNotification('Player added to monitor');
+                closeAddMonitorPlayerModal();
+                loadMonitoredMembers();
+            } catch (e) {
+                showNotification('Failed to add player', true);
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="user-check" style="width:15px;"></i> Add to Monitor';
+                lucide.createIcons();
+            }
         }
 
         (async () => {
@@ -3369,8 +3499,9 @@
                 await loadAutoRedeemSettings();
                 await loadAutoRedeemMembers();
                 await loadReminders();
-                await loadAlliances();
-                await loadAllianceMonitorData();
+                await loadMonitorSettings();
+                await loadMonitorHistory();
+                await loadMonitoredMembers();
             } catch (e) { console.error('Init error:', e); } finally { showLoading(false); }
 
             // Setup drag-and-drop on upload area (DOM guaranteed ready now)
@@ -3378,19 +3509,6 @@
             // Kick off an initial preview render in case no settings exist yet
             updatePreview();
             lucide.createIcons();
-
-            // Auto-refresh mechanism for active tabs
-            setInterval(() => {
-                if (document.hidden) return; // Don't refresh if page is not visible
-                
-                if (currentTab === 'alliance-monitor') {
-                    loadAllianceMonitorData();
-                } else if (currentTab === 'auto-redeem') {
-                    loadAutoRedeemMembers();
-                } else if (currentTab === 'giftcodes') {
-                    loadGiftCodes();
-                }
-            }, 60000); // 60 seconds
         })();
     </script>
 </body>

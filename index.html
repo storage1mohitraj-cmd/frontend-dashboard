@@ -282,28 +282,6 @@
     if (localStorage.getItem('discord_access_token')) {
       window.location.href = 'dashboard.html';
     }
-
-    // Fetch bot status to show real logo
-    async function updateBotBranding() {
-      try {
-        const response = await fetch('/api/status');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.bot_avatar) {
-            document.querySelectorAll('img[alt="Bot Avatar"]').forEach(img => {
-              img.src = data.bot_avatar;
-            });
-          }
-          if (data.bot_name) {
-            // Keep "Whiteout Survival" but append bot name if helpful, or replace
-            // For now just ensure the images are correct
-          }
-        }
-      } catch (e) {
-        console.error('Failed to fetch bot branding:', e);
-      }
-    }
-    updateBotBranding();
   </script>
 </body>
 

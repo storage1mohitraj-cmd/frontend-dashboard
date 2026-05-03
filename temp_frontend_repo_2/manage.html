@@ -13,16 +13,16 @@
     
     <style>
         :root {
-            --primary: #8b5cf6; /* Purple like the screenshot */
-            --primary-hover: #7c3aed;
+            --primary: #ffffff; /* Professional Dark/White Theme */
+            --primary-hover: #e2e8f0;
             --accent: #f59e0b;
-            --bg-dark: #0f1115;
-            --sidebar-bg: #16191f;
-            --card-bg: #1e2229;
-            --glass-bg: rgba(30, 34, 41, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --text-main: #e2e8f0;
-            --text-muted: #94a3b8;
+            --bg-dark: #0a0a0a;
+            --sidebar-bg: #121212;
+            --card-bg: #1a1a1a;
+            --glass-bg: rgba(26, 26, 26, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
             --sidebar-width: 280px;
             --top-bar-height: 70px;
         }
@@ -718,89 +718,196 @@
             margin-top: 8px;
         }
 
-        /* Time Wheel Picker Styles */
+        /* Time Wheel Picker Styles - Realistic Mechanical Drum */
         .time-picker-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            background: #000000;
-            padding: 20px;
-            border-radius: 16px;
-            margin: 10px 0;
-            border: 1px solid rgba(255,255,255,0.1);
+            background: #050505;
+            padding: 20px 10px;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: 1px solid #1a1a1a;
             user-select: none;
             position: relative;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,1);
+            overflow: hidden;
+            gap: 0; /* Tighten for separators */
         }
-        .time-picker-row::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 10px;
-            right: 10px;
-            height: 33px;
-            background: rgba(255,255,255,0.05);
-            transform: translateY(-50%);
-            border-radius: 8px;
-            pointer-events: none;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
+        
+        /* The highlight lens - more realistic glass effect */
         .time-picker-row::before {
             content: '';
             position: absolute;
             top: 50%;
             left: 0;
             right: 0;
-            height: 36px;
-            border-top: 1px solid var(--primary);
-            border-bottom: 1px solid var(--primary);
+            height: 46px;
+            background: linear-gradient(to bottom, 
+                rgba(255,255,255,0.05) 0%, 
+                rgba(255,255,255,0.02) 50%, 
+                rgba(255,255,255,0.05) 100%
+            );
+            border-top: 1px solid rgba(255,255,255,0.15);
+            border-bottom: 1px solid rgba(255,255,255,0.15);
             transform: translateY(-50%);
-            background: rgba(var(--primary-rgb), 0.05);
             pointer-events: none;
-            z-index: 1;
+            z-index: 5;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
-        .wheel-container {
+
+        /* Vertical separators between wheels - Realistic Grooves */
+        .wheel-separator {
+            width: 2px;
             height: 100px;
+            background: linear-gradient(to bottom, #000 0%, #222 50%, #000 100%);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(0,0,0,0.5);
+            z-index: 4;
+            margin: 0 10px;
+            flex-shrink: 0;
+        }
+
+        .wheel-container {
+            height: 140px; /* Reduced height for tighter alignment */
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scrollbar-width: none;
-            width: 60px;
+            width: 70px;
             text-align: center;
             position: relative;
             z-index: 2;
-            mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
-            -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+            mask-image: linear-gradient(to bottom, 
+                transparent 0%, 
+                black 45%, 
+                black 55%, 
+                transparent 100%
+            );
+            -webkit-mask-image: linear-gradient(to bottom, 
+                transparent 0%, 
+                black 45%, 
+                black 55%, 
+                transparent 100%
+            );
             cursor: grab;
-            user-select: none;
+            perspective: 1200px;
+            transform-style: preserve-3d;
         }
-        .wheel-container:active {
-            cursor: grabbing;
-        }
+
+        .wheel-container:active { cursor: grabbing; }
         .wheel-container::-webkit-scrollbar { display: none; }
+
         .wheel-item {
-            height: 33px;
+            height: 46px;
             display: flex;
             align-items: center;
             justify-content: center;
             scroll-snap-align: center;
-            font-size: 1.1rem;
-            color: rgba(255,255,255,0.4);
-            transition: all 0.2s;
+            font-size: 1.6rem;
+            color: rgba(255,255,255,0.15);
+            transition: color 0.2s, opacity 0.2s;
             cursor: pointer;
+            backface-visibility: hidden;
+            transform-style: preserve-3d;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-weight: 700;
         }
+
+        .wheel-item.spacer {
+            pointer-events: none;
+            height: 46px; /* Explicitly match item height */
+        }
+
         .wheel-item.selected {
             color: #fff;
-            font-weight: 700;
-            font-size: 1.4rem;
+            font-weight: 800;
+            font-size: 2.2rem;
+            opacity: 1 !important;
         }
+
         .wheel-label {
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 1.5rem;
-            margin: 0 5px;
-            z-index: 2;
+            color: #333;
+            font-weight: 900;
+            font-size: 1.8rem;
+            margin: 0 2px;
+            z-index: 6;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 46px;
         }
+
+        /* Dark Theme - No Purple */
+        :root {
+            --primary: #ffffff;
+            --primary-rgb: 255, 255, 255;
+            --primary-hover: #e0e0e0;
+            --bg-dark: #0f1115;
+            --bg-card: #16191f;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-primary {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: none !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.1) !important;
+        }
+        .btn-primary:hover {
+            background: #e0e0e0 !important;
+            transform: translateY(-1px);
+        }
+
+        .ar-icon-box.purple {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+        }
+
+        .pulse-dot { background: #ffffff; }
+
+        .dc-bot-tag {
+            background: #5865f2; /* Keep Discord Blurple for tag as it's authentic */
+        }
+
+        .dc-mention {
+            color: #c9cdfb;
+            background: rgba(88, 101, 242, 0.3);
+            padding: 0 4px;
+            border-radius: 3px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .dc-mention:hover {
+            background: rgba(88, 101, 242, 0.6);
+            color: #fff;
+        }
+
+        .dc-embed-title {
+            font-weight: 800 !important;
+            font-size: 1.2rem !important;
+            color: #fff !important;
+            margin-bottom: 4px;
+        }
+
+        .dc-embed-desc {
+            font-size: 0.95rem !important;
+            color: #dbdee1 !important;
+            line-height: 1.375;
+        }
+
+        #reminder-preview-embed {
+            border-left: 4px solid #ffffff !important;
+            background: #2b2d31 !important;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin: 8px 0;
+            max-width: 520px !important;
+        }
+
+        .preview-label span { background: #ffffff; }
         .timezone-group {
             margin-top: 10px;
         }
@@ -1160,22 +1267,10 @@
                     <div class="welcome-layout">
                         <div class="welcome-editor">
                             <div class="form-group">
-                                <label>🏰 Select Alliance</label>
-                                <select id="monitor-alliance">
-                                    <option value="">Select an alliance</option>
-                                </select>
-                            </div>
-
-                            <div class="form-group">
                                 <label>📢 Log Channel</label>
                                 <select id="monitor-channel" class="guild-channels">
                                     <option value="">Select a channel</option>
                                 </select>
-                            </div>
-
-                            <div class="form-group">
-                                <label>⏱️ Check Interval (minutes)</label>
-                                <input type="number" id="monitor-interval" value="240" min="5" max="1440">
                             </div>
 
                             <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:12px;">
@@ -1214,7 +1309,7 @@
                 <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
                     <div class="card">
                         <div class="section-header">
-                            <h3><i data-lucide="history" style="width:18px;height:18px;color:var(--primary);"></i> Recent Events</h3>
+                            <h3><i data-lucide="history" style="width:18px;height:18px;color:var(--primary);"></i> Recent Activity</h3>
                             <button onclick="loadMonitorHistory()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
                                 <i data-lucide="refresh-cw" style="width: 12px;"></i> Refresh
                             </button>
@@ -1226,12 +1321,23 @@
 
                     <div class="card">
                         <div class="section-header">
-                            <h3><i data-lucide="users" style="width:18px;height:18px;color:var(--primary);"></i> Monitored Members</h3>
-                            <button onclick="loadMonitoredMembers()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
-                                <i data-lucide="refresh-cw" style="width: 12px;"></i> Refresh
-                            </button>
+                            <div style="display: flex; flex-direction: column;">
+                                <h3><i data-lucide="users" style="width:18px;height:18px;color:var(--primary);"></i> Monitored Members</h3>
+                                <p id="monitor-total-members" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">Total: 0 members</p>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="openAddMonitorPlayerModal()" class="btn btn-primary" style="padding: 4px 10px; font-size: 0.8rem;">
+                                    <i data-lucide="plus" style="width: 12px;"></i> Add
+                                </button>
+                                <button id="remove-selected-monitor-btn" onclick="removeSelectedMonitorMembers()" class="btn btn-danger" style="padding: 4px 10px; font-size: 0.8rem; display: none;">
+                                    <i data-lucide="trash-2" style="width: 12px;"></i> Remove
+                                </button>
+                                <button onclick="loadMonitoredMembers()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
+                                    <i data-lucide="refresh-cw" style="width: 12px;"></i>
+                                </button>
+                            </div>
                         </div>
-                        <div id="monitor-members-list" style="max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                        <div id="monitor-members-list" style="max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px;">
                             <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading members...</div>
                         </div>
                     </div>
@@ -1430,82 +1536,192 @@
         </div>
     </div>
 
-    <!-- Modals -->
+    <!-- Translate Modal -->
     <div id="translate-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-title">New Translation Config</h3>
-                <button onclick="closeTranslateModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
-                    <i data-lucide="x"></i>
+        <div class="modal-content" style="max-width: 600px; border-radius: 20px; overflow: hidden; background: #1a1d24;">
+            <div class="modal-header" style="padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); background: #16191f;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="ar-icon-box dark" style="width: 36px; height: 36px; background: rgba(255,255,255,0.05); color: #fff;">
+                        <i data-lucide="languages" style="width: 18px;"></i>
+                    </div>
+                    <div>
+                        <h3 id="modal-title" style="margin: 0; font-size: 1.1rem;">New Translation Config</h3>
+                        <p style="margin: 2px 0 0; font-size: 0.75rem; color: var(--text-muted);">Configure automatic channel translation</p>
+                    </div>
+                </div>
+                <button onclick="closeTranslateModal()" style="background:rgba(255,255,255,0.05); border:none; color:var(--text-muted); cursor:pointer; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i data-lucide="x" style="width: 16px;"></i>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
                 <input type="hidden" id="config-id">
+                
                 <div class="form-group">
                     <label>Pipeline Name</label>
-                    <input type="text" id="config-name" placeholder="e.g. Chat Sync">
+                    <input type="text" id="config-name" placeholder="e.g. Chat Sync" style="padding: 12px;">
                 </div>
+
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group"><label>Source Lang</label><select id="source-lang"><option value="auto">Auto</option><option value="en">English</option></select></div>
-                    <div class="form-group"><label>Target Lang</label><select id="target-lang"><option value="en">English</option><option value="fr">French</option></select></div>
+                    <div class="form-group">
+                        <label>Source Lang</label>
+                        <select id="source-lang">
+                            <option value="auto">🔄 Auto-Detect</option>
+                            <option value="en">🇺🇸 English</option>
+                            <option value="es">🇪🇸 Spanish</option>
+                            <option value="fr">🇫🇷 French</option>
+                            <option value="de">🇩🇪 German</option>
+                            <option value="it">🇮🇹 Italian</option>
+                            <option value="pt">🇵🇹 Portuguese</option>
+                            <option value="ru">🇷🇺 Russian</option>
+                            <option value="ja">🇯🇵 Japanese</option>
+                            <option value="ko">🇰🇷 Korean</option>
+                            <option value="zh">🇨🇳 Chinese</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Lang</label>
+                        <select id="target-lang">
+                            <option value="en">🇺🇸 English</option>
+                            <option value="es">🇪🇸 Spanish</option>
+                            <option value="fr">🇫🇷 French</option>
+                            <option value="de">🇩🇪 German</option>
+                            <option value="it">🇮🇹 Italian</option>
+                            <option value="pt">🇵🇹 Portuguese</option>
+                            <option value="ru">🇷🇺 Russian</option>
+                            <option value="ja">🇯🇵 Japanese</option>
+                            <option value="ko">🇰🇷 Korean</option>
+                            <option value="zh">🇨🇳 Chinese</option>
+                        </select>
+                    </div>
                 </div>
+
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                    <div class="form-group"><label>Source Channel</label><select id="source-channel" class="guild-channels"></select></div>
-                    <div class="form-group"><label>Target Channel</label><select id="target-channel" class="guild-channels"></select></div>
+                    <div class="form-group">
+                        <label>Source Channel</label>
+                        <select id="source-channel" class="guild-channels"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Target Channel</label>
+                        <select id="target-channel" class="guild-channels"></select>
+                    </div>
                 </div>
-                <div class="form-group"><label>Style</label><select id="translate-style"><option value="webhook">Webhook</option><option value="embed">Embed</option></select></div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div class="form-group">
+                        <label>Style</label>
+                        <select id="translate-style">
+                            <option value="webhook">Webhook (Preserves Author)</option>
+                            <option value="embed">Embed (Bot Message)</option>
+                            <option value="bot">Plain Text (Bot Message)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Min Text Length</label>
+                        <input type="number" id="translate-min-length" value="10" min="1">
+                    </div>
+                </div>
+
+                <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 16px 0;"></div>
+                
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="translate-ignore-target" checked>
+                        <span>Ignore if detected language is same as target</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="translate-ignore-not-input">
+                        <span>Ignore if detected language is NOT the source language</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="translate-skip-attachments">
+                        <span>Skip messages with attachments</span>
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="translate-delete-original">
+                        <span>Delete original message after translation</span>
+                    </label>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button onclick="closeTranslateModal()" class="btn btn-secondary">Cancel</button>
-                <button onclick="saveTranslateConfig()" class="btn btn-primary">Save Pipeline</button>
+            <div class="modal-footer" style="padding: 16px 24px; background: #16191f; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeTranslateModal()" class="btn btn-secondary" style="background: rgba(255,255,255,0.05);">Cancel</button>
+                <button onclick="saveTranslateConfig()" class="btn btn-primary" style="padding: 8px 24px;">Save Pipeline</button>
             </div>
         </div>
     </div>
 
     <!-- Reminder Modal -->
     <div id="reminder-modal" class="modal">
-        <div class="modal-content" style="max-width: 900px;">
-            <div class="modal-header">
-                <h3>New Reminder</h3>
-                <button onclick="closeReminderModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
-                    <i data-lucide="x"></i>
+        <div class="modal-content" style="max-width: 1000px; border-radius: 24px; overflow: hidden; background: #1a1d24;">
+            <div class="modal-header" style="padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); background: #16191f;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="ar-icon-box dark" style="width: 40px; height: 40px; background: rgba(255,255,255,0.05); color: #fff;">
+                        <i data-lucide="bell" style="width: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.25rem;">New Reminder</h3>
+                        <p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-muted);">Schedule a notification for your server</p>
+                    </div>
+                </div>
+                <button onclick="closeReminderModal()" style="background:rgba(255,255,255,0.05); border:none; color:var(--text-muted); cursor:pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
+                    <i data-lucide="x" style="width: 18px;"></i>
                 </button>
             </div>
-            <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="modal-body" style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 0; padding: 0; height: 80vh;">
                 <!-- Left Side: Form -->
-                <div class="reminder-form" style="max-height: 70vh; overflow-y: auto; padding-right: 12px;">
+                <div class="reminder-form" style="padding: 24px 32px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05);">
                     <div class="form-group">
                         <label>Title Message</label>
-                        <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()">
+                        <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()" style="font-size: 1rem; padding: 14px;">
                     </div>
                     <div class="form-group">
                         <label>Description (Body)</label>
-                        <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 60px;" oninput="updateReminderPreview()"></textarea>
+                        <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 80px; font-size: 0.95rem;" oninput="updateReminderPreview()"></textarea>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Start Date</label>
-                            <input type="date" id="reminder-date">
+                            <div style="position: relative;">
+                                <input type="date" id="reminder-date" style="padding-left: 40px;">
+                                <i data-lucide="calendar" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Channel</label>
-                            <select id="reminder-channel" class="guild-channels"></select>
+                            <div style="position: relative;">
+                                <select id="reminder-channel" class="guild-channels" style="padding-left: 40px;"></select>
+                                <i data-lucide="hash" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Start Time (Scroll to Select)</label>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            Start Time
+                            <span style="font-size: 0.75rem; color: var(--primary); font-weight: 500;">Scroll to select</span>
+                        </label>
                         <div class="time-picker-row">
-                            <div class="wheel-container" id="wheel-hour"></div>
+                            <div class="wheel-container" id="wheel-hour" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)"></div>
+                            <div class="wheel-separator"></div>
                             <span class="wheel-label">:</span>
-                            <div class="wheel-container" id="wheel-min"></div>
+                            <div class="wheel-separator"></div>
+                            <div class="wheel-container" id="wheel-min" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)"></div>
+                            <div class="wheel-separator"></div>
                             <span class="wheel-label">:</span>
-                            <div class="wheel-container" id="wheel-sec"></div>
-                            <div class="wheel-container" id="wheel-ampm" style="width: 70px;">
-                                <div class="wheel-item" style="height:33px;"></div>
+                            <div class="wheel-separator"></div>
+                            <div class="wheel-container" id="wheel-sec" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)"></div>
+                            <div class="wheel-separator"></div>
+                            <div class="wheel-container" id="wheel-ampm" style="width: 80px;" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)">
+                                <div class="wheel-item spacer"></div>
                                 <div class="wheel-item" data-val="AM">AM</div>
                                 <div class="wheel-item" data-val="PM">PM</div>
-                                <div class="wheel-item" style="height:33px;"></div>
+                                <div class="wheel-item spacer"></div>
                             </div>
                         </div>
                     </div>
@@ -1524,7 +1740,7 @@
                         </select>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Repeat / Recurrence</label>
                             <select id="reminder-recurrence" onchange="toggleCustomInterval()">
@@ -1539,7 +1755,10 @@
                             <input type="number" id="reminder-interval" min="1" value="1">
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+
+                    <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 24px 0;"></div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Mention</label>
                             <select id="reminder-mention" onchange="updateReminderPreview()">
@@ -1550,76 +1769,122 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Image URL</label>
-                            <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()">
+                            <label>Image (URL or Upload)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
+                                <input type="file" id="reminder-image-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-image')">
+                                <button onclick="document.getElementById('reminder-image-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
+                                    <i data-lucide="upload" style="width: 18px;"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
-                            <label>Thumbnail URL</label>
-                            <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()">
+                            <label>Thumbnail Presets</label>
+                            <select id="reminder-thumbnail-preset" onchange="applyThumbnailPreset(this.value)">
+                                <option value="">Custom / None</option>
+                                <option value="Bear trap">Bear Trap</option>
+                                <option value="Crazy Joe">Crazy Joe</option>
+                                <option value="set">Bot Logo (Set)</option>
+                                <option value="alert">Alert Icon</option>
+                            </select>
                         </div>
+                        <div class="form-group">
+                            <label>Thumbnail (URL or Upload)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
+                                <input type="file" id="reminder-thumbnail-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-thumbnail')">
+                                <button onclick="document.getElementById('reminder-thumbnail-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
+                                    <i data-lucide="upload" style="width: 18px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Footer Text</label>
                             <input type="text" id="reminder-footer" placeholder="Optional footer" oninput="updateReminderPreview()">
                         </div>
+                        <div class="form-group">
+                            <label>Footer Icon (URL or Upload)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
+                                <input type="file" id="reminder-footer-icon-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-footer-icon')">
+                                <button onclick="document.getElementById('reminder-footer-icon-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
+                                    <i data-lucide="upload" style="width: 18px;"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
-                        <div class="form-group">
-                            <label>Footer Icon URL</label>
-                            <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()">
-                        </div>
-                        <div class="form-group">
-                            <label>Author URL</label>
-                            <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
-                        </div>
+                    <div class="form-group">
+                        <label>Author URL (Clickable Title)</label>
+                        <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
                     </div>
                 </div>
 
                 <!-- Right Side: Preview -->
-                <div class="reminder-preview-side">
-                    <div class="preview-label"><span></span> Live Reminder Preview</div>
-                    <div class="dc-chat">
-                        <div class="dc-message">
-                            <img class="dc-bot-avatar" src="/logo.gif" alt="Bot">
-                            <div class="dc-message-body">
-                                <div class="dc-message-header">
-                                    <span class="dc-bot-name">ICEAngel</span>
-                                    <span class="dc-bot-tag">APP</span>
-                                    <span class="dc-timestamp">Reminder</span>
-                                </div>
-                                <div id="reminder-preview-mention" class="dc-text" style="margin-bottom: 4px;">@everyone</div>
-                                <!-- Embed card -->
-                                <div class="dc-embed" id="reminder-preview-embed" style="border-left-color: #8b5cf6;">
-                                    <div class="dc-embed-inner">
-                                        <div style="display: flex; gap: 12px;">
-                                            <div style="flex: 1;">
-                                                <div class="dc-embed-title" id="reminder-preview-title">Bear Trap starts now!</div>
-                                                <div class="dc-embed-desc" id="reminder-preview-body">Optional detailed text</div>
+                <div class="reminder-preview-side" style="padding: 24px; background: #16191f; display: flex; flex-direction: column; scale: 0.95; transform-origin: top left;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div class="preview-label" style="margin: 0; font-size: 0.75rem; letter-spacing: 0.05em;">
+                            <span class="pulse-dot"></span> LIVE PREVIEW
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #ff5f56;"></div>
+                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #ffbd2e;"></div>
+                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #27c93f;"></div>
+                        </div>
+                    </div>
+
+                    <div class="dc-chat" style="flex: 1; display: flex; align-items: flex-start;">
+                        <div class="dc-message" style="width: 100%; padding: 0;">
+                            <div style="display: flex; gap: 12px;">
+                                <img class="dc-bot-avatar" src="/logo.gif" alt="Bot" style="width: 32px; height: 32px; margin: 0;">
+                                <div class="dc-message-body" style="flex: 1;">
+                                    <div class="dc-message-header" style="margin-bottom: 2px;">
+                                        <span class="dc-bot-name" style="font-weight: 600; font-size: 0.9rem;">Whiteout Survival</span>
+                                        <span class="dc-bot-tag" style="padding: 1px 3px; font-size: 0.65rem;">APP</span>
+                                        <span class="dc-timestamp" style="font-size: 0.7rem;">Today at 12:00 PM</span>
+                                    </div>
+                                    
+                                    <!-- Embed card -->
+                                    <div class="dc-embed" id="reminder-preview-embed" style="border-left: 3px solid #ffffff; background: #2b2d31; border-radius: 4px; padding: 10px 14px; margin: 6px 0; max-width: 400px;">
+                                        <div class="dc-embed-inner">
+                                            <div style="display: flex; gap: 10px;">
+                                                <div style="flex: 1;">
+                                                    <div class="dc-embed-title" id="reminder-preview-title" style="font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 4px;">Bear Trap starts now!</div>
+                                                    <div class="dc-embed-desc" id="reminder-preview-body" style="font-size: 0.85rem; color: #dbdee1; line-height: 1.3;">Optional detailed text</div>
+                                                </div>
+                                                <img id="reminder-preview-thumbnail" src="" style="width: 60px; height: 60px; border-radius: 4px; object-fit: cover; display: none;">
                                             </div>
-                                            <img id="reminder-preview-thumbnail" src="" style="width: 80px; height: 80px; border-radius: 4px; object-fit: cover; display: none;">
-                                        </div>
-                                        <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 8px; border-radius: 4px;">
-                                        <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 8px;">
-                                            <img id="reminder-preview-footer-icon" src="" style="width: 18px; height: 18px; border-radius: 50%; display: none;">
-                                            <span id="reminder-preview-footer-text"></span>
+                                            <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 10px; border-radius: 4px; max-width: 100%;">
+                                            <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 6px; margin-top: 10px;">
+                                                <img id="reminder-preview-footer-icon" src="" style="width: 16px; height: 16px; border-radius: 50%; display: none;">
+                                                <span id="reminder-preview-footer-text" style="font-size: 0.7rem; color: #dbdee1; font-weight: 500;"></span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div id="reminder-preview-mention" class="dc-text" style="margin-top: 2px; color: #00a8fc; font-weight: 500; font-size: 0.85rem;">@everyone</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div style="margin-top:16px; padding:12px; background:rgba(139,92,246,0.06); border-radius:10px; border:1px solid rgba(139,92,246,0.15);">
-                        <p style="font-size:0.78rem; color:var(--text-muted); line-height:1.6;">
-                            This is how your reminder will appear in Discord. Use URLs for images and icons.
-                        </p>
+                    <div style="margin-top:16px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; gap: 8px; align-items: flex-start;">
+                            <i data-lucide="info" style="width: 14px; color: #fff; opacity: 0.5; flex-shrink: 0; margin-top: 2px;"></i>
+                            <p style="font-size:0.7rem; color:var(--text-muted); line-height:1.4; margin: 0;">
+                                Preview of your Discord notification.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button onclick="closeReminderModal()" class="btn btn-secondary">Cancel</button>
-                <button onclick="createReminder()" class="btn btn-primary">Create Reminder</button>
+            <div class="modal-footer" style="padding: 20px 32px; background: #16191f; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeReminderModal()" class="btn btn-secondary" style="background: rgba(255,255,255,0.05);">Cancel</button>
+                <button onclick="createReminder()" class="btn btn-primary" style="padding: 10px 32px; box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);">Create Reminder</button>
             </div>
         </div>
     </div>
@@ -1665,6 +1930,47 @@
         </div>
     </div>
 
+    <!-- Add Monitor Player Modal -->
+    <div id="add-monitor-player-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                    <div class="ar-icon-box purple" style="width: 32px; height: 32px;">
+                        <i data-lucide="user-plus" style="width: 16px;"></i>
+                    </div>
+                    Add Player to Monitor
+                </h3>
+                <button onclick="closeAddMonitorPlayerModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Player FID (9 digits)</label>
+                    <div class="player-input-wrap">
+                        <input type="text" id="add-monitor-fid" placeholder="e.g. 123456789" maxlength="9">
+                        <button onclick="lookupMonitorPlayer()" class="btn btn-primary" id="lookup-monitor-player-btn">
+                            <i data-lucide="search" style="width: 16px;"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="add-monitor-preview" class="add-member-lookup">
+                    <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
+                        Enter a FID and search to verify the player
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAddMonitorPlayerModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="confirmAddMonitorPlayer()" class="btn btn-primary" id="confirm-add-monitor-player-btn" disabled>
+                    <i data-lucide="user-check" style="width: 15px;"></i>
+                    Add to Monitor
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="loading" class="loading-overlay"><div class="spinner"></div></div>
     <div id="notification" class="notification">Action completed</div>
 
@@ -1692,7 +1998,6 @@
             document.getElementById(`tab-${tabName}`).classList.add('active');
             
             if (tabName === 'alliance') {
-                loadMonitorAlliances();
                 loadMonitorSettings();
                 loadMonitorHistory();
                 loadMonitoredMembers();
@@ -1711,6 +2016,8 @@
                 if (id !== 'wheel-ampm') {
                     const max = id === 'wheel-hour' ? 12 : 59;
                     const start = id === 'wheel-hour' ? 1 : 0;
+                    
+                    // Add single spacer for perfect centering with 140px container
                     el.innerHTML = '<div class="wheel-item spacer"></div>';
                     for(let i=start; i<=max; i++) {
                         const val = String(i).padStart(2, '0');
@@ -1775,28 +2082,63 @@
             }, 500);
         }
 
+        // Optimized Wheel Selection for Smooth Scrolling
+        let wheelUpdatePending = {};
+
         function updateWheelSelection(el) {
-            const containerRect = el.getBoundingClientRect();
-            const centerY = containerRect.top + containerRect.height / 2;
+            const id = el.id;
+            if (wheelUpdatePending[id]) return;
             
-            let closestItem = null;
-            let minDiff = Infinity;
-            
-            el.querySelectorAll('.wheel-item[data-val]').forEach(item => {
-                const rect = item.getBoundingClientRect();
-                const itemCenterY = rect.top + rect.height / 2;
-                const diff = Math.abs(centerY - itemCenterY);
+            wheelUpdatePending[id] = true;
+            requestAnimationFrame(() => {
+                const containerRect = el.getBoundingClientRect();
+                const centerY = containerRect.top + containerRect.height / 2;
                 
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closestItem = item;
+                let closestItem = null;
+                let minDiff = Infinity;
+                
+                const items = el.querySelectorAll('.wheel-item[data-val]');
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    const rect = item.getBoundingClientRect();
+                    const itemCenterY = rect.top + rect.height / 2;
+                    const diff = centerY - itemCenterY;
+                    const absDiff = Math.abs(diff);
+                    
+                    // Optimized Mechanical Drum Rotation
+                    const radius = containerRect.height / 2;
+                    const angle = (diff / radius) * 45; 
+                    const opacity = Math.max(0.1, 1 - (absDiff / radius));
+                    const zTranslate = -Math.abs(Math.sin(angle * Math.PI / 180) * 80);
+                    const scale = 1 + Math.max(0, (1 - (absDiff / 25)) * 0.2);
+
+                    item.style.transform = `rotateX(${angle}deg) translateZ(${zTranslate}px) scale(${scale})`;
+                    item.style.opacity = opacity;
+                    
+                    if (absDiff < minDiff) {
+                        minDiff = absDiff;
+                        closestItem = item;
+                    }
+                    item.classList.remove('selected');
                 }
-                item.classList.remove('selected');
+                
+                if (closestItem) {
+                    closestItem.classList.add('selected');
+                }
+                wheelUpdatePending[id] = false;
             });
-            
-            if (closestItem) {
-                closestItem.classList.add('selected');
-            }
+        }
+
+        // Add snap-to-center functionality
+        function handleWheelScrollEnd(el) {
+            clearTimeout(el.scrollTimeout);
+            el.scrollTimeout = setTimeout(() => {
+                const selected = el.querySelector('.wheel-item.selected');
+                if (selected) {
+                    const val = selected.dataset.val;
+                    setWheelValue(el, val);
+                }
+            }, 150);
         }
 
         function getWheelValue(id) {
@@ -1817,7 +2159,11 @@
                 const item = items[index];
                 const scrollPos = item.offsetTop - el.offsetTop - (el.clientHeight / 2) + (item.clientHeight / 2);
                 el.scrollTo({ top: scrollPos, behavior: 'smooth' });
-                // Mark selected immediately for better UX
+                
+                // Ensure 3D effects are updated during and after smooth scroll
+                const updateLoop = setInterval(() => updateWheelSelection(el), 16);
+                setTimeout(() => clearInterval(updateLoop), 500);
+                
                 items.forEach(i => i.classList.remove('selected'));
                 item.classList.add('selected');
             }
@@ -2642,14 +2988,21 @@
             let val = parseInt(lv);
             if (isNaN(val)) return String(lv);
             if (val <= 30) return String(val);
-            let adjustedLevel = val - 30;
-            let tier = Math.floor((adjustedLevel - 1) / 5) + 1;
-            let stage = ((adjustedLevel - 1) % 5) + 1;
-            if (stage === 5) {
-                return `FC ${tier}`;
-            } else {
-                return `FC ${tier}-${stage}`;
-            }
+            
+            // Special mapping for Tier 1
+            if (val === 31) return "1";
+            if (val === 32) return "1-1";
+            if (val === 33) return "1-2";
+            if (val === 34) return "1-4";
+            
+            // 5-level cycle for lvl 35 and above
+            // 35: 2, 36: 2-1, 37: 2-2, 38: 2-3, 39: 2-4, 40: 3
+            const relative = val - 35;
+            const tier = Math.floor(relative / 5) + 2;
+            const stage = relative % 5;
+            
+            if (stage === 0) return tier.toString();
+            return `${tier}-${stage}`;
         }
 
         function toggleBulkRemoveButton() {
@@ -2787,29 +3140,94 @@
         }
 
         function openTranslateModal(config = null) {
+            if (config) {
+                document.getElementById('modal-title').textContent = 'Edit Translation Config';
+                document.getElementById('config-id').value = config.config_id || '';
+                document.getElementById('config-name').value = config.name || '';
+                document.getElementById('source-lang').value = config.source_language || 'auto';
+                document.getElementById('target-lang').value = config.target_language || 'en';
+                document.getElementById('source-channel').value = config.source_channel_id || '';
+                document.getElementById('target-channel').value = config.target_channel_id || '';
+                document.getElementById('translate-style').value = config.style || 'webhook';
+                
+                // Extra fields from bot
+                document.getElementById('translate-min-length').value = config.min_text_length || 10;
+                document.getElementById('translate-ignore-target').checked = config.ignore_if_source_is_target !== false;
+                document.getElementById('translate-ignore-not-input').checked = config.ignore_if_source_is_not_input || false;
+                document.getElementById('translate-skip-attachments').checked = config.skip_attachments || false;
+                document.getElementById('translate-delete-original').checked = config.delete_original || false;
+            } else {
+                document.getElementById('modal-title').textContent = 'New Translation Config';
+                document.getElementById('config-id').value = '';
+                document.getElementById('config-name').value = '';
+                document.getElementById('source-lang').value = 'auto';
+                document.getElementById('target-lang').value = 'en';
+                document.getElementById('source-channel').value = '';
+                document.getElementById('target-channel').value = '';
+                document.getElementById('translate-style').value = 'webhook';
+                
+                // Defaults
+                document.getElementById('translate-min-length').value = 10;
+                document.getElementById('translate-ignore-target').checked = true;
+                document.getElementById('translate-ignore-not-input').checked = false;
+                document.getElementById('translate-skip-attachments').checked = false;
+                document.getElementById('translate-delete-original').checked = false;
+            }
             document.getElementById('translate-modal').style.display = 'flex';
         }
+
         function closeTranslateModal() { document.getElementById('translate-modal').style.display = 'none'; }
 
+        async function editTranslateConfig(id) {
+            showLoading(true);
+            try {
+                const configs = await fetchData(`/api/settings/translate/${guildId}`);
+                const config = configs.find(c => c.config_id === id);
+                if (config) {
+                    openTranslateModal(config);
+                }
+            } catch (e) {
+                showNotification('Failed to load config', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
         async function saveTranslateConfig() {
+            const config_id = document.getElementById('config-id').value;
             const data = {
-                config_id: document.getElementById('config-id').value,
                 name: document.getElementById('config-name').value,
                 source_language: document.getElementById('source-lang').value,
                 target_language: document.getElementById('target-lang').value,
                 source_channel_id: document.getElementById('source-channel').value,
                 target_channel_id: document.getElementById('target-channel').value,
                 style: document.getElementById('translate-style').value,
-                delete_original: false,
+                min_text_length: parseInt(document.getElementById('translate-min-length').value),
+                ignore_if_source_is_target: document.getElementById('translate-ignore-target').checked,
+                ignore_if_source_is_not_input: document.getElementById('translate-ignore-not-input').checked,
+                skip_attachments: document.getElementById('translate-skip-attachments').checked,
+                delete_original: document.getElementById('translate-delete-original').checked,
                 enabled: true
             };
+
+            if (!data.name || !data.source_channel_id || !data.target_channel_id) {
+                showNotification('Please fill all required fields', true);
+                return;
+            }
+
             showLoading(true);
             try {
-                await fetchData(`/api/settings/translate/${guildId}`, { method: 'POST', body: JSON.stringify(data) });
-                showNotification('Pipeline saved!');
+                const method = config_id ? 'PATCH' : 'POST';
+                const url = config_id ? `/api/settings/translate/${guildId}/${config_id}` : `/api/settings/translate/${guildId}`;
+                await fetchData(url, { method, body: JSON.stringify(data) });
+                showNotification(config_id ? 'Config updated!' : 'Config created!');
                 closeTranslateModal();
                 loadTranslateConfigs();
-            } catch (e) {} finally { showLoading(false); }
+            } catch (e) {
+                showNotification(e.message || 'Operation failed', true);
+            } finally {
+                showLoading(false);
+            }
         }
 
         async function deleteTranslateConfig(id) {
@@ -2877,6 +3295,12 @@
                 document.getElementById('reminder-footer').value = r.footer_text || '';
                 document.getElementById('reminder-footer-icon').value = r.footer_icon_url || '';
                 document.getElementById('reminder-author-url').value = r.author_url || '';
+
+                // Clear file inputs when editing
+                document.getElementById('reminder-image-file').value = '';
+                document.getElementById('reminder-thumbnail-file').value = '';
+                document.getElementById('reminder-footer-icon-file').value = '';
+                document.getElementById('reminder-thumbnail-preset').value = '';
             } else {
                 titleEl.textContent = 'New Reminder';
                 submitBtn.textContent = 'Create Reminder';
@@ -2908,6 +3332,12 @@
                 document.getElementById('reminder-footer').value = '';
                 document.getElementById('reminder-footer-icon').value = '';
                 document.getElementById('reminder-author-url').value = '';
+
+                // Clear file inputs and presets
+                document.getElementById('reminder-image-file').value = '';
+                document.getElementById('reminder-thumbnail-file').value = '';
+                document.getElementById('reminder-footer-icon-file').value = '';
+                document.getElementById('reminder-thumbnail-preset').value = '';
             }
             document.getElementById('reminder-modal').style.display = 'flex';
             updateReminderPreview();
@@ -2917,6 +3347,34 @@
         // ──────────────────────────────────────────────────
         //  Reminders: Preview Engine
         // ──────────────────────────────────────────────────
+        const REMINDER_IMAGES = {
+            'set': 'https://i.postimg.cc/Fzq03CJf/a463d7c7-7fc7-47fc-b24d-1324383ee2ff-removebg-preview.png',
+            'alert': 'https://cdn.discordapp.com/attachments/1424082091750068364/1431246283334619136/Gemini_Generated_Image_dqdcnxdqdcnxdqdc-removebg-preview.png?ex=68fcb779&is=68fb65f9&hm=6afcbee2e3dea071f560ea5e1615dc24a691a1e12e123b02cb3c7f0cba2a33db',
+            'Bear trap': 'https://cdn.discordapp.com/attachments/1435569370389807144/1441474311834832956/0f4d6593f84ba519bd095f077527f9ec-8.gif?ex=69288491&is=69273311&hm=6da152776bc75ea65c0d5ba9f8bbd5bec8baec1c843928df399daf76797382de',
+            'Crazy Joe': 'https://cdn.discordapp.com/attachments/1435569370389807144/1465697260829671687/images__7_-removebg-preview.png?ex=697a0c72&is=6978baf2&hm=d0efd4bfa0374b767a0cc9025abbc6d0c5e59e71cc099cccd423a066be8ceed6'
+        };
+
+        function handleReminderFileSelect(input, targetId) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById(targetId).value = e.target.result; // Temporarily use data URL for preview
+                updateReminderPreview();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyThumbnailPreset(preset) {
+            if (preset && REMINDER_IMAGES[preset]) {
+                document.getElementById('reminder-thumbnail').value = REMINDER_IMAGES[preset];
+            } else {
+                document.getElementById('reminder-thumbnail').value = '';
+            }
+            updateReminderPreview();
+        }
+
         function updateReminderPreview() {
             const message = document.getElementById('reminder-message').value || 'Bear Trap starts now!';
             const body = document.getElementById('reminder-body').value || 'Optional detailed text';
@@ -2932,13 +3390,19 @@
                 mentionEl.style.display = 'none';
             } else {
                 mentionEl.style.display = 'block';
-                mentionEl.innerHTML = mention === 'user' ? `<span class="dc-mention">@${document.getElementById('user-name').textContent}</span>` : `<span class="dc-mention">@${mention}</span>`;
+                if (mention === 'user') {
+                    const userName = document.getElementById('user-name') ? document.getElementById('user-name').textContent : 'User';
+                    mentionEl.innerHTML = `<span class="dc-mention">@${userName}</span>`;
+                } else {
+                    mentionEl.innerHTML = `<span class="dc-mention">@${mention}</span>`;
+                }
             }
 
             // Title & Body
             document.getElementById('reminder-preview-title').textContent = message;
-            document.getElementById('reminder-preview-body').textContent = body;
-            document.getElementById('reminder-preview-body').style.display = body ? 'block' : 'none';
+            const bodyEl = document.getElementById('reminder-preview-body');
+            bodyEl.textContent = body;
+            bodyEl.style.display = (body && body !== 'Optional detailed text') ? 'block' : 'none';
 
             // Thumbnail
             const thumbImg = document.getElementById('reminder-preview-thumbnail');
@@ -2978,7 +3442,7 @@
         }
 
         async function updateReminder(id) {
-            const data = getReminderFormData();
+            const data = await getReminderFormData();
             if (!data) return;
             
             showLoading(true);
@@ -2995,7 +3459,7 @@
             } finally { showLoading(false); }
         }
 
-        function getReminderFormData() {
+        async function getReminderFormData() {
             const message = document.getElementById('reminder-message').value.trim();
             const date = document.getElementById('reminder-date').value;
             const hour = getWheelValue('wheel-hour');
@@ -3009,16 +3473,53 @@
             const channel_id = document.getElementById('reminder-channel').value;
             const body = document.getElementById('reminder-body').value.trim() || null;
             const mention = document.getElementById('reminder-mention').value;
-            const image_url = document.getElementById('reminder-image').value.trim() || null;
-            const thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
+            
+            let image_url = document.getElementById('reminder-image').value.trim() || null;
+            let thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
+            let footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
             const footer_text = document.getElementById('reminder-footer').value.trim() || null;
-            const footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
             const author_url = document.getElementById('reminder-author-url').value.trim() || null;
             
             if (!message || !date || !channel_id) {
                 showNotification('Title, Date, and Channel are required', true);
                 return null;
             }
+
+            // Handle file uploads if any
+            const uploadFile = async (inputId) => {
+                const fileInput = document.getElementById(inputId);
+                if (fileInput && fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    try {
+                        const res = await fetch(`/api/settings/upload`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            // Prepend origin if URL is relative so Discord can reach it
+                            let url = data.url;
+                            if (url.startsWith('/')) {
+                                url = window.location.origin + url;
+                            }
+                            return url;
+                        }
+                    } catch (e) {
+                        console.error('Upload failed:', e);
+                    }
+                }
+                return null;
+            };
+
+            const uploadedImage = await uploadFile('reminder-image-file');
+            if (uploadedImage) image_url = uploadedImage;
+            
+            const uploadedThumb = await uploadFile('reminder-thumbnail-file');
+            if (uploadedThumb) thumbnail_url = uploadedThumb;
+
+            const uploadedFooterIcon = await uploadFile('reminder-footer-icon-file');
+            if (uploadedFooterIcon) footer_icon_url = uploadedFooterIcon;
 
             // Convert to 24h for target_time
             let h24 = parseInt(hour);
@@ -3034,7 +3535,7 @@
         }
 
         async function createReminder() {
-            const data = getReminderFormData();
+            const data = await getReminderFormData();
             if (!data) return;
             
             showLoading(true);
@@ -3120,38 +3621,18 @@
         // ──────────────────────────────────────────────────
         //  Alliance Monitor: Management
         // ──────────────────────────────────────────────────
-        async function loadMonitorAlliances() {
-            try {
-                const alliances = await fetchData('/api/alliance-monitor/alliances');
-                const select = document.getElementById('monitor-alliance');
-                if (!select) return;
-                const currentVal = select.value;
-                select.innerHTML = '<option value="">Select an alliance</option>';
-                alliances.forEach(a => {
-                    const opt = document.createElement('option');
-                    opt.value = a.id;
-                    opt.textContent = a.name;
-                    select.appendChild(opt);
-                });
-                if (currentVal) select.value = currentVal;
-            } catch (e) {
-                console.error('Failed to load monitor alliances:', e);
-            }
-        }
-
+        // ──────────────────────────────────────────────────
+        //  Alliance Monitor: Management
+        // ──────────────────────────────────────────────────
         async function loadMonitorSettings() {
             try {
                 const settings = await fetchData(`/api/alliance-monitor/status/${guildId}`);
                 
-                const allianceSelect = document.getElementById('monitor-alliance');
                 const channelSelect = document.getElementById('monitor-channel');
-                const intervalInput = document.getElementById('monitor-interval');
                 const toggle = document.getElementById('monitor-enabled');
                 const pill = document.getElementById('monitor-enabled-pill');
 
-                if (allianceSelect) allianceSelect.value = settings.alliance_id || '';
                 if (channelSelect) channelSelect.value = settings.channel_id || '';
-                if (intervalInput) intervalInput.value = settings.check_interval || 240;
                 
                 if (toggle) toggle.checked = settings.enabled;
                 
@@ -3170,13 +3651,11 @@
         }
 
         async function saveMonitorSettings() {
-            const alliance_id = document.getElementById('monitor-alliance').value;
             const channel_id = document.getElementById('monitor-channel').value;
-            const interval = document.getElementById('monitor-interval').value;
             const enabled = document.getElementById('monitor-enabled').checked;
 
-            if (!alliance_id || !channel_id) {
-                showNotification('Please select both alliance and channel', true);
+            if (!channel_id) {
+                showNotification('Please select a log channel', true);
                 return;
             }
 
@@ -3186,10 +3665,8 @@
                     method: 'POST',
                     body: JSON.stringify({
                         guild_id: parseInt(guildId),
-                        alliance_id: parseInt(alliance_id),
                         channel_id: parseInt(channel_id),
-                        enabled: enabled,
-                        check_interval: parseInt(interval)
+                        enabled: enabled
                     })
                 });
                 showNotification('Monitor settings saved');
@@ -3212,14 +3689,34 @@
             }
         }
 
+        function formatFurnaceLevel(lv) {
+            lv = parseInt(lv);
+            if (isNaN(lv)) return '0';
+            if (lv <= 30) return lv.toString();
+            
+            // Special mapping for Tier 1
+            if (lv === 31) return "1";
+            if (lv === 32) return "1-1";
+            if (lv === 33) return "1-2";
+            if (lv === 34) return "1-4";
+            
+            // 5-level cycle for lvl 35 and above
+            const relative = lv - 35;
+            const tier = Math.floor(relative / 5) + 2;
+            const stage = relative % 5;
+            
+            if (stage === 0) return tier.toString();
+            return `${tier}-${stage}`;
+        }
+
         async function loadMonitorHistory() {
             const list = document.getElementById('monitor-history-list');
             if (!list) return;
-            list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading history...</div>';
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading activity...</div>';
             try {
                 const history = await fetchData(`/api/alliance-monitor/history/${guildId}`);
                 if (history.length === 0) {
-                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No recent events found.</div>';
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No recent changes detected.</div>';
                     return;
                 }
                 
@@ -3255,40 +3752,192 @@
                 });
                 lucide.createIcons();
             } catch (e) {
-                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Failed to load history.</div>';
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Failed to load activity history.</div>';
             }
         }
 
         async function loadMonitoredMembers() {
             const list = document.getElementById('monitor-members-list');
+            const totalEl = document.getElementById('monitor-total-members');
             if (!list) return;
             list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading members...</div>';
             try {
                 const members = await fetchData(`/api/alliance-monitor/members/${guildId}`);
+                if (totalEl) totalEl.textContent = `Total: ${members.length} members`;
+                
                 if (members.length === 0) {
-                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No members found.</div>';
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No members found. Add players to start monitoring.</div>';
                     return;
                 }
                 
                 list.innerHTML = '';
                 members.forEach(m => {
                     const div = document.createElement('div');
-                    div.style.padding = '10px';
-                    div.style.background = 'rgba(255,255,255,0.03)';
-                    div.style.borderRadius = '8px';
+                    div.className = 'selectable-code'; // Reusing style
+                    div.style.padding = '12px';
                     div.style.textAlign = 'center';
+                    div.style.display = 'flex';
+                    div.style.flexDirection = 'column';
+                    div.style.alignItems = 'center';
+                    div.dataset.fid = m.id;
                     
                     const avatar = m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png';
                     
                     div.innerHTML = `
-                        <img src="${avatar}" style="width: 40px; height: 40px; border-radius: 50%; margin-bottom: 8px; border: 2px solid var(--glass-border);">
-                        <div style="font-weight: 600; font-size: 0.8rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(m.nickname)}">${escapeHTML(m.nickname)}</div>
-                        <div style="font-size: 0.7rem; color: var(--text-muted);">Lv. ${m.furnace_lv}</div>
+                        <div class="check-icon" style="top: 5px; right: 5px;"><i data-lucide="check" style="width: 10px;"></i></div>
+                        <img src="${avatar}" style="width: 48px; height: 48px; border-radius: 50%; margin-bottom: 8px; border: 2px solid var(--glass-border);">
+                        <div style="font-weight: 700; font-size: 0.9rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%;" title="${escapeHTML(m.nickname)}">${escapeHTML(m.nickname)}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin: 2px 0;">ID: ${m.id}</div>
+                        <div style="font-size: 0.75rem; color: #f59e0b; font-weight: 600;">Lv. ${formatFurnaceLevel(m.furnace_lv)}</div>
+                        <button onclick="removeMonitorMember('${m.id}')" style="background: none; border: none; color: #ef4444; cursor: pointer; margin-top: 8px; font-size: 0.7rem; display: flex; align-items: center; gap: 4px;">
+                            <i data-lucide="trash-2" style="width: 12px;"></i> Remove
+                        </button>
                     `;
+                    
+                    div.onclick = (e) => {
+                        if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+                        div.classList.toggle('selected');
+                        updateMonitorBatchUI();
+                    };
+                    
                     list.appendChild(div);
                 });
+                lucide.createIcons();
             } catch (e) {
                 list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Failed to load members.</div>';
+            }
+        }
+
+        function updateMonitorBatchUI() {
+            const selected = document.querySelectorAll('#monitor-members-list .selectable-code.selected');
+            const btn = document.getElementById('remove-selected-monitor-btn');
+            if (selected.length > 0) {
+                btn.style.display = 'inline-flex';
+                btn.innerHTML = `<i data-lucide="trash-2" style="width: 12px;"></i> Remove (${selected.length})`;
+            } else {
+                btn.style.display = 'none';
+            }
+            lucide.createIcons();
+        }
+
+        async function removeMonitorMember(fid) {
+            if (!confirm(`Remove player ${fid} from monitoring?`)) return;
+            showLoading(true);
+            try {
+                await fetchData(`/api/alliance-monitor/members/${fid}`, { method: 'DELETE' });
+                showNotification('Player removed');
+                loadMonitoredMembers();
+            } catch (e) {
+                showNotification('Failed to remove player', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function removeSelectedMonitorMembers() {
+            const selected = Array.from(document.querySelectorAll('#monitor-members-list .selectable-code.selected')).map(el => el.dataset.fid);
+            if (selected.length === 0) return;
+            
+            if (!confirm(`Remove ${selected.length} selected players from monitoring?`)) return;
+            
+            showLoading(true);
+            try {
+                await fetchData('/api/alliance-monitor/members/remove-batch', {
+                    method: 'POST',
+                    body: JSON.stringify({ fids: selected })
+                });
+                showNotification(`Successfully removed ${selected.length} members`);
+                loadMonitoredMembers();
+                document.getElementById('remove-selected-monitor-btn').style.display = 'none';
+            } catch (e) {
+                showNotification('Failed to remove members', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Add Monitor Player Modal Functions
+        function openAddMonitorPlayerModal() {
+            document.getElementById('add-monitor-player-modal').style.display = 'flex';
+            document.getElementById('add-monitor-fid').value = '';
+            document.getElementById('add-monitor-preview').innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">Enter a FID and search to verify the player</div>';
+            document.getElementById('confirm-add-monitor-player-btn').disabled = true;
+            lucide.createIcons();
+        }
+
+        function closeAddMonitorPlayerModal() {
+            document.getElementById('add-monitor-player-modal').style.display = 'none';
+        }
+
+        let _lastMonitorLookup = null;
+        async function lookupMonitorPlayer() {
+            const fid = document.getElementById('add-monitor-fid').value;
+            if (!fid || fid.length < 5) {
+                showNotification('Please enter a valid FID', true);
+                return;
+            }
+
+            const btn = document.getElementById('lookup-monitor-player-btn');
+            const preview = document.getElementById('add-monitor-preview');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; animation: spin 1s linear infinite;"></i>';
+            lucide.createIcons();
+
+            try {
+                const data = await fetchData(`/api/alliance-monitor/members/lookup/${fid}`);
+                if (data) {
+                    _lastMonitorLookup = data;
+                    preview.innerHTML = `
+                        <div class="player-info-display" style="width: 100%; margin-top: 0; background: rgba(255,255,255,0.03);">
+                            <img src="${data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="player-avatar-large">
+                            <div class="player-meta">
+                                <h4>${escapeHTML(data.nickname)}</h4>
+                                <p>FID: ${data.id} • Furnace Lv. ${formatFurnaceLevel(data.level)}</p>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('confirm-add-monitor-player-btn').disabled = false;
+                } else {
+                    preview.innerHTML = '<div style="color: #ef4444; font-size: 0.9rem; text-align: center; width: 100%;">Player not found or error fetching data</div>';
+                    document.getElementById('confirm-add-monitor-player-btn').disabled = true;
+                }
+            } catch (e) {
+                preview.innerHTML = '<div style="color: #ef4444; font-size: 0.9rem; text-align: center; width: 100%;">Error searching for player</div>';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="search" style="width: 16px;"></i>';
+                lucide.createIcons();
+            }
+        }
+
+        async function confirmAddMonitorPlayer() {
+            if (!_lastMonitorLookup) return;
+            
+            const btn = document.getElementById('confirm-add-monitor-player-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" style="width:15px;animation:spin 1s linear infinite;"></i> Adding...';
+            lucide.createIcons();
+
+            try {
+                await fetchData('/api/alliance-monitor/members/add', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        guild_id: parseInt(guildId),
+                        fid: _lastMonitorLookup.id,
+                        nickname: _lastMonitorLookup.nickname,
+                        furnace_lv: _lastMonitorLookup.level,
+                        avatar_image: _lastMonitorLookup.avatar_image
+                    })
+                });
+                showNotification('Player added to monitor');
+                closeAddMonitorPlayerModal();
+                loadMonitoredMembers();
+            } catch (e) {
+                showNotification('Failed to add player', true);
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="user-check" style="width:15px;"></i> Add to Monitor';
+                lucide.createIcons();
             }
         }
 
@@ -3331,7 +3980,6 @@
                 await loadAutoRedeemSettings();
                 await loadAutoRedeemMembers();
                 await loadReminders();
-                await loadMonitorAlliances();
                 await loadMonitorSettings();
                 await loadMonitorHistory();
                 await loadMonitoredMembers();

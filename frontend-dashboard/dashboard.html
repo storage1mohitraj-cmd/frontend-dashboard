@@ -438,7 +438,7 @@
   </main>
 
   <footer>
-    Whiteout Survival Bot © 2025
+    Whiteout Survival Bot © 2026
   </footer>
 
   <script>
@@ -752,15 +752,6 @@
       checkAuth().catch(error => {
         Debug.error('Failed to initialize', error);
       });
-
-      // Fetch bot branding separately (doesn't need auth)
-      API.fetch('/api/status').then(data => {
-        if (data.bot_avatar) {
-          document.querySelectorAll('.brand img').forEach(img => {
-            img.src = data.bot_avatar;
-          });
-        }
-      }).catch(() => {});
     });
   </script>
 </body>

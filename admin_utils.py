@@ -220,14 +220,20 @@ def format_furnace_level(furnace_lv):
         if lv <= 30:
             return str(lv)
         
-        # Fire Crystal levels start at 31
-        # FC 1: 31-35
-        # FC 2: 36-40
-        # Each tier has 5 stages
-        adjusted_level = lv - 30
-        tier = (adjusted_level - 1) // 5 + 1
-        stage = (adjusted_level - 1) % 5 + 1
+        # Special mapping for Tier 1
+        if lv == 31: return "1"
+        if lv == 32: return "1-1"
+        if lv == 33: return "1-2"
+        if lv == 34: return "1-4"
         
+        # 5-level cycle for lvl 35 and above
+        # 35: 2, 36: 2-1, 37: 2-2, 38: 2-3, 39: 2-4, 40: 3
+        relative = lv - 35
+        tier = (relative // 5) + 2
+        stage = relative % 5
+        
+        if stage == 0:
+            return str(tier)
         return f"{tier}-{stage}"
     except (ValueError, TypeError):
         return str(furnace_lv) if furnace_lv else "0"

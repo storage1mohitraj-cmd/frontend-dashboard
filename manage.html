@@ -3046,8 +3046,43 @@
         }
 
         function openTranslateModal(config = null) {
+            if (config) {
+                document.getElementById('modal-title').textContent = 'Edit Translation Config';
+                document.getElementById('config-id').value = config.config_id || '';
+                document.getElementById('config-name').value = config.name || '';
+                document.getElementById('source-lang').value = config.source_language || 'auto';
+                document.getElementById('target-lang').value = config.target_language || 'en';
+                document.getElementById('source-channel').value = config.source_channel_id || '';
+                document.getElementById('target-channel').value = config.target_channel_id || '';
+                document.getElementById('translate-style').value = config.style || 'webhook';
+            } else {
+                document.getElementById('modal-title').textContent = 'New Translation Config';
+                document.getElementById('config-id').value = '';
+                document.getElementById('config-name').value = '';
+                document.getElementById('source-lang').value = 'auto';
+                document.getElementById('target-lang').value = 'en';
+                document.getElementById('source-channel').value = '';
+                document.getElementById('target-channel').value = '';
+                document.getElementById('translate-style').value = 'webhook';
+            }
             document.getElementById('translate-modal').style.display = 'flex';
         }
+
+        async function editTranslateConfig(id) {
+            showLoading(true);
+            try {
+                const configs = await fetchData(`/api/settings/translate/${guildId}`);
+                const config = configs.find(c => c.config_id === id);
+                if (config) {
+                    openTranslateModal(config);
+                }
+            } catch (e) {
+                showNotification('Failed to load config', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
         function closeTranslateModal() { document.getElementById('translate-modal').style.display = 'none'; }
 
         async function saveTranslateConfig() {

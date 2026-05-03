@@ -1585,9 +1585,9 @@
                     <i data-lucide="x" style="width: 18px;"></i>
                 </button>
             </div>
-            <div class="modal-body" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 0; padding: 0; height: 75vh;">
+            <div class="modal-body" style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 0; padding: 0; height: 80vh;">
                 <!-- Left Side: Form -->
-                <div class="reminder-form" style="padding: 32px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05);">
+                <div class="reminder-form" style="padding: 24px 32px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05);">
                     <div class="form-group">
                         <label>Title Message</label>
                         <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()" style="font-size: 1rem; padding: 14px;">
@@ -1739,57 +1739,57 @@
                 </div>
 
                 <!-- Right Side: Preview -->
-                <div class="reminder-preview-side" style="padding: 32px; background: #16191f; display: flex; flex-direction: column;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
-                        <div class="preview-label" style="margin: 0; font-size: 0.85rem; letter-spacing: 0.05em;">
-                            <span class="pulse-dot"></span> LIVE REMINDER PREVIEW
+                <div class="reminder-preview-side" style="padding: 24px; background: #16191f; display: flex; flex-direction: column; scale: 0.95; transform-origin: top left;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
+                        <div class="preview-label" style="margin: 0; font-size: 0.75rem; letter-spacing: 0.05em;">
+                            <span class="pulse-dot"></span> LIVE PREVIEW
                         </div>
-                        <div style="display: flex; gap: 6px;">
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #ff5f56;"></div>
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #ffbd2e;"></div>
-                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #27c93f;"></div>
+                        <div style="display: flex; gap: 4px;">
+                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #ff5f56;"></div>
+                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #ffbd2e;"></div>
+                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #27c93f;"></div>
                         </div>
                     </div>
 
                     <div class="dc-chat" style="flex: 1; display: flex; align-items: flex-start;">
                         <div class="dc-message" style="width: 100%; padding: 0;">
-                            <div style="display: flex; gap: 16px;">
-                                <img class="dc-bot-avatar" src="/logo.gif" alt="Bot" style="width: 40px; height: 40px; margin: 0;">
+                            <div style="display: flex; gap: 12px;">
+                                <img class="dc-bot-avatar" src="/logo.gif" alt="Bot" style="width: 32px; height: 32px; margin: 0;">
                                 <div class="dc-message-body" style="flex: 1;">
-                                    <div class="dc-message-header" style="margin-bottom: 4px;">
-                                        <span class="dc-bot-name" style="font-weight: 600; font-size: 1rem;">Whiteout Survival</span>
-                                        <span class="dc-bot-tag">APP</span>
-                                        <span class="dc-timestamp">Today at 12:00 PM</span>
+                                    <div class="dc-message-header" style="margin-bottom: 2px;">
+                                        <span class="dc-bot-name" style="font-weight: 600; font-size: 0.9rem;">Whiteout Survival</span>
+                                        <span class="dc-bot-tag" style="padding: 1px 3px; font-size: 0.65rem;">APP</span>
+                                        <span class="dc-timestamp" style="font-size: 0.7rem;">Today at 12:00 PM</span>
                                     </div>
                                     
                                     <!-- Embed card -->
-                                    <div class="dc-embed" id="reminder-preview-embed" style="border-left: 4px solid #ffffff; background: #2b2d31; border-radius: 4px; padding: 12px 16px; margin: 8px 0; max-width: 450px;">
+                                    <div class="dc-embed" id="reminder-preview-embed" style="border-left: 3px solid #ffffff; background: #2b2d31; border-radius: 4px; padding: 10px 14px; margin: 6px 0; max-width: 400px;">
                                         <div class="dc-embed-inner">
-                                            <div style="display: flex; gap: 12px;">
+                                            <div style="display: flex; gap: 10px;">
                                                 <div style="flex: 1;">
-                                                    <div class="dc-embed-title" id="reminder-preview-title" style="font-weight: 700; font-size: 1rem; color: #fff; margin-bottom: 8px;">Bear Trap starts now!</div>
-                                                    <div class="dc-embed-desc" id="reminder-preview-body" style="font-size: 0.9rem; color: #dbdee1; line-height: 1.4;">Optional detailed text</div>
+                                                    <div class="dc-embed-title" id="reminder-preview-title" style="font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 4px;">Bear Trap starts now!</div>
+                                                    <div class="dc-embed-desc" id="reminder-preview-body" style="font-size: 0.85rem; color: #dbdee1; line-height: 1.3;">Optional detailed text</div>
                                                 </div>
-                                                <img id="reminder-preview-thumbnail" src="" style="width: 80px; height: 80px; border-radius: 4px; object-fit: cover; display: none;">
+                                                <img id="reminder-preview-thumbnail" src="" style="width: 60px; height: 60px; border-radius: 4px; object-fit: cover; display: none;">
                                             </div>
-                                            <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 12px; border-radius: 4px; max-width: 100%;">
-                                            <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 8px; margin-top: 12px;">
-                                                <img id="reminder-preview-footer-icon" src="" style="width: 20px; height: 20px; border-radius: 50%; display: none;">
-                                                <span id="reminder-preview-footer-text" style="font-size: 0.75rem; color: #dbdee1; font-weight: 500;"></span>
+                                            <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 10px; border-radius: 4px; max-width: 100%;">
+                                            <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 6px; margin-top: 10px;">
+                                                <img id="reminder-preview-footer-icon" src="" style="width: 16px; height: 16px; border-radius: 50%; display: none;">
+                                                <span id="reminder-preview-footer-text" style="font-size: 0.7rem; color: #dbdee1; font-weight: 500;"></span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="reminder-preview-mention" class="dc-text" style="margin-top: 4px; color: #00a8fc; font-weight: 500; font-size: 0.95rem;">@everyone</div>
+                                    <div id="reminder-preview-mention" class="dc-text" style="margin-top: 2px; color: #00a8fc; font-weight: 500; font-size: 0.85rem;">@everyone</div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div style="margin-top:24px; padding:16px; background:rgba(139,92,246,0.08); border-radius:12px; border:1px solid rgba(139,92,246,0.15);">
-                        <div style="display: flex; gap: 12px; align-items: flex-start;">
-                            <i data-lucide="info" style="width: 18px; color: var(--primary); flex-shrink: 0; margin-top: 2px;"></i>
-                            <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.5; margin: 0;">
-                                This preview shows exactly how your reminder will look in Discord. Make sure to use high-quality images and clear messages.
+                    <div style="margin-top:16px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+                        <div style="display: flex; gap: 8px; align-items: flex-start;">
+                            <i data-lucide="info" style="width: 14px; color: #fff; opacity: 0.5; flex-shrink: 0; margin-top: 2px;"></i>
+                            <p style="font-size:0.7rem; color:var(--text-muted); line-height:1.4; margin: 0;">
+                                Preview of your Discord notification.
                             </p>
                         </div>
                     </div>

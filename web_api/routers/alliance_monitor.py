@@ -134,8 +134,19 @@ async def get_monitor_history(guild_id: int, limit: int = 50):
             e_type = e.get('type', 'event').replace('_change', '')
             
             val_text = ""
+            formatted_old = None
+            formatted_new = None
             if e_type == 'furnace':
-                val_text = f"reached {format_furnace_level(e.get('new_value'))}"
+                old_value = e.get('old_value')
+                new_value = e.get('new_value')
+                formatted_old = format_furnace_level(old_value) if old_value is not None else None
+                formatted_new = format_furnace_level(new_value) if new_value is not None else None
+                if formatted_old and formatted_new:
+                    val_text = f"changed furnace from {formatted_old} to {formatted_new}"
+                elif formatted_new:
+                    val_text = f"reached {formatted_new}"
+                else:
+                    val_text = "updated furnace level"
             elif e_type == 'name':
                 val_text = f"changed name to {e.get('new_value')}"
             elif e_type == 'avatar':
@@ -150,6 +161,8 @@ async def get_monitor_history(guild_id: int, limit: int = 50):
                 "id": e.get("fid"),
                 "nickname": e.get("nickname"),
                 "value_text": val_text,
+                "old_value_formatted": formatted_old,
+                "new_value_formatted": formatted_new,
                 "timestamp": e.get("timestamp")
             })
             
@@ -187,10 +200,12 @@ async def get_monitored_members(guild_id: int, alliance_id: Optional[int] = None
         # Clean up and format
         result = []
         for m in alliance_members:
+            furnace_lv = m.get('furnace_lv', 0)
             result.append({
                 "id": str(m.get('fid')),
                 "nickname": m.get('nickname'),
-                "furnace_lv": m.get('furnace_lv', 0),
+                "furnace_lv": furnace_lv,
+                "furnace_lv_formatted": format_furnace_level(furnace_lv),
                 "avatar_image": m.get('avatar_image', ''),
                 "state_id": m.get('state_id', ''),
                 "last_checked": m.get('last_checked').isoformat() if isinstance(m.get('last_checked'), datetime) else m.get('last_checked')

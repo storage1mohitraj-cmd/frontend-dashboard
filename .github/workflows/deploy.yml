@@ -115,13 +115,18 @@ jobs:
           [ -f "$HOME/.npm-global/bin/pm2" ] && PM2_CMD="$HOME/.npm-global/bin/pm2"
           
           echo "🔄 Using PM2 command: $PM2_CMD"
+          $PM2_CMD -v || echo "PM2 not working"
           
           # Force restart or start
           cd "$BOT_DIR"
-          # Try to restart discordbot specifically, if fails try 'bot', if fails try 'all'
-          $PM2_CMD restart discordbot --update-env || $PM2_CMD restart bot --update-env || $PM2_CMD restart all --update-env || $PM2_CMD start app.py --name discordbot
+          echo "📂 Contents of $BOT_DIR:"
+          ls -F
           
-          echo "✅ Restart command executed"
+          # Try to restart
+          echo "🔄 Executing restart..."
+          $PM2_CMD restart discordbot --update-env || $PM2_CMD restart bot --update-env || $PM2_CMD restart all --update-env || $PM2_CMD start app.py --name discordbot || echo "Restart failed but continuing..."
+          
+          echo "✅ Restart attempt finished"
           echo ""
           $PM2_CMD status
           echo ""

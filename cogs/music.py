@@ -1678,50 +1678,127 @@ class Music(commands.Cog):
         self.pending_connections = {}
         # Start cleanup task
         self.cleanup_task = None
+        self.lavalink_node_specs = []
+
+    def _get_lavalink_node_specs(self) -> List[dict]:
+        """Build a deduplicated Lavalink node list with public fallbacks."""
+        primary_spec = {
+            "host": os.getenv('LAVALINK_HOST', 'localhost'),
+            "port": int(os.getenv('LAVALINK_PORT', '2333')),
+            "password": os.getenv('LAVALINK_PASSWORD', 'youshallnotpass'),
+            "secure": os.getenv('LAVALINK_SECURE', 'false').lower() == 'true'
+        }
+
+        fallback_specs = []
+        if os.getenv("LAVALINK_USE_FALLBACKS", "true").lower() == "true":
+            fallback_specs = [
+                {
+                    "host": "lava-v3.ajieblogs.eu.org",
+                    "port": 80,
+                    "password": "https://dsc.gg/ajidevserver",
+                    "secure": False
+                },
+                {
+                    "host": "lavalink.oops.wtf",
+                    "port": 443,
+                    "password": "www.freelavalink.ga",
+                    "secure": True
+                }
+            ]
+
+        specs: List[dict] = []
+        seen = set()
+        for spec in [primary_spec, *fallback_specs]:
+            uri = f"{'https' if spec['secure'] else 'http'}://{spec['host']}:{spec['port']}"
+            key = (uri, spec["password"])
+            if key in seen:
+                continue
+            seen.add(key)
+            specs.append({
+                "host": spec["host"],
+                "port": spec["port"],
+                "password": spec["password"],
+                "secure": spec["secure"],
+                "uri": uri
+            })
+
+        return specs
+
+    def _connected_lavalink_nodes(self) -> List[wavelink.Node]:
+        """Return connected Lavalink nodes."""
+        if not wavelink.Pool.nodes:
+            return []
+        return [node for node in wavelink.Pool.nodes.values() if node.status == wavelink.NodeStatus.CONNECTED]
+
+    def _log_lavalink_status(self, prefix: str = "🎵 Lavalink status") -> None:
+        """Log current Lavalink node states for troubleshooting."""
+        if not wavelink.Pool.nodes:
+            print(f"{prefix}: no nodes registered")
+            return
+
+        status_parts = []
+        for identifier, node in wavelink.Pool.nodes.items():
+            uri = getattr(node, "uri", identifier)
+            status = getattr(node, "status", "unknown")
+            status_parts.append(f"{identifier}={status} ({uri})")
+        print(f"{prefix}: " + "; ".join(status_parts))
+
+    async def connect_lavalink_pool(self) -> List[wavelink.Node]:
+        """Connect to the primary Lavalink node plus fallbacks."""
+        self.lavalink_node_specs = self._get_lavalink_node_specs()
+        nodes = [
+            wavelink.Node(uri=spec["uri"], password=spec["password"])
+            for spec in self.lavalink_node_specs
+        ]
+
+        print("🎵 Attempting Lavalink nodes:")
+        for spec in self.lavalink_node_specs:
+            print(f"   • {spec['uri']}")
+
+        await wavelink.Pool.connect(client=self.bot, nodes=nodes)
+        await asyncio.sleep(2)
+        connected_nodes = self._connected_lavalink_nodes()
+        self._log_lavalink_status()
+        return connected_nodes
+
+    async def refresh_lavalink_pool(self, reason: str) -> bool:
+        """Reconnect Lavalink pool to recover from stale or bad nodes."""
+        print(f"🔄 Refreshing Lavalink pool: {reason}")
+        try:
+            await wavelink.Pool.close()
+        except Exception as close_err:
+            print(f"⚠️ Error while closing Lavalink pool: {close_err}")
+
+        try:
+            connected_nodes = await self.connect_lavalink_pool()
+            return bool(connected_nodes)
+        except Exception as reconnect_err:
+            print(f"❌ Lavalink pool refresh failed: {reconnect_err}")
+            return False
         
     async def cog_load(self):
         """Initialize Wavelink node when cog loads"""
         try:
-            # Get Lavalink configuration from environment
-            host = os.getenv('LAVALINK_HOST', 'localhost')
-            port = int(os.getenv('LAVALINK_PORT', '2333'))
-            password = os.getenv('LAVALINK_PASSWORD', 'youshallnotpass')
-            secure = os.getenv('LAVALINK_SECURE', 'false').lower() == 'true'
-            
-            # Create node
-            node = wavelink.Node(
-                uri=f"{'https' if secure else 'http'}://{host}:{port}",
-                password=password
-            )
-            
-            # Connect to Lavalink
-            await wavelink.Pool.connect(client=self.bot, nodes=[node])
-            
-            # Wait a bit for connection to establish
-            await asyncio.sleep(2)
-            
-            # Check if connected
-            if wavelink.Pool.nodes:
-                connected_nodes = [n for n in wavelink.Pool.nodes.values() if n.status == wavelink.NodeStatus.CONNECTED]
-                if connected_nodes:
-                    if self.logger:
-                        self.logger.info(f"🎵 Successfully connected to Lavalink at {host}:{port}")
-                    else:
-                        print(f"🎵 Successfully connected to Lavalink at {host}:{port}")
-                    
-                    # Wait for Lavalink to be fully ready before restoring states
-                    print("⏳ Waiting for Lavalink to stabilize before restoring music states...")
-                    await asyncio.sleep(5)
-                    
-                    # Restore music states after connection
-                    await self.restore_music_states()
-                    
-                    # Start cleanup task for pending connections
-                    self.cleanup_task = self.bot.loop.create_task(self.cleanup_stale_connections())
-                else:
-                    raise Exception("No nodes in CONNECTED state")
+            connected_nodes = await self.connect_lavalink_pool()
+            if not connected_nodes:
+                raise Exception("No nodes in CONNECTED state")
+
+            connected_uris = [str(getattr(node, "uri", getattr(node, "identifier", "unknown"))) for node in connected_nodes]
+            success_message = f"🎵 Successfully connected to Lavalink nodes: {', '.join(connected_uris)}"
+            if self.logger:
+                self.logger.info(success_message)
             else:
-                raise Exception("No nodes available")
+                print(success_message)
+
+            # Wait for Lavalink to be fully ready before restoring states
+            print("⏳ Waiting for Lavalink to stabilize before restoring music states...")
+            await asyncio.sleep(5)
+            
+            # Restore music states after connection
+            await self.restore_music_states()
+            
+            # Start cleanup task for pending connections
+            self.cleanup_task = self.bot.loop.create_task(self.cleanup_stale_connections())
                 
         except Exception as e:
             error_msg = f"❌ Failed to connect to Lavalink: {e}"
@@ -1758,9 +1835,7 @@ class Music(commands.Cog):
     
     def check_lavalink_connected(self) -> bool:
         """Check if any Lavalink nodes are connected"""
-        if not wavelink.Pool.nodes:
-            return False
-        return any(n.status == wavelink.NodeStatus.CONNECTED for n in wavelink.Pool.nodes.values())
+        return bool(self._connected_lavalink_nodes())
     
     async def cleanup_stale_connections(self):
         """Background task to clean up stale pending connections"""
@@ -2128,12 +2203,13 @@ class Music(commands.Cog):
                 timeouts = [20.0, 40.0, 60.0]
                 
                 # Diagnostic logging
-                print(f"📊 [v1.4.2] Voice Connection Diagnostics:")
+                print(f"📊 [v1.4.3] Voice Connection Diagnostics:")
                 print(f"   • Channel: {voice_channel.name} (ID: {voice_channel.id})")
                 print(f"   • Guild: {member.guild.name} (ID: {member.guild.id})")
                 print(f"   • User count in channel: {len(voice_channel.members)}")
                 print(f"   • Bot permissions: Connect={permissions.connect}, Speak={permissions.speak}")
                 print(f"   • Max retries: {max_connect_retries}")
+                self._log_lavalink_status("   • Lavalink nodes")
                 
                 for attempt in range(max_connect_retries):
                     connect_timeout = timeouts[attempt]
@@ -2167,6 +2243,7 @@ class Music(commands.Cog):
                         if attempt < max_connect_retries - 1:
                             # Exponential backoff: 2s, 4s, 8s
                             wait_time = 2 ** (attempt + 1)
+                            await self.refresh_lavalink_pool(f"auto-connect timeout in {voice_channel.name} (attempt {attempt + 1})")
                             print(f"⏱️ Auto-connect timeout to {voice_channel.name} after {connect_timeout}s, retrying in {wait_time}s... (attempt {attempt + 1}/{max_connect_retries})")
                             await asyncio.sleep(wait_time)
                         else:
@@ -2715,6 +2792,7 @@ class Music(commands.Cog):
                 max_connect_retries = 3  # More retries with shorter timeout
                 # Increased from 15s to 90s for stability
                 connect_timeout = 90.0
+                self._log_lavalink_status("🎵 Manual connect Lavalink nodes")
                 
                 for attempt in range(max_connect_retries):
                     try:
@@ -2740,6 +2818,7 @@ class Music(commands.Cog):
                     except asyncio.TimeoutError:
                         if attempt < max_connect_retries - 1:
                             wait_time = 2 ** (attempt + 1)
+                            await self.refresh_lavalink_pool(f"manual connect timeout in {target_channel.name} (attempt {attempt + 1})")
                             print(f"⏱️ Connection timeout to {target_channel.name} after {connect_timeout}s, retrying in {wait_time}s...")
                             await asyncio.sleep(wait_time)
                         else:
@@ -2747,6 +2826,7 @@ class Music(commands.Cog):
                     except Exception as e:
                         print(f"❌ Error connecting to voice: {e}")
                         if attempt < max_connect_retries - 1:
+                            await self.refresh_lavalink_pool(f"manual connect error in {target_channel.name}: {e}")
                             await asyncio.sleep(2)
                         else:
                             raise asyncio.TimeoutError(f"Unable to connect to {target_channel.name} after {max_connect_retries} attempts (timeout: {connect_timeout}s each). This may be due to network issues or Discord voice server problems.")

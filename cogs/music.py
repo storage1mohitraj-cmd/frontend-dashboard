@@ -1929,7 +1929,13 @@ class Music(commands.Cog):
                             print(f"  ⏱️ Connection timeout (attempt {attempt + 1}/{max_connect_retries})")
                             if attempt < max_connect_retries - 1:
                                 wait_time = (attempt + 1) * 2  # Exponential backoff: 2s, 4s, 6s
-                                print(f"  ⏳ Waiting {wait_time}s before retry...")
+                                print(f"  ⏳ Waiting {wait_time}s before retry... Clearing ghost voice state...")
+                                try:
+                                    if getattr(guild, 'voice_client', None):
+                                        await guild.voice_client.disconnect(force=True)
+                                    await guild.change_voice_state(channel=None)
+                                except Exception as e:
+                                    print(f"  ⚠️ Failed to clear voice state: {e}")
                                 await asyncio.sleep(wait_time)
                             else:
                                 print(f"  ❌ Failed to connect after {max_connect_retries} attempts, skipping...")
@@ -2852,7 +2858,13 @@ class Music(commands.Cog):
                         if attempt < max_connect_retries - 1:
                             wait_time = 2 ** (attempt + 1)
                             await self.refresh_lavalink_pool(f"manual connect timeout in {target_channel.name} (attempt {attempt + 1})")
-                            print(f"⏱️ Connection timeout to {target_channel.name} after {connect_timeout}s, retrying in {wait_time}s...")
+                            print(f"⏱️ Connection timeout to {target_channel.name} after {connect_timeout}s, retrying in {wait_time}s... Clearing ghost voice state...")
+                            try:
+                                if interaction.guild.voice_client:
+                                    await interaction.guild.voice_client.disconnect(force=True)
+                                await interaction.guild.change_voice_state(channel=None)
+                            except Exception as e:
+                                print(f"⚠️ Failed to clear voice state: {e}")
                             await asyncio.sleep(wait_time)
                         else:
                             raise

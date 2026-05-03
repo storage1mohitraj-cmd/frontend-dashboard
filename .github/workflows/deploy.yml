@@ -29,7 +29,7 @@ jobs:
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
               -o ConnectTimeout=30 \
-              ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} << 'ENDSSH'
+              ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "bash -l" << 'ENDSSH'
           set -e
           echo "================================================"
           echo "🤖 WOS Bot Auto-Deploy — $(date)"
@@ -66,12 +66,6 @@ jobs:
           
           cd "$BOT_DIR"
           echo "📂 Working directory: $(pwd)"
-
-          # Ensure PM2 and other binaries are in PATH
-          export PATH=$PATH:/home/${{ secrets.ORACLE_USER }}/.local/bin:/usr/local/bin
-          # Source profile if it exists
-          [ -f ~/.profile ] && source ~/.profile
-          [ -f ~/.bashrc ] && source ~/.bashrc
 
           # Pull latest code
           echo ""
@@ -114,6 +108,18 @@ jobs:
           # Restart bot
           echo ""
           echo "🔄 Restarting bot..."
+          
+          # Check if PM2 is available
+          if ! command -v pm2 &> /dev/null; then
+            echo "⚠️ PM2 not found in PATH, searching in common locations..."
+            export PATH=$PATH:$HOME/.npm-global/bin:$HOME/node_modules/.bin:$HOME/.nvm/versions/node/$(node -v)/bin
+          fi
+          
+          if ! command -v pm2 &> /dev/null; then
+             echo "❌ ERROR: PM2 is not installed or not in PATH"
+             exit 1
+          fi
+
           # Find PM2 process name (default: discordbot)
           # Use a simpler grep-based approach that doesn't need jq
           PROCESS_NAME=$(pm2 list | grep -oE "discordbot|bot" | head -n 1)

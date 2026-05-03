@@ -1816,7 +1816,7 @@ class Music(commands.Cog):
                     # Connect to voice channel with retry logic
                     player = None
                     max_connect_retries = 3
-                    connect_timeout = 30.0  # Reduced from 60s to 30s
+                    connect_timeout = 60.0  # Increased from 30s to 60s for stability
                     
                     for attempt in range(max_connect_retries):
                         try:
@@ -2089,7 +2089,7 @@ class Music(commands.Cog):
                 
                 player = None
                 max_connect_retries = 3  # More retries with shorter timeout
-                connect_timeout = 15.0  # Reduced timeout for faster failure (Discord recommends 10-20s)
+                connect_timeout = 60.0  # Increased from 15s to 60s for stability on cloud hosting
                 
                 # Diagnostic logging
                 print(f"📊 Voice Connection Diagnostics:")
@@ -2668,7 +2668,7 @@ class Music(commands.Cog):
                 
                 player = None
                 max_connect_retries = 3  # More retries with shorter timeout
-                connect_timeout = 15.0  # Reduced timeout for faster failure (Discord recommends 10-20s)
+                connect_timeout = 60.0  # Increased from 15s to 60s for stability
                 
                 for attempt in range(max_connect_retries):
                     try:

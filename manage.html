@@ -817,6 +817,79 @@
         .timezone-select:focus {
             border-color: var(--primary);
         }
+
+        /* Alliance Monitor Styles */
+        .member-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.2s;
+        }
+        .member-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            transform: translateY(-2px);
+            border-color: rgba(139, 92, 246, 0.3);
+        }
+        .member-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--glass-border);
+        }
+        .member-info h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+        }
+        .member-info p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        .furnace-badge {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        .history-item {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            padding: 12px;
+            border-left: 3px solid var(--primary);
+            font-size: 0.85rem;
+        }
+        .history-item .time {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        .history-item .content {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .history-item .change-tag {
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+        .change-tag.furnace { background: rgba(245, 158, 11, 0.1); color: var(--accent); }
+        .change-tag.name { background: rgba(139, 92, 246, 0.1); color: var(--primary); }
+        .change-tag.avatar { background: rgba(16, 185, 129, 0.1); color: #10b981; }
     </style>
 </head>
 
@@ -869,6 +942,10 @@
                 <button class="nav-item" onclick="switchTab('reminders')">
                     <i data-lucide="clock"></i>
                     <span>Reminders</span>
+                </button>
+                <button class="nav-item" onclick="switchTab('alliance-monitor')">
+                    <i data-lucide="activity"></i>
+                    <span>Alliance Monitor</span>
                 </button>
             </div>
         </div>
@@ -1155,6 +1232,97 @@
                         <button onclick="saveBirthdaySettings()" class="btn btn-primary">Save Birthday Config</button>
                     </div>
                 </section>
+            </div>
+
+            <!-- Alliance Monitor Tab -->
+            <div id="tab-alliance-monitor" class="tab-content">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                    <div>
+                        <h2 class="section-title" style="margin:0;">Alliance Monitor</h2>
+                        <p style="color:var(--text-muted); font-size:0.9rem;">Track name changes, furnace levels, and player avatars in real-time. 👁️</p>
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <button onclick="loadAllianceMonitorData()" class="btn btn-secondary">
+                            <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+                            Refresh Data
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Monitoring Configuration -->
+                <div class="card" style="margin-bottom:32px; border-left: 4px solid var(--primary);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="background:rgba(139, 92, 246, 0.1); padding:10px; border-radius:10px; color:var(--primary);">
+                                <i data-lucide="settings-2"></i>
+                            </div>
+                            <h3 style="font-family:'Outfit'; font-size:1.1rem;">Monitoring Settings</h3>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span id="monitor-status-text" style="font-size:0.8rem; font-weight:700; text-transform:uppercase; color:var(--text-muted);">Disabled</span>
+                            <label class="switch">
+                                <input type="checkbox" id="monitor-enabled" onchange="toggleMonitorStatusText()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                        <div class="form-group">
+                            <label>Alliance to Monitor</label>
+                            <select id="monitor-alliance" class="form-control" style="width:100%; background:var(--bg-dark); border:1px solid var(--glass-border); color:#fff; padding:10px; border-radius:8px;">
+                                <option value="">Select Alliance</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Log Channel</label>
+                            <select id="monitor-channel" class="guild-channels" style="width:100%; background:var(--bg-dark); border:1px solid var(--glass-border); color:#fff; padding:10px; border-radius:8px;">
+                                <option value="">Select Channel</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+                        <button onclick="saveMonitorSettings()" class="btn btn-primary">
+                            <i data-lucide="save"></i>
+                            Save Configuration
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Grid: Members and History -->
+                <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:24px;">
+                    <!-- Members Section -->
+                    <div class="card">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <h3 style="font-family:'Outfit'; font-size:1.1rem; display:flex; align-items:center; gap:8px;">
+                                <i data-lucide="users" style="width:18px; color:var(--primary);"></i>
+                                Current Members
+                            </h3>
+                            <span id="monitor-member-count" class="badge">0 Members</span>
+                        </div>
+                        
+                        <div id="monitor-members-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:12px; max-height:600px; overflow-y:auto; padding-right:8px;">
+                            <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">
+                                No members loaded. Enable monitoring to start tracking.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- History Section -->
+                    <div class="card">
+                        <h3 style="font-family:'Outfit'; font-size:1.1rem; margin-bottom:20px; display:flex; align-items:center; gap:8px;">
+                            <i data-lucide="history" style="width:18px; color:var(--primary);"></i>
+                            Recent Activity
+                        </h3>
+                        
+                        <div id="monitor-history-list" style="display:flex; flex-direction:column; gap:12px; max-height:600px; overflow-y:auto; padding-right:8px;">
+                            <div style="text-align:center; padding:40px; color:var(--text-muted);">
+                                No recent activity found.
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Gift Codes Tab -->
@@ -1580,6 +1748,7 @@
             if (tabName === 'birthday') loadBirthdaySettings();
             if (tabName === 'giftcodes') loadGiftCodes();
             if (tabName === 'reminders') loadReminders();
+            if (tabName === 'alliance-monitor') loadAllianceMonitorData();
             
             lucide.createIcons();
         }
@@ -3036,6 +3205,130 @@
             }
         }
 
+        // ──────────────────────────────────────────────────
+        //  Alliance Monitor
+        // ──────────────────────────────────────────────────
+        function toggleMonitorStatusText() {
+            const cb = document.getElementById('monitor-enabled');
+            const text = document.getElementById('monitor-status-text');
+            text.textContent = cb.checked ? 'Active' : 'Disabled';
+            text.style.color = cb.checked ? 'var(--primary)' : 'var(--text-muted)';
+        }
+
+        async function loadAllianceMonitorData() {
+            try {
+                showLoading(true);
+                const [status, members, history] = await Promise.all([
+                    fetchData(`/api/alliance-monitor/status/${guildId}`),
+                    fetchData(`/api/alliance-monitor/members/${guildId}`),
+                    fetchData(`/api/alliance-monitor/history/${guildId}`)
+                ]);
+
+                // Update settings
+                const cb = document.getElementById('monitor-enabled');
+                cb.checked = status.enabled;
+                toggleMonitorStatusText();
+                
+                document.getElementById('monitor-alliance').value = status.alliance_id || "";
+                document.getElementById('monitor-channel').value = status.channel_id || "";
+
+                // Update members
+                const membersList = document.getElementById('monitor-members-list');
+                document.getElementById('monitor-member-count').textContent = `${members.length} Members`;
+                
+                if (members.length === 0) {
+                    membersList.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-muted);">No members found.</div>';
+                } else {
+                    membersList.innerHTML = members.map(m => `
+                        <div class="member-card">
+                            <img src="${m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="member-avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
+                            <div class="member-info">
+                                <h4>${escapeHTML(m.nickname)}</h4>
+                                <p>FID: ${m.fid}</p>
+                                <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+                                    <span class="furnace-badge">Lv.${m.furnace_lv}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Update history
+                const historyList = document.getElementById('monitor-history-list');
+                if (history.length === 0) {
+                    historyList.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">No recent activity.</div>';
+                } else {
+                    historyList.innerHTML = history.map(h => `
+                        <div class="history-item">
+                            <div class="time">${new Date(h.timestamp).toLocaleString()}</div>
+                            <div class="content">
+                                <span class="change-tag ${h.type}">${h.type}</span>
+                                <strong>${escapeHTML(h.nickname)}</strong> 
+                                ${h.type === 'furnace' ? `reached Lv.${h.growth}` : 'updated their profile'}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                lucide.createIcons();
+            } catch (e) {
+                console.error('Error loading monitor data:', e);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function saveMonitorSettings() {
+            const enabled = document.getElementById('monitor-enabled').checked;
+            const allianceId = document.getElementById('monitor-alliance').value;
+            const channelId = document.getElementById('monitor-channel').value;
+
+            if (!allianceId || !channelId) {
+                alert('Please select both an alliance and a log channel.');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                const res = await fetchData('/api/alliance-monitor/settings', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        guild_id: parseInt(guildId),
+                        alliance_id: parseInt(allianceId),
+                        channel_id: parseInt(channelId),
+                        enabled: enabled
+                    })
+                });
+
+                if (res.status === 'success') {
+                    alert('Monitoring settings saved successfully! 🚀');
+                    loadAllianceMonitorData();
+                } else {
+                    alert('Error: ' + res.message);
+                }
+            } catch (e) {
+                alert('Failed to save settings.');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function loadAlliances() {
+            try {
+                const alliances = await fetchData('/api/alliance-monitor/alliances');
+                const selector = document.getElementById('monitor-alliance');
+                if (!selector) return;
+                
+                selector.innerHTML = '<option value="">Select Alliance</option>';
+                alliances.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = a.name;
+                    selector.appendChild(opt);
+                });
+            } catch (e) { console.error('Error loading alliances:', e); }
+        }
+
         (async () => {
             initTimeWheels();
             showLoading(true);
@@ -3075,6 +3368,8 @@
                 await loadAutoRedeemSettings();
                 await loadAutoRedeemMembers();
                 await loadReminders();
+                await loadAlliances();
+                await loadAllianceMonitorData();
             } catch (e) { console.error('Init error:', e); } finally { showLoading(false); }
 
             // Setup drag-and-drop on upload area (DOM guaranteed ready now)

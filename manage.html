@@ -1549,25 +1549,54 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Image URL</label>
-                            <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()">
+                            <label>Image (URL or Upload)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
+                                <input type="file" id="reminder-image-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-image')">
+                                <button onclick="document.getElementById('reminder-image-file').click()" class="btn btn-secondary" style="padding: 8px; min-width: 42px;" title="Upload Image">
+                                    <i data-lucide="upload" style="width: 16px;"></i>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                         <div class="form-group">
-                            <label>Thumbnail URL</label>
-                            <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()">
+                            <label>Thumbnail Presets</label>
+                            <select id="reminder-thumbnail-preset" onchange="applyThumbnailPreset(this.value)">
+                                <option value="">Custom / None</option>
+                                <option value="Bear trap">Bear Trap</option>
+                                <option value="Crazy Joe">Crazy Joe</option>
+                                <option value="set">Bot Logo (Set)</option>
+                                <option value="alert">Alert Icon</option>
+                            </select>
                         </div>
+                        <div class="form-group">
+                            <label>Thumbnail (URL or Upload)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
+                                <input type="file" id="reminder-thumbnail-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-thumbnail')">
+                                <button onclick="document.getElementById('reminder-thumbnail-file').click()" class="btn btn-secondary" style="padding: 8px; min-width: 42px;" title="Upload Thumbnail">
+                                    <i data-lucide="upload" style="width: 16px;"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                         <div class="form-group">
                             <label>Footer Text</label>
                             <input type="text" id="reminder-footer" placeholder="Optional footer" oninput="updateReminderPreview()">
                         </div>
-                    </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                         <div class="form-group">
-                            <label>Footer Icon URL</label>
-                            <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()">
+                            <label>Footer Icon (URL or Upload)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
+                                <input type="file" id="reminder-footer-icon-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-footer-icon')">
+                                <button onclick="document.getElementById('reminder-footer-icon-file').click()" class="btn btn-secondary" style="padding: 8px; min-width: 42px;" title="Upload Footer Icon">
+                                    <i data-lucide="upload" style="width: 16px;"></i>
+                                </button>
+                            </div>
                         </div>
+                    </div>
                         <div class="form-group">
                             <label>Author URL</label>
                             <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
@@ -1583,11 +1612,10 @@
                             <img class="dc-bot-avatar" src="/logo.gif" alt="Bot">
                             <div class="dc-message-body">
                                 <div class="dc-message-header">
-                                    <span class="dc-bot-name">ICEAngel</span>
+                                    <span class="dc-bot-name">Whiteout Survival</span>
                                     <span class="dc-bot-tag">APP</span>
                                     <span class="dc-timestamp">Reminder</span>
                                 </div>
-                                <div id="reminder-preview-mention" class="dc-text" style="margin-bottom: 4px;">@everyone</div>
                                 <!-- Embed card -->
                                 <div class="dc-embed" id="reminder-preview-embed" style="border-left-color: #8b5cf6;">
                                     <div class="dc-embed-inner">
@@ -1605,6 +1633,7 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div id="reminder-preview-mention" class="dc-text" style="margin-top: 4px;">@everyone</div>
                             </div>
                         </div>
                     </div>
@@ -2916,6 +2945,12 @@
                 document.getElementById('reminder-footer').value = r.footer_text || '';
                 document.getElementById('reminder-footer-icon').value = r.footer_icon_url || '';
                 document.getElementById('reminder-author-url').value = r.author_url || '';
+
+                // Clear file inputs when editing
+                document.getElementById('reminder-image-file').value = '';
+                document.getElementById('reminder-thumbnail-file').value = '';
+                document.getElementById('reminder-footer-icon-file').value = '';
+                document.getElementById('reminder-thumbnail-preset').value = '';
             } else {
                 titleEl.textContent = 'New Reminder';
                 submitBtn.textContent = 'Create Reminder';
@@ -2947,6 +2982,12 @@
                 document.getElementById('reminder-footer').value = '';
                 document.getElementById('reminder-footer-icon').value = '';
                 document.getElementById('reminder-author-url').value = '';
+
+                // Clear file inputs and presets
+                document.getElementById('reminder-image-file').value = '';
+                document.getElementById('reminder-thumbnail-file').value = '';
+                document.getElementById('reminder-footer-icon-file').value = '';
+                document.getElementById('reminder-thumbnail-preset').value = '';
             }
             document.getElementById('reminder-modal').style.display = 'flex';
             updateReminderPreview();
@@ -2956,6 +2997,34 @@
         // ──────────────────────────────────────────────────
         //  Reminders: Preview Engine
         // ──────────────────────────────────────────────────
+        const REMINDER_IMAGES = {
+            'set': 'https://i.postimg.cc/Fzq03CJf/a463d7c7-7fc7-47fc-b24d-1324383ee2ff-removebg-preview.png',
+            'alert': 'https://cdn.discordapp.com/attachments/1424082091750068364/1431246283334619136/Gemini_Generated_Image_dqdcnxdqdcnxdqdc-removebg-preview.png?ex=68fcb779&is=68fb65f9&hm=6afcbee2e3dea071f560ea5e1615dc24a691a1e12e123b02cb3c7f0cba2a33db',
+            'Bear trap': 'https://cdn.discordapp.com/attachments/1435569370389807144/1441474311834832956/0f4d6593f84ba519bd095f077527f9ec-8.gif?ex=69288491&is=69273311&hm=6da152776bc75ea65c0d5ba9f8bbd5bec8baec1c843928df399daf76797382de',
+            'Crazy Joe': 'https://cdn.discordapp.com/attachments/1435569370389807144/1465697260829671687/images__7_-removebg-preview.png?ex=697a0c72&is=6978baf2&hm=d0efd4bfa0374b767a0cc9025abbc6d0c5e59e71cc099cccd423a066be8ceed6'
+        };
+
+        function handleReminderFileSelect(input, targetId) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById(targetId).value = e.target.result; // Temporarily use data URL for preview
+                updateReminderPreview();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function applyThumbnailPreset(preset) {
+            if (preset && REMINDER_IMAGES[preset]) {
+                document.getElementById('reminder-thumbnail').value = REMINDER_IMAGES[preset];
+            } else {
+                document.getElementById('reminder-thumbnail').value = '';
+            }
+            updateReminderPreview();
+        }
+
         function updateReminderPreview() {
             const message = document.getElementById('reminder-message').value || 'Bear Trap starts now!';
             const body = document.getElementById('reminder-body').value || 'Optional detailed text';
@@ -3017,7 +3086,7 @@
         }
 
         async function updateReminder(id) {
-            const data = getReminderFormData();
+            const data = await getReminderFormData();
             if (!data) return;
             
             showLoading(true);
@@ -3034,7 +3103,7 @@
             } finally { showLoading(false); }
         }
 
-        function getReminderFormData() {
+        async function getReminderFormData() {
             const message = document.getElementById('reminder-message').value.trim();
             const date = document.getElementById('reminder-date').value;
             const hour = getWheelValue('wheel-hour');
@@ -3048,16 +3117,48 @@
             const channel_id = document.getElementById('reminder-channel').value;
             const body = document.getElementById('reminder-body').value.trim() || null;
             const mention = document.getElementById('reminder-mention').value;
-            const image_url = document.getElementById('reminder-image').value.trim() || null;
-            const thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
+            
+            let image_url = document.getElementById('reminder-image').value.trim() || null;
+            let thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
+            let footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
             const footer_text = document.getElementById('reminder-footer').value.trim() || null;
-            const footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
             const author_url = document.getElementById('reminder-author-url').value.trim() || null;
             
             if (!message || !date || !channel_id) {
                 showNotification('Title, Date, and Channel are required', true);
                 return null;
             }
+
+            // Handle file uploads if any
+            const uploadFile = async (inputId) => {
+                const fileInput = document.getElementById(inputId);
+                if (fileInput && fileInput.files.length > 0) {
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
+                    try {
+                        const res = await fetch(`/api/settings/upload`, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            return data.url;
+                        }
+                    } catch (e) {
+                        console.error('Upload failed:', e);
+                    }
+                }
+                return null;
+            };
+
+            const uploadedImage = await uploadFile('reminder-image-file');
+            if (uploadedImage) image_url = uploadedImage;
+            
+            const uploadedThumb = await uploadFile('reminder-thumbnail-file');
+            if (uploadedThumb) thumbnail_url = uploadedThumb;
+
+            const uploadedFooterIcon = await uploadFile('reminder-footer-icon-file');
+            if (uploadedFooterIcon) footer_icon_url = uploadedFooterIcon;
 
             // Convert to 24h for target_time
             let h24 = parseInt(hour);
@@ -3073,7 +3174,7 @@
         }
 
         async function createReminder() {
-            const data = getReminderFormData();
+            const data = await getReminderFormData();
             if (!data) return;
             
             showLoading(true);

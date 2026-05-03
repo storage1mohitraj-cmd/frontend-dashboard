@@ -67,12 +67,14 @@ jobs:
           git fetch origin main || echo "Fetch failed"
           git reset --hard origin/main || echo "Reset failed"
           
-          # Restart bot
+          # Force PM2 restart to ensure new code is loaded
           echo "🔄 Restarting bot..."
           PM2_PATH=$(command -v pm2 || find $HOME -name "pm2" -type f -executable | head -n 1 || echo "pm2")
           echo "🚀 Using PM2: $PM2_PATH"
           
-          $PM2_PATH restart discordbot --update-env || $PM2_PATH start app.py --name discordbot || echo "⚠️ Restart failed"
+          # Force stop then start to ensure fresh environment
+          $PM2_PATH stop all || echo "Nothing to stop"
+          $PM2_PATH start app.py --name discordbot --update-env || echo "⚠️ Start failed"
           
           echo "✅ DEPLOYMENT FINISHED"
           echo "================================================"

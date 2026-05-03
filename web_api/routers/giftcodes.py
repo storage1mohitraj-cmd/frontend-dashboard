@@ -2,6 +2,8 @@ import asyncio
 import json
 import re
 import logging
+import sqlite3
+import os
 from datetime import datetime, timezone
 from urllib.request import Request as UrlRequest, urlopen
 from typing import Optional, List
@@ -79,22 +81,68 @@ async def get_automation_settings(guild_id: str):
     
     try:
         gid_int = int(guild_id)
-        # Auto-redeem settings
+        # 1. Auto-redeem enabled state
         ar_settings = await AutoRedeemSettingsAdapter.get_settings_async(gid_int)
+        auto_redeem_enabled = ar_settings.get('enabled', False) if ar_settings else False
+        
+        # Fallback to SQLite if not found in Mongo
+        if not ar_settings:
+            try:
+                db_path = 'db/giftcode.sqlite'
+                if os.path.exists(db_path):
+                    with sqlite3.connect(db_path) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT enabled FROM auto_redeem_settings WHERE guild_id = ?", (gid_int,))
+                        row = cursor.fetchone()
+                        if row:
+                            auto_redeem_enabled = bool(row[0])
+            except Exception as e:
+                logger.warning(f"SQLite fallback for auto_redeem_settings failed: {e}")
+
+        # 2. Auto-redeem log channel
         ar_channel_doc = await AutoRedeemChannelsAdapter.get_channel_async(gid_int)
+        auto_redeem_channel_id = str(ar_channel_doc.get('channel_id')) if ar_channel_doc else None
         
-        # ID registration channel
+        if not auto_redeem_channel_id:
+            try:
+                db_path = 'db/giftcode.sqlite'
+                if os.path.exists(db_path):
+                    with sqlite3.connect(db_path) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT channel_id FROM auto_redeem_channels WHERE guild_id = ?", (gid_int,))
+                        row = cursor.fetchone()
+                        if row:
+                            auto_redeem_channel_id = str(row[0])
+            except Exception as e:
+                logger.warning(f"SQLite fallback for auto_redeem_channels failed: {e}")
+
+        # 3. ID registration channel
         id_channel_doc = await IDChannelsAdapter.get_channel_async(gid_int)
+        registration_channel_id = str(id_channel_doc.get('channel_id')) if id_channel_doc else None
         
-        # Latest code channel (poster)
+        # Fallback to SQLite for registration channel if not in Mongo
+        if not registration_channel_id:
+            try:
+                db_path = 'db/id_channel.sqlite'
+                if os.path.exists(db_path):
+                    with sqlite3.connect(db_path) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("SELECT channel_id FROM id_channels WHERE guild_id = ?", (gid_int,))
+                        row = cursor.fetchone()
+                        if row:
+                            registration_channel_id = str(row[0])
+            except Exception as e:
+                logger.warning(f"SQLite fallback for registration channel failed: {e}")
+
+        # 4. Latest code channel (poster)
         poster_state = await GiftcodeStateAdapter.get_state_async()
         poster_channels = poster_state.get('channels', {})
         poster_channel_id = poster_channels.get(str(guild_id))
         
         return {
-            "auto_redeem_enabled": ar_settings.get('enabled', False) if ar_settings else False,
-            "auto_redeem_channel_id": str(ar_channel_doc.get('channel_id')) if ar_channel_doc else None,
-            "registration_channel_id": str(id_channel_doc.get('channel_id')) if id_channel_doc else None,
+            "auto_redeem_enabled": auto_redeem_enabled,
+            "auto_redeem_channel_id": auto_redeem_channel_id,
+            "registration_channel_id": registration_channel_id,
             "latest_code_channel_id": str(poster_channel_id) if poster_channel_id else None
         }
     except Exception as e:

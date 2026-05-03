@@ -1,0 +1,61 @@
+﻿2026-05-03T08:28:38.8928807Z ##[group]Run ssh -i ~/.ssh/deploy_key \
+2026-05-03T08:28:38.8929290Z [36;1mssh -i ~/.ssh/deploy_key \[0m
+2026-05-03T08:28:38.8929656Z [36;1m    -o StrictHostKeyChecking=no \[0m
+2026-05-03T08:28:38.8930025Z [36;1m    -o ServerAliveInterval=30 \[0m
+2026-05-03T08:28:38.8930371Z [36;1m    -o ConnectTimeout=30 \[0m
+2026-05-03T08:28:38.8930834Z [36;1m    ***@*** << 'ENDSSH'[0m
+2026-05-03T08:28:38.8931202Z [36;1mecho "================================================"[0m
+2026-05-03T08:28:38.8931606Z [36;1mecho "🤖 WOS Bot Auto-Deploy — $(date)"[0m
+2026-05-03T08:28:38.8932003Z [36;1mecho "================================================"[0m
+2026-05-03T08:28:38.8932379Z [36;1m[0m
+2026-05-03T08:28:38.8932666Z [36;1m# Simplified directory discovery[0m
+2026-05-03T08:28:38.8933032Z [36;1mecho "🔍 Finding bot directory..."[0m
+2026-05-03T08:28:38.8933387Z [36;1m[0m
+2026-05-03T08:28:38.8933668Z [36;1m# Try common paths first[0m
+2026-05-03T08:28:38.8934024Z [36;1mif [ -f "$HOME/app/bot/app.py" ]; then[0m
+2026-05-03T08:28:38.8934423Z [36;1m  BOT_DIR="$HOME/app/bot"[0m
+2026-05-03T08:28:38.8934803Z [36;1melif [ -f "$HOME/bot/app.py" ]; then[0m
+2026-05-03T08:28:38.8935156Z [36;1m  BOT_DIR="$HOME/bot"[0m
+2026-05-03T08:28:38.8935508Z [36;1melif [ -f "$HOME/WOS-BOT-1/app.py" ]; then[0m
+2026-05-03T08:28:38.8935883Z [36;1m  BOT_DIR="$HOME/WOS-BOT-1"[0m
+2026-05-03T08:28:38.8936209Z [36;1melse[0m
+2026-05-03T08:28:38.8936485Z [36;1m  # Deep search[0m
+2026-05-03T08:28:38.8936817Z [36;1m  echo "🔍 Deep searching for app.py..."[0m
+2026-05-03T08:28:38.8937428Z [36;1m  BOT_DIR=$(find $HOME -maxdepth 4 -name "app.py" -type f -exec dirname {} \; | grep -vE "backup|temp|old|PROJECT_MIGRATION" | head -n 1)[0m
+2026-05-03T08:28:38.8937994Z [36;1mfi[0m
+2026-05-03T08:28:38.8938269Z [36;1m[0m
+2026-05-03T08:28:38.8938705Z [36;1mif [ -z "$BOT_DIR" ]; then[0m
+2026-05-03T08:28:38.8939129Z [36;1m  echo "⚠️ Could not find app.py! Listing directories in $HOME..."[0m
+2026-05-03T08:28:38.8939573Z [36;1m  ls -d $HOME/*/ 2>/dev/null[0m
+2026-05-03T08:28:38.8939930Z [36;1m  # Last resort: just use $HOME[0m
+2026-05-03T08:28:38.8940281Z [36;1m  BOT_DIR="$HOME"[0m
+2026-05-03T08:28:38.8940582Z [36;1mfi[0m
+2026-05-03T08:28:38.8940926Z [36;1m[0m
+2026-05-03T08:28:38.8941211Z [36;1mecho "✅ Using BOT_DIR: $BOT_DIR"[0m
+2026-05-03T08:28:38.8941549Z [36;1mcd "$BOT_DIR"[0m
+2026-05-03T08:28:38.8941869Z [36;1mecho "📂 Current directory: $(pwd)"[0m
+2026-05-03T08:28:38.8942208Z [36;1mls -F[0m
+2026-05-03T08:28:38.8942470Z [36;1m[0m
+2026-05-03T08:28:38.8942744Z [36;1m# Pull latest code[0m
+2026-05-03T08:28:38.8943069Z [36;1mecho "📥 Pulling latest code..."[0m
+2026-05-03T08:28:38.8943439Z [36;1mgit fetch origin main || echo "Fetch failed"[0m
+2026-05-03T08:28:38.8943849Z [36;1mgit reset --hard origin/main || echo "Reset failed"[0m
+2026-05-03T08:28:38.8944220Z [36;1m[0m
+2026-05-03T08:28:38.8944532Z [36;1m# Force PM2 restart to ensure new code is loaded[0m
+2026-05-03T08:28:38.8944903Z [36;1mecho "🔄 Restarting bot..."[0m
+2026-05-03T08:28:38.8945415Z [36;1mPM2_PATH=$(command -v pm2 || find $HOME -name "pm2" -type f -executable | head -n 1 || echo "pm2")[0m
+2026-05-03T08:28:38.8946092Z [36;1mecho "🚀 Using PM2: $PM2_PATH"[0m
+2026-05-03T08:28:38.8946429Z [36;1m[0m
+2026-05-03T08:28:38.8946759Z [36;1m# Force stop then start to ensure fresh environment[0m
+2026-05-03T08:28:38.8947191Z [36;1m$PM2_PATH stop all || echo "Nothing to stop"[0m
+2026-05-03T08:28:38.8947671Z [36;1m$PM2_PATH start app.py --name discordbot --update-env || echo "⚠️ Start failed"[0m
+2026-05-03T08:28:38.8948114Z [36;1m[0m
+2026-05-03T08:28:38.8948590Z [36;1mecho "✅ DEPLOYMENT FINISHED"[0m
+2026-05-03T08:28:38.8948990Z [36;1mecho "================================================"[0m
+2026-05-03T08:28:38.8949366Z [36;1mENDSSH[0m
+2026-05-03T08:28:38.8966516Z shell: /usr/bin/bash -e {0}
+2026-05-03T08:28:38.8966857Z ##[endgroup]
+2026-05-03T08:28:38.9178927Z Pseudo-terminal will not be allocated because stdin is not a terminal.
+2026-05-03T08:29:09.2414061Z Connection timed out during banner exchange
+2026-05-03T08:29:09.2415500Z Connection to *** port 22 timed out
+2026-05-03T08:29:09.2428159Z ##[error]Process completed with exit code 255.

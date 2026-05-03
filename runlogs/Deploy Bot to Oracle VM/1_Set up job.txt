@@ -1,0 +1,31 @@
+﻿2026-05-03T08:28:35.6277829Z Current runner version: '2.334.0'
+2026-05-03T08:28:35.6300617Z ##[group]Runner Image Provisioner
+2026-05-03T08:28:35.6301565Z Hosted Compute Agent
+2026-05-03T08:28:35.6302351Z Version: 20260213.493
+2026-05-03T08:28:35.6303133Z Commit: 5c115507f6dd24b8de37d8bbe0bb4509d0cc0fa3
+2026-05-03T08:28:35.6304000Z Build Date: 2026-02-13T00:28:41Z
+2026-05-03T08:28:35.6304800Z Worker ID: {eb04051a-2989-4c85-b90f-b6754a911b2f}
+2026-05-03T08:28:35.6305609Z Azure Region: westcentralus
+2026-05-03T08:28:35.6306369Z ##[endgroup]
+2026-05-03T08:28:35.6307897Z ##[group]Operating System
+2026-05-03T08:28:35.6308832Z Ubuntu
+2026-05-03T08:28:35.6309491Z 24.04.4
+2026-05-03T08:28:35.6310157Z LTS
+2026-05-03T08:28:35.6310747Z ##[endgroup]
+2026-05-03T08:28:35.6311427Z ##[group]Runner Image
+2026-05-03T08:28:35.6312141Z Image: ubuntu-24.04
+2026-05-03T08:28:35.6312830Z Version: 20260413.86.1
+2026-05-03T08:28:35.6313925Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260413.86/images/ubuntu/Ubuntu2404-Readme.md
+2026-05-03T08:28:35.6315586Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260413.86
+2026-05-03T08:28:35.6316602Z ##[endgroup]
+2026-05-03T08:28:35.6317931Z ##[group]GITHUB_TOKEN Permissions
+2026-05-03T08:28:35.6320072Z Contents: read
+2026-05-03T08:28:35.6320750Z Metadata: read
+2026-05-03T08:28:35.6321499Z Packages: read
+2026-05-03T08:28:35.6322179Z ##[endgroup]
+2026-05-03T08:28:35.6324350Z Secret source: Actions
+2026-05-03T08:28:35.6325254Z Prepare workflow directory
+2026-05-03T08:28:35.6599731Z Prepare all required actions
+2026-05-03T08:28:35.6630496Z Getting action download info
+2026-05-03T08:28:35.9972790Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2026-05-03T08:28:36.2611258Z Complete job name: Deploy Bot to Oracle VM

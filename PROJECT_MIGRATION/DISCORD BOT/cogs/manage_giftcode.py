@@ -873,8 +873,12 @@ class ManageGiftCode(commands.Cog):
             
             channel = self.bot.get_channel(channel_id)
             if not channel:
-                self.logger.warning(f"Import channel {channel_id} not found")
-                return
+                try:
+                    self.logger.info(f"🔍 Channel {channel_id} not in cache, attempting to fetch...")
+                    channel = await self.bot.fetch_channel(channel_id)
+                except Exception as fetch_err:
+                    self.logger.warning(f"Import channel {channel_id} not found or inaccessible: {fetch_err}")
+                    return
             
             # Get all auto-redeem members using MongoDB-first helper
             members_data = self.AutoRedeemDB.get_members(self, guild_id)

@@ -33,109 +33,34 @@ jobs:
           echo "================================================"
           echo "🤖 WOS Bot Auto-Deploy — $(date)"
           echo "================================================"
-
-          # Comprehensive directory search
-          POSSIBLE_DIRS=(
-            "$HOME/app/bot"
-            "$HOME/bot"
-            "$HOME/WOS-BOT-1"
-            "$HOME/app/bot/DISCORD BOT"
-            "$HOME/bot/DISCORD BOT"
-            "/home/opc/app/bot"
-            "/home/opc/bot"
-          )
           
-          echo "🔍 Searching for bot directory..."
-          BOT_DIR=""
-          for dir in "${POSSIBLE_DIRS[@]}"; do
-            if [ -d "$dir/.git" ]; then
-              BOT_DIR="$dir"
-              echo "✅ Found bot directory: $BOT_DIR"
-              break
-            fi
-          done
-
+          # Simplified directory discovery
+          echo "🔍 Finding bot directory..."
+          BOT_DIR=$(find $HOME -name "app.py" -type f -exec dirname {} \; | grep -vE "backup|temp|old|PROJECT_MIGRATION" | head -n 1)
+          
           if [ -z "$BOT_DIR" ]; then
-            echo "🔍 Deep searching with find..."
-            # Find all .git directories and list them
-            ALL_GIT_DIRS=$(find $HOME -name ".git" -type d -prune 2>/dev/null)
-            echo "📂 Found .git directories:"
-            echo "$ALL_GIT_DIRS"
-            
-            # Pick the most likely one (not in a backup or temp folder)
-            BOT_DIR=$(echo "$ALL_GIT_DIRS" | grep -vE "backup|temp|old" | head -n 1 | xargs -r dirname 2>/dev/null)
-          fi
-
-          if [ -z "$BOT_DIR" ]; then
-            echo "❌ ERROR: Bot directory not found! Listing home directory contents:"
+            echo "❌ Could not find app.py! Listing home directory..."
             ls -la $HOME
-            exit 1
+            BOT_DIR="$HOME/bot"
+            [ -d "$HOME/app/bot" ] && BOT_DIR="$HOME/app/bot"
           fi
           
-          cd "$BOT_DIR"
-          echo "📂 Working directory: $(pwd)"
-
+          echo "✅ Using BOT_DIR: $BOT_DIR"
+          cd "$BOT_DIR" || exit 1
+          echo "📂 Current directory: $(pwd)"
+          
           # Pull latest code
-          echo ""
           echo "📥 Pulling latest code..."
-          
-          # Fix for submodule-to-folder transitions
-          # If these exist as directories but have .git files/folders inside, they will block git reset
-          for item in "PROJECT_MIGRATION" "temp_frontend_repo" "temp_frontend_repo_2"; do
-            if [ -d "$item" ] && [ -e "$item/.git" ]; then
-              echo "🧹 Cleaning up legacy submodule artifacts in $item"
-              rm -rf "$item/.git"
-            fi
-          done
-
-          # Make sure we're on the right branch
-          git checkout main || git checkout -b main
           git fetch origin main
-          OLD=$(git rev-parse --short HEAD || echo "unknown")
-          git reset --hard FETCH_HEAD
-          NEW=$(git rev-parse --short HEAD || echo "unknown")
-          echo "✅ Updated: $OLD → $NEW"
-
-          # Update dependencies if requirements.txt changed
-          if [ -f "requirements.txt" ]; then
-            echo "📦 Checking dependencies..."
-            # Try to find pip in venv
-            if [ -f "venv/bin/pip" ]; then
-              ./venv/bin/pip install --upgrade pip
-              ./venv/bin/pip install -r requirements.txt
-            elif [ -f "bot_venv/bin/pip" ]; then
-              ./bot_venv/bin/pip install --upgrade pip
-              ./bot_venv/bin/pip install -r requirements.txt
-            else
-              pip3 install --upgrade pip || true
-              pip3 install -r requirements.txt || pip install -r requirements.txt
-            fi
-            echo "✅ Dependencies check complete"
-          fi
-
+          git reset --hard origin/main
+          
           # Restart bot
-          echo ""
           echo "🔄 Restarting bot..."
-          echo "🔍 DEBUG: BOT_DIR is $BOT_DIR"
+          PM2_PATH=$(command -v pm2 || find $HOME -name "pm2" -type f -executable | head -n 1 || echo "pm2")
+          echo "🚀 Using PM2: $PM2_PATH"
           
-          # Try to find PM2
-          PM2_CMD="pm2"
-          if ! command -v pm2 &> /dev/null; then
-            PM2_CMD=$(find $HOME -name "pm2" -type f -executable 2>/dev/null | head -n 1 || echo "pm2")
-          fi
+          $PM2_PATH restart discordbot --update-env || $PM2_PATH start app.py --name discordbot || echo "⚠️ Restart failed"
           
-          echo "🔄 Using PM2 command: $PM2_CMD"
-          
-          # Force restart or start
-          (
-            cd "$BOT_DIR"
-            $PM2_CMD restart discordbot --update-env || $PM2_CMD restart bot --update-env || $PM2_CMD start app.py --name discordbot
-          ) || echo "⚠️ Restart subshell failed but ignoring..."
-          
-          echo "✅ Restart attempt finished"
-          $PM2_CMD status || echo "Could not show status"
-          echo ""
-          echo "================================================"
-          echo "✅ DEPLOYMENT COMPLETE!"
+          echo "✅ DEPLOYMENT FINISHED"
           echo "================================================"
           ENDSSH

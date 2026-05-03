@@ -3264,7 +3264,7 @@
                             <div class="content">
                                 <span class="change-tag ${h.type}">${h.type}</span>
                                 <strong>${escapeHTML(h.nickname)}</strong> 
-                                ${h.type === 'furnace' ? `reached Lv.${h.growth}` : 'updated their profile'}
+                                ${h.value_text || 'updated their profile'}
                             </div>
                         </div>
                     `).join('');

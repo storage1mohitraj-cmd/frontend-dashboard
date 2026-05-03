@@ -36,23 +36,36 @@ jobs:
           
           # Simplified directory discovery
           echo "🔍 Finding bot directory..."
-          BOT_DIR=$(find $HOME -name "app.py" -type f -exec dirname {} \; | grep -vE "backup|temp|old|PROJECT_MIGRATION" | head -n 1)
+          
+          # Try common paths first
+          if [ -f "$HOME/app/bot/app.py" ]; then
+            BOT_DIR="$HOME/app/bot"
+          elif [ -f "$HOME/bot/app.py" ]; then
+            BOT_DIR="$HOME/bot"
+          elif [ -f "$HOME/WOS-BOT-1/app.py" ]; then
+            BOT_DIR="$HOME/WOS-BOT-1"
+          else
+            # Deep search
+            echo "🔍 Deep searching for app.py..."
+            BOT_DIR=$(find $HOME -maxdepth 4 -name "app.py" -type f -exec dirname {} \; | grep -vE "backup|temp|old|PROJECT_MIGRATION" | head -n 1)
+          fi
           
           if [ -z "$BOT_DIR" ]; then
-            echo "❌ Could not find app.py! Listing home directory..."
-            ls -la $HOME
-            BOT_DIR="$HOME/bot"
-            [ -d "$HOME/app/bot" ] && BOT_DIR="$HOME/app/bot"
+            echo "⚠️ Could not find app.py! Listing directories in $HOME..."
+            ls -d $HOME/*/ 2>/dev/null
+            # Last resort: just use $HOME
+            BOT_DIR="$HOME"
           fi
           
           echo "✅ Using BOT_DIR: $BOT_DIR"
-          cd "$BOT_DIR" || exit 1
+          cd "$BOT_DIR"
           echo "📂 Current directory: $(pwd)"
+          ls -F
           
           # Pull latest code
           echo "📥 Pulling latest code..."
-          git fetch origin main
-          git reset --hard origin/main
+          git fetch origin main || echo "Fetch failed"
+          git reset --hard origin/main || echo "Reset failed"
           
           # Restart bot
           echo "🔄 Restarting bot..."

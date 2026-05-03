@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Whiteout Survival Bot</title>
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #5865F2;
+      --primary-hover: #4752C4;
+      --accent: #ff8b6b;
+      --bg-dark: #0a0a0c;
+      --glass-bg: rgba(20, 20, 24, 0.65);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text-main: #ffffff;
+      --text-muted: #949499;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(88, 101, 242, 0.1), transparent 35%),
+        radial-gradient(circle at 90% 80%, rgba(255, 139, 107, 0.08), transparent 35%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    .bg-animation {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: url('hero-bg.png') no-repeat center center/cover;
+      opacity: 0.15;
+      z-index: -1;
+      filter: blur(4px) brightness(0.5);
+    }
+
+    header {
+      background: rgba(10, 10, 12, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+
+    .brand {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.3em;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand img {
+      height: 36px;
+      width: 36px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95em;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      text-decoration: none;
+      transition: all 0.3s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(88, 101, 242, 0.3);
+    }
+
+    .btn.danger {
+      background: rgba(255, 85, 85, 0.1);
+      border: 1px solid rgba(255, 85, 85, 0.3);
+      color: #ff5555;
+    }
+
+    .btn.danger:hover {
+      background: rgba(255, 85, 85, 0.2);
+      border-color: rgba(255, 85, 85, 0.5);
+      box-shadow: none;
+    }
+
+    .main-nav {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .main-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95em;
+      transition: color 0.2s;
+    }
+    
+    .main-nav a:hover, .main-nav a.active {
+      color: var(--text-main);
+    }
+
+    .main-nav a.premium {
+      color: var(--accent);
+      text-shadow: 0 0 10px rgba(255, 139, 107, 0.3);
+    }
+
+    .account-area {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .small-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--glass-border);
+    }
+
+    .user-name-small {
+      margin-left: 8px;
+      margin-right: 12px;
+      color: var(--text-main);
+      font-weight: 500;
+      font-size: 0.95em;
+    }
+
+    main {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      width: 100%;
+    }
+
+    .user-profile {
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      margin-bottom: 40px;
+      display: flex;
+      align-items: flex-start;
+      gap: 28px;
+      padding: 32px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .avatar {
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: #2D2D2F;
+      border: 6px solid var(--bg-dark);
+      margin-top: -55px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .profile-right {
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .profile-meta {
+      color: var(--text-muted);
+      font-size: 0.95em;
+      margin-top: 6px;
+    }
+
+    #profile-name {
+      font-family: 'Outfit', sans-serif;
+      color: #fff;
+      font-size: 2.2em;
+      font-weight: 800;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+
+    .section-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8em;
+      margin: 0 0 24px 0;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .servers-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 24px;
+    }
+
+    .server-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      text-align: center;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .server-card:hover {
+      transform: translateY(-8px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
+      border-color: rgba(255,255,255,0.15);
+    }
+
+    .server-banner {
+      height: 100px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .server-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: var(--bg-dark);
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      overflow: hidden;
+      border: 6px solid var(--bg-dark);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+
+    .server-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .server-body {
+      padding: 56px 24px 24px;
+    }
+
+    .server-name {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      margin-bottom: 8px;
+      color: white;
+      font-size: 1.25em;
+    }
+
+    .member-count {
+      color: var(--text-muted);
+      font-size: 0.9em;
+      margin-bottom: 24px;
+    }
+    
+    .server-actions .btn {
+      width: 100%;
+    }
+
+    footer {
+      padding: 24px;
+      font-size: 0.9em;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      border-top: 1px solid var(--glass-border);
+      background: rgba(10,10,12,0.6);
+      backdrop-filter: blur(10px);
+    }
+
+    #debug-panel {
+      margin: 20px 0 30px 0;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    #debug-panel summary {
+      padding: 16px 20px;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      user-select: none;
+    }
+
+    #debug-panel pre {
+      margin: 0;
+      padding: 20px;
+      background: rgba(0,0,0,0.6);
+      color: #a5b4fc;
+      overflow-x: auto;
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      border-top: 1px solid var(--glass-border);
+    }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        padding: 16px;
+        gap: 16px;
+      }
+      .main-nav {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        justify-content: center;
+      }
+      .user-profile {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding-top: 56px;
+      }
+      .avatar {
+        margin-top: -85px;
+      }
+      .profile-right {
+        flex-direction: column;
+        gap: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-animation"></div>
+  <header>
+    <div class="brand">
+      <img src="/logo.gif"
+        alt="Bot Avatar">
+      <span>Whiteout Survival Bot</span>
+    </div>
+
+    <nav class="main-nav">
+      <a href="dashboard.html">Dashboard</a>
+      <a href="#">Documentation</a>
+      <a href="#">Support</a>
+      <a href="#" class="premium">Premium</a>
+    </nav>
+
+    <div class="account-area">
+      <button class="btn"
+        onclick="window.location.href='https://discord.com/api/oauth2/authorize?client_id=1399025185046134866&permissions=8&scope=bot%20applications.commands'">Add
+        to Server</button>
+      <div id="user-container">
+        <img id="user-avatar" class="small-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png"
+          alt="User Avatar">
+        <span id="user-name" class="user-name-small"></span>
+        <button onclick="logout()" class="btn danger">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="user-profile">
+      <img id="profile-avatar" class="avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Profile">
+      <div class="profile-right">
+        <div>
+          <h2 id="profile-name">Loading...</h2>
+          <div class="profile-meta">
+            <span id="profile-tag"></span>
+            <span id="profile-id" style="margin-left:12px;"></span>
+          </div>
+        </div>
+        <div class="profile-cta">
+          <div id="auth-status"></div>
+          <div style="margin-top:6px">
+            <a class="btn" href="#" id="goto-account">Go to your account</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      Your Servers
+      <button onclick="debugState()" class="btn" style="background: #2D2D2F; margin-left: 12px;">
+        Debug State
+      </button>
+    </div>
+
+    <details id="debug-panel" open>
+      <summary>Debug Information</summary>
+      <pre id="raw-responses">Initializing...</pre>
+    </details>
+
+    <div id="servers-list" class="servers-grid">
+      <!-- Server cards will be inserted here -->
+    </div>
+  </main>
+
+  <footer>
+    Whiteout Survival Bot © 2025
+  </footer>
+
+  <script>
+    // ─── Config ───────────────────────────────────────────────
+    const CONFIG = {
+      API_BASE: '', // Vercel rewrites handles /api requests to Oracle VM
+      BOT_CLIENT_ID: '1399025185046134866',
+      DEFAULT_AVATAR: 'https://cdn.discordapp.com/embed/avatars/0.png',
+      TIMEOUT_MS: 10000
+    };
+
+    // Debug logging utility
+    const Debug = {
+      _el: null,
+      get element() {
+        if (!this._el) {
+          this._el = document.getElementById('raw-responses');
+        }
+        return this._el;
+      },
+
+      clear() {
+        if (this.element) {
+          this.element.textContent = '';
+        }
+      },
+
+      log(message, data = null) {
+        if (!this.element) return;
+
+        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+        let text = `[${timestamp}] ${message}\n`;
+
+        if (data) {
+          try {
+            text += JSON.stringify(data, null, 2) + '\n';
+          } catch (e) {
+            text += String(data) + '\n';
+          }
+        }
+
+        this.element.textContent += text;
+        console.log(message, data);
+      },
+
+      error(message, error = null) {
+        if (!this.element) return;
+
+        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+        let text = `[${timestamp}] ERROR: ${message}\n`;
+
+        if (error) {
+          text += error.stack || error.message || String(error);
+          text += '\n';
+        }
+
+        this.element.textContent += text;
+        console.error(message, error);
+      }
+    };
+
+    // API client
+    const API = {
+      async fetch(endpoint, options = {}) {
+        const url = CONFIG.API_BASE + endpoint;
+        Debug.log(`Fetching: ${url}`);
+
+        const token = localStorage.getItem('discord_access_token');
+        if (!token && endpoint !== '/api/status') {
+          throw new Error('No access token found');
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
+
+        try {
+          const response = await fetch(url, {
+            ...options,
+            headers: {
+              ...options.headers,
+              'Authorization': token ? `Bearer ${token}` : undefined,
+              'Accept': 'application/json'
+            },
+            signal: controller.signal
+          });
+
+          Debug.log(`Response status: ${response.status}`);
+
+          const text = await response.text();
+          let data;
+
+          try {
+            data = JSON.parse(text);
+            Debug.log('Response data:', data);
+          } catch (e) {
+            Debug.log('Raw response:', text);
+            throw new Error('Invalid JSON response');
+          }
+
+          if (!response.ok) {
+            throw new Error(data.message || `HTTP error ${response.status}`);
+          }
+
+          return data;
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            throw new Error(`Request timeout after ${CONFIG.TIMEOUT_MS}ms`);
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeout);
+        }
+      },
+
+      getProfile() {
+        return this.fetch('/api/auth/me');
+      },
+
+      getGuilds() {
+        return this.fetch('/api/servers');
+      },
+
+      getBotStatus(guildIds) {
+        // Handled via the unified backend payload
+        return Promise.resolve({ present: guildIds }); 
+      }
+    };
+
+    // UI state management
+    const UI = {
+      setLoadingState() {
+        document.getElementById('profile-name').textContent = 'Loading...';
+        document.getElementById('auth-status').textContent = '';
+      },
+
+      setProfileData(userData) {
+        // Update avatar
+        const avatarUrl = userData.avatar
+          ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png?size=256`
+          : CONFIG.DEFAULT_AVATAR;
+
+        ['user-avatar', 'profile-avatar'].forEach(id => {
+          const img = document.getElementById(id);
+          if (img) {
+            img.onerror = () => img.src = CONFIG.DEFAULT_AVATAR;
+            img.src = avatarUrl;
+          }
+        });
+
+        // Update text elements
+        document.getElementById('user-name').textContent = userData.username;
+        document.getElementById('profile-name').textContent = userData.username;
+
+        const tag = userData.discriminator && userData.discriminator !== '0'
+          ? `${userData.username}#${userData.discriminator}`
+          : userData.global_name || userData.username;
+        document.getElementById('profile-tag').textContent = tag;
+
+        document.getElementById('profile-id').textContent = `ID: ${userData.id}`;
+        document.getElementById('goto-account').href = `https://discord.com/users/${userData.id}`;
+      },
+
+      setErrorState(message) {
+        document.getElementById('profile-name').textContent = 'Error';
+        document.getElementById('auth-status').innerHTML = `
+          <div style="color:#ff5555;margin-bottom:8px">${message}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" onclick="checkAuth()">Retry</button>
+            <a class="btn" href="login.html">Sign in</a>
+          </div>
+        `;
+      },
+
+      setLoginPrompt() {
+        document.getElementById('profile-name').textContent = 'Not signed in';
+        document.getElementById('auth-status').innerHTML =
+          '<a class="btn" href="login.html">Sign in with Discord</a>';
+      },
+
+      renderServers(guilds, botPresence = new Set()) {
+        const container = document.getElementById('servers-list');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        if (!guilds || !guilds.length) {
+          container.innerHTML = '<div style="color:#8f97a2;padding:16px">No servers found.</div>';
+          return;
+        }
+
+        guilds.forEach(guild => {
+          const card = document.createElement('div');
+          card.className = 'server-card';
+
+          const icon = guild.icon
+            ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
+            : CONFIG.DEFAULT_AVATAR;
+
+          card.innerHTML = `
+            <div class="server-banner">
+              <div class="server-icon">
+                <img src="${icon}" alt="${guild.name}" onerror="this.src='${CONFIG.DEFAULT_AVATAR}'">
+              </div>
+            </div>
+            <div class="server-body">
+              <div class="server-name">${guild.name}</div>
+              <div class="member-count">${guild.approximate_member_count !== undefined ? guild.approximate_member_count : 'Unknown'} Members</div>
+              <div class="server-actions">
+                ${botPresence.has(String(guild.id))
+              ? `<a href="manage.html?id=${guild.id}" class="btn">Manage Server</a>`
+              : `<a href="https://discord.com/api/oauth2/authorize?client_id=${CONFIG.BOT_CLIENT_ID}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}" class="btn">Add to Server</a>`
+            }
+              </div>
+            </div>
+          `;
+
+          container.appendChild(card);
+        });
+      }
+    };
+
+    // ─── Core Auth Flow ────────────────────────────────────────
+    async function checkAuth() {
+      Debug.clear();
+
+      // STEP 1: Check token in localStorage
+      const token = localStorage.getItem('discord_access_token');
+      Debug.log('STEP 1 — Token in localStorage:', token ? token.slice(0,15)+'...' : '❌ MISSING');
+
+      if (!token) {
+        UI.setLoginPrompt();
+        return false;
+      }
+
+      // STEP 2: Call /api/auth/me
+      Debug.log('STEP 2 — Calling /api/auth/me ...');
+      try {
+        const userData = await API.getProfile();
+        Debug.log('STEP 2 ✔ User profile received:', userData);
+        UI.setProfileData(userData);
+      } catch (error) {
+        Debug.error('STEP 2 ❌ /api/auth/me failed: ' + error.message, error);
+        if (error.message.includes('401') || error.message.includes('Invalid')) {
+          localStorage.removeItem('discord_access_token');
+          UI.setLoginPrompt();
+        } else {
+          UI.setErrorState('API Error: ' + error.message);
+        }
+        return false;
+      }
+
+      // STEP 3: Load guilds
+      Debug.log('STEP 3 — Calling /api/servers ...');
+      try {
+        const guildsResponse = await API.getGuilds();
+        Debug.log('STEP 3 raw response:', guildsResponse);
+        const guilds = Array.isArray(guildsResponse)
+          ? guildsResponse
+          : (guildsResponse.servers || []);
+        Debug.log('STEP 3 ✔ Guilds parsed:', guilds.length, 'servers');
+        // bot_present is returned by the backend directly
+        const botPresence = new Set(
+          guilds.filter(g => g.bot_present).map(g => String(g.id))
+        );
+        UI.renderServers(guilds, botPresence);
+      } catch (error) {
+        Debug.error('STEP 3 ❌ /api/servers failed: ' + error.message, error);
+        UI.renderServers([], new Set());
+      }
+
+      return true;
+    }
+
+    // Kept for compatibility but now unused (logic folded into checkAuth)
+    async function loadUserData() {
+      return checkAuth();
+    }
+
+    function debugState() {
+      Debug.clear();
+      const token = localStorage.getItem('discord_access_token');
+
+      Debug.log('Debug State');
+      Debug.log('API Base:', CONFIG.API_BASE);
+      Debug.log('Token exists:', Boolean(token));
+      Debug.log('Token preview:', token ? token.slice(0, 10) + '...' : 'null');
+
+      // Check UI state
+      Debug.log('UI Elements:');
+      ['user-avatar', 'profile-avatar', 'profile-name', 'auth-status'].forEach(id => {
+        const el = document.getElementById(id);
+        Debug.log(`${id}:`, el ? {
+          exists: true,
+          content: el.tagName === 'IMG' ? el.src : el.textContent
+        } : 'not found');
+      });
+
+      // Check backend connection
+      API.fetch('/debug/env')
+        .then(data => Debug.log('Backend env:', data))
+        .catch(error => Debug.error('Backend connection failed', error));
+    }
+
+    function logout() {
+      localStorage.removeItem('discord_access_token');
+      window.location.href = 'index.html';
+    }
+
+    // Initialize on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      checkAuth().catch(error => {
+        Debug.error('Failed to initialize', error);
+      });
+
+      // Fetch bot branding separately (doesn't need auth)
+      API.fetch('/api/status').then(data => {
+        if (data.bot_avatar) {
+          document.querySelectorAll('.brand img').forEach(img => {
+            img.src = data.bot_avatar;
+          });
+        }
+      }).catch(() => {});
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Whiteout Survival Bot | Premium Discord Management</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #5865F2;
+      --primary-hover: #4752C4;
+      --accent: #ff8b6b;
+      --bg-dark: #0a0a0c;
+      --glass-bg: rgba(20, 20, 24, 0.6);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text-main: #ffffff;
+      --text-muted: #949499;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 15% 50%, rgba(88, 101, 242, 0.15), transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(255, 139, 107, 0.1), transparent 25%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    .bg-animation {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: url('hero-bg.png') no-repeat center center/cover;
+      opacity: 0.35;
+      z-index: -1;
+      filter: blur(2px) brightness(0.7);
+      transform: scale(1.05);
+      animation: pulseBg 20s infinite alternate linear;
+    }
+
+    @keyframes pulseBg {
+      0% { transform: scale(1.05) translate(0, 0); }
+      100% { transform: scale(1.1) translate(-10px, -10px); }
+    }
+
+    header {
+      padding: 24px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(180deg, rgba(10,10,12,0.9) 0%, rgba(10,10,12,0) 100%);
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.4em;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    .brand img {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
+    }
+
+    .badge {
+      background: linear-gradient(135deg, var(--primary), #3ba55c);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.5em;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 10px rgba(88, 101, 242, 0.3);
+    }
+
+    .hero {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+    }
+
+    .hero-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 60px 40px;
+      max-width: 700px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+      transform: translateY(20px);
+      animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+      opacity: 0;
+    }
+
+    @keyframes floatUp {
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .bot-avatar {
+      width: 140px;
+      height: 140px;
+      border-radius: 32px;
+      margin-bottom: 30px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .bot-avatar:hover {
+      transform: scale(1.08) rotate(-3deg);
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 3.5em;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      background: linear-gradient(to right, #ffffff, #a5b4fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -1px;
+    }
+
+    .description {
+      color: var(--text-muted);
+      font-size: 1.25em;
+      margin-bottom: 40px;
+      line-height: 1.6;
+      font-weight: 300;
+    }
+
+    .features {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+
+    .feature-tag {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 8px 16px;
+      border-radius: 30px;
+      font-size: 0.9em;
+      color: #e2e8f0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--primary);
+      color: #fff;
+      text-decoration: none;
+      padding: 16px 36px;
+      border-radius: 12px;
+      font-size: 1.2em;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 20px rgba(88, 101, 242, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: 0.5s;
+    }
+
+    .btn:hover::before {
+      left: 100%;
+    }
+
+    .btn:hover {
+      background: var(--primary-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 25px rgba(88, 101, 242, 0.4);
+    }
+
+    .discord-icon {
+      width: 24px;
+      height: 24px;
+    }
+
+    footer {
+      padding: 30px;
+      font-size: 0.95em;
+      color: rgba(255,255,255,0.4);
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      background: rgba(10,10,12,0.8);
+      backdrop-filter: blur(10px);
+    }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 2.5em; }
+      .hero-card { padding: 40px 20px; }
+      header { padding: 20px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="bg-animation"></div>
+
+  <header>
+    <div class="brand">
+      <img src="/logo.gif" alt="Bot Avatar">
+      Whiteout Survival <span class="badge">v2.0</span>
+    </div>
+    <a href="login.html" class="btn" style="padding: 10px 20px; font-size: 1em; border-radius: 8px;">
+      Login
+    </a>
+  </header>
+
+  <main class="hero">
+    <div class="hero-card">
+      <img src="/logo.gif"
+        alt="Bot Avatar" class="bot-avatar">
+      
+      <h1>The Ultimate Bot for<br>Whiteout Survival</h1>
+      
+      <div class="description">
+        Elevate your Discord server with advanced alliance tracking, automated gift codes, and real-time game statistics. Fully controllable through this dashboard.
+      </div>
+
+      <div class="features">
+        <span class="feature-tag">🎁 Auto Gift Codes</span>
+        <span class="feature-tag">📊 Live Statistics</span>
+        <span class="feature-tag">⚙️ Complete Control Panel</span>
+      </div>
+      
+      <a href="login.html" class="btn">
+        <svg class="discord-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09c-.01-.02-.04-.03-.07-.03c-1.5.26-2.93.71-4.27 1.33c-.01 0-.02.01-.03.02c-2.72 4.07-3.47 8.03-3.1 11.95c0 .02.01.04.03.05c1.8 1.32 3.53 2.12 5.24 2.65c.03.01.06 0 .07-.02c.4-.55.76-1.13 1.07-1.74c.02-.04 0-.08-.04-.09c-.57-.22-1.11-.48-1.64-.78c-.04-.02-.04-.08-.01-.11c.11-.08.22-.17.33-.25c.02-.02.05-.02.07-.01c3.44 1.57 7.15 1.57 10.55 0c.02-.01.05-.01.07.01c.11.09.22.17.33.26c.04.03.04.09-.01.11c-.52.31-1.07.56-1.64.78c-.04.01-.05.06-.04.09c.32.61.68 1.19 1.07 1.74c.03.01.06.02.09.01c1.72-.53 3.45-1.33 5.25-2.65c.02-.01.03-.03.03-.05c.44-4.53-.73-8.46-3.1-11.95c-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.84 2.12-1.89 2.12zm6.97 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.83 2.12-1.89 2.12z" />
+        </svg>
+        Login with Discord
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    Whiteout Survival Bot © 2026 • Designed for peak performance.
+  </footer>
+
+  <script>
+    if (localStorage.getItem('discord_access_token')) {
+      window.location.href = 'dashboard.html';
+    }
+
+    // Fetch bot status to show real logo
+    async function updateBotBranding() {
+      try {
+        const response = await fetch('/api/status');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.bot_avatar) {
+            document.querySelectorAll('img[alt="Bot Avatar"]').forEach(img => {
+              img.src = data.bot_avatar;
+            });
+          }
+          if (data.bot_name) {
+            // Keep "Whiteout Survival" but append bot name if helpful, or replace
+            // For now just ensure the images are correct
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch bot branding:', e);
+      }
+    }
+    updateBotBranding();
+  </script>
+</body>
+
+</html>

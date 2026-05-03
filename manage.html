@@ -718,79 +718,102 @@
             margin-top: 8px;
         }
 
-        /* Time Wheel Picker Styles - Professional Black & White */
+        /* Time Wheel Picker Styles - Realistic Mechanical Drum */
         .time-picker-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #0a0a0a;
-            padding: 30px;
-            border-radius: 12px;
+            background: #050505;
+            padding: 20px 10px;
+            border-radius: 10px;
             margin: 15px 0;
-            border: 1px solid #222;
+            border: 1px solid #1a1a1a;
             user-select: none;
             position: relative;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.05);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,1);
             overflow: hidden;
+            gap: 0; /* Tighten for separators */
         }
         
-        /* The highlight lens in the middle - Glassy/Chrome look */
+        /* The highlight lens - more realistic glass effect */
         .time-picker-row::before {
             content: '';
             position: absolute;
             top: 50%;
             left: 0;
             right: 0;
-            height: 50px;
+            height: 46px;
             background: linear-gradient(to bottom, 
-                rgba(255,255,255,0.08) 0%, 
-                rgba(255,255,255,0.03) 50%, 
-                rgba(255,255,255,0.08) 100%
+                rgba(255,255,255,0.05) 0%, 
+                rgba(255,255,255,0.02) 50%, 
+                rgba(255,255,255,0.05) 100%
             );
-            border-top: 1px solid rgba(255,255,255,0.2);
-            border-bottom: 1px solid rgba(255,255,255,0.2);
+            border-top: 1px solid rgba(255,255,255,0.15);
+            border-bottom: 1px solid rgba(255,255,255,0.15);
             transform: translateY(-50%);
             pointer-events: none;
-            z-index: 3;
+            z-index: 5;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
 
+        /* Vertical separators between wheels - Realistic Grooves */
+        .wheel-separator {
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom, #000 0%, #222 50%, #000 100%);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            border-right: 1px solid rgba(0,0,0,0.5);
+            z-index: 4;
+            margin: 0;
+            position: absolute;
+            top: 0;
+            bottom: 0;
+        }
+        /* Position separators precisely */
+        .wheel-separator:nth-of-type(1) { left: 24%; }
+        .wheel-separator:nth-of-type(2) { left: 33%; }
+        .wheel-separator:nth-of-type(3) { left: 47%; }
+        .wheel-separator:nth-of-type(4) { left: 56%; }
+        .wheel-separator:nth-of-type(5) { left: 70%; }
+
         .wheel-container {
-            height: 200px;
+            height: 180px;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scrollbar-width: none;
-            width: 80px;
+            width: 70px;
             text-align: center;
             position: relative;
             z-index: 2;
             mask-image: linear-gradient(to bottom, 
                 transparent 0%, 
-                black 40%, 
-                black 60%, 
+                black 45%, 
+                black 55%, 
                 transparent 100%
             );
             -webkit-mask-image: linear-gradient(to bottom, 
                 transparent 0%, 
-                black 40%, 
-                black 60%, 
+                black 45%, 
+                black 55%, 
                 transparent 100%
             );
             cursor: grab;
-            perspective: 1000px;
+            perspective: 1200px;
+            transform-style: preserve-3d;
         }
 
         .wheel-container:active { cursor: grabbing; }
         .wheel-container::-webkit-scrollbar { display: none; }
 
         .wheel-item {
-            height: 50px;
+            height: 46px;
             display: flex;
             align-items: center;
             justify-content: center;
             scroll-snap-align: center;
-            font-size: 1.8rem;
-            color: rgba(255,255,255,0.2);
-            transition: all 0.2s cubic-bezier(0.1, 0, 0.1, 1);
+            font-size: 1.6rem;
+            color: rgba(255,255,255,0.15);
+            transition: color 0.2s, opacity 0.2s;
             cursor: pointer;
             backface-visibility: hidden;
             transform-style: preserve-3d;
@@ -801,18 +824,21 @@
         .wheel-item.selected {
             color: #fff;
             font-weight: 800;
-            font-size: 2.4rem;
-            transform: scale(1.1) translateZ(20px);
+            font-size: 2.2rem;
             opacity: 1 !important;
         }
 
         .wheel-label {
-            color: #444;
-            font-weight: 800;
-            font-size: 2rem;
-            margin: 0 10px;
-            z-index: 4;
+            color: #333;
+            font-weight: 900;
+            font-size: 1.8rem;
+            margin: 0 2px;
+            z-index: 6;
             pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 46px;
         }
 
         /* Dark Theme - No Purple */
@@ -1565,6 +1591,12 @@
                             <span style="font-size: 0.75rem; color: var(--primary); font-weight: 500;">Scroll to select</span>
                         </label>
                         <div class="time-picker-row">
+                            <div class="wheel-separator"></div>
+                            <div class="wheel-separator"></div>
+                            <div class="wheel-separator"></div>
+                            <div class="wheel-separator"></div>
+                            <div class="wheel-separator"></div>
+                            
                             <div class="wheel-container" id="wheel-hour" onscroll="updateWheelSelection(this)"></div>
                             <span class="wheel-label">:</span>
                             <div class="wheel-container" id="wheel-min" onscroll="updateWheelSelection(this)"></div>
@@ -1950,12 +1982,17 @@
                 const diff = centerY - itemCenterY;
                 const absDiff = Math.abs(diff);
                 
-                // Professional Drum Rotation effect
-                const rotation = (diff / containerRect.height) * 140; // More dramatic rotation for "drum" look
-                const opacity = Math.max(0.05, 1 - (absDiff / (containerRect.height / 1.8)));
-                const scale = Math.max(0.7, 1 - (absDiff / containerRect.height));
+                // Professional Mechanical Drum Rotation
+                const radius = containerRect.height / 2;
+                const angle = (diff / radius) * 45; // Degrees of rotation
                 
-                item.style.transform = `rotateX(${rotation}deg) translateZ(${scale * 20}px)`;
+                // Opacity fades out as it moves away from center
+                const opacity = Math.max(0, 1 - (absDiff / radius));
+                
+                // Z-translate to push items back in 3D space
+                const zTranslate = -Math.abs(Math.sin(angle * Math.PI / 180) * 100);
+                
+                item.style.transform = `rotateX(${angle}deg) translateZ(${zTranslate}px)`;
                 item.style.opacity = opacity;
                 
                 if (absDiff < minDiff) {

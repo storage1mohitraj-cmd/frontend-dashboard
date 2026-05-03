@@ -1824,7 +1824,8 @@ class Music(commands.Cog):
                     # Connect to voice channel with retry logic
                     player = None
                     max_connect_retries = 3
-                    connect_timeout = 60.0  # Increased from 30s to 60s for stability
+                    # Increased from 30s to 90s for stability
+                    connect_timeout = 90.0
                     
                     for attempt in range(max_connect_retries):
                         try:
@@ -2127,7 +2128,7 @@ class Music(commands.Cog):
                 timeouts = [20.0, 40.0, 60.0]
                 
                 # Diagnostic logging
-                print(f"📊 [v1.4.1] Voice Connection Diagnostics:")
+                print(f"📊 [v1.4.2] Voice Connection Diagnostics:")
                 print(f"   • Channel: {voice_channel.name} (ID: {voice_channel.id})")
                 print(f"   • Guild: {member.guild.name} (ID: {member.guild.id})")
                 print(f"   • User count in channel: {len(voice_channel.members)}")
@@ -2712,7 +2713,8 @@ class Music(commands.Cog):
                 
                 player = None
                 max_connect_retries = 3  # More retries with shorter timeout
-                connect_timeout = 60.0  # Increased from 15s to 60s for stability
+                # Increased from 15s to 90s for stability
+                connect_timeout = 90.0
                 
                 for attempt in range(max_connect_retries):
                     try:

@@ -2111,7 +2111,7 @@ class Music(commands.Cog):
                 timeouts = [20.0, 40.0, 60.0]
                 
                 # Diagnostic logging
-                print(f"📊 [v1.4.1] Voice Connection Diagnostics:")
+                print(f"📊 [v1.4.2] Voice Connection Diagnostics:")
                 print(f"   • Channel: {voice_channel.name} (ID: {voice_channel.id})")
                 print(f"   • Guild: {member.guild.name} (ID: {member.guild.id})")
                 print(f"   • User count in channel: {len(voice_channel.members)}")

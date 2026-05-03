@@ -1705,12 +1705,6 @@ class Music(commands.Cog):
                     "port": 443,
                     "password": "https://dsc.gg/ajidevserver",
                     "secure": True
-                },
-                {
-                    "host": "lavalink.oops.wtf",
-                    "port": 443,
-                    "password": "www.freelavalink.ga",
-                    "secure": True
                 }
             ]
 
@@ -1786,6 +1780,11 @@ class Music(commands.Cog):
         
     async def cog_load(self):
         """Initialize Wavelink node when cog loads"""
+        self.bot.loop.create_task(self.initialize_lavalink())
+        
+    async def initialize_lavalink(self):
+        """Background task to connect to Lavalink and restore states"""
+        await self.bot.wait_until_ready()
         try:
             connected_nodes = await self.connect_lavalink_pool()
             if not connected_nodes:

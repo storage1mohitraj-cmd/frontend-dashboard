@@ -27,57 +27,91 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key \
               -o StrictHostKeyChecking=no \
-              -o ServerAliveInterval=15 \
-              -o ServerAliveCountMax=6 \
-              -o ConnectTimeout=60 \
-              -o ConnectionAttempts=3 \
+              -o ServerAliveInterval=30 \
+              -o ConnectTimeout=30 \
               ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} << 'ENDSSH'
+          set -e
           echo "================================================"
           echo "🤖 WOS Bot Auto-Deploy — $(date)"
           echo "================================================"
+
+          # Comprehensive directory search
+          POSSIBLE_DIRS=(
+            "$HOME/app/bot"
+            "$HOME/bot"
+            "$HOME/WOS-BOT-1"
+            "$HOME/app/bot/DISCORD BOT"
+            "$HOME/bot/DISCORD BOT"
+          )
           
-          # Simplified directory discovery
-          echo "🔍 Finding bot directory..."
-          
-          # Try common paths first
-          if [ -f "$HOME/app/bot/app.py" ]; then
-            BOT_DIR="$HOME/app/bot"
-          elif [ -f "$HOME/bot/app.py" ]; then
-            BOT_DIR="$HOME/bot"
-          elif [ -f "$HOME/WOS-BOT-1/app.py" ]; then
-            BOT_DIR="$HOME/WOS-BOT-1"
-          else
-            # Deep search
-            echo "🔍 Deep searching for app.py..."
-            BOT_DIR=$(find $HOME -maxdepth 4 -name "app.py" -type f -exec dirname {} \; | grep -vE "backup|temp|old|PROJECT_MIGRATION" | head -n 1)
-          fi
-          
+          BOT_DIR=""
+          for dir in "${POSSIBLE_DIRS[@]}"; do
+            if [ -d "$dir/.git" ]; then
+              BOT_DIR="$dir"
+              echo "✅ Found bot directory: $BOT_DIR"
+              break
+            fi
+          done
+
           if [ -z "$BOT_DIR" ]; then
-            echo "⚠️ Could not find app.py! Listing directories in $HOME..."
-            ls -d $HOME/*/ 2>/dev/null
-            # Last resort: just use $HOME
-            BOT_DIR="$HOME"
+            echo "🔍 Searching with find (this may take a moment)..."
+            BOT_DIR=$(find $HOME -name ".git" -type d -prune 2>/dev/null | head -n 1 | xargs -r dirname 2>/dev/null)
+          fi
+
+          if [ -z "$BOT_DIR" ]; then
+            echo "❌ ERROR: Bot directory not found! Listing home directory contents:"
+            ls -la $HOME
+            exit 1
           fi
           
-          echo "✅ Using BOT_DIR: $BOT_DIR"
           cd "$BOT_DIR"
-          echo "📂 Current directory: $(pwd)"
-          ls -F
-          
+          echo "📂 Working directory: $(pwd)"
+
           # Pull latest code
+          echo ""
           echo "📥 Pulling latest code..."
-          git fetch origin main || echo "Fetch failed"
-          git reset --hard origin/main || echo "Reset failed"
-          
-          # Force PM2 restart to ensure new code is loaded
+          # Make sure we're on the right branch
+          git checkout main || git checkout -b main
+          git fetch origin main
+          OLD=$(git rev-parse --short HEAD || echo "unknown")
+          git reset --hard FETCH_HEAD
+          NEW=$(git rev-parse --short HEAD || echo "unknown")
+          echo "✅ Updated: $OLD → $NEW"
+
+          # Update dependencies if requirements.txt changed
+          if [ -f "requirements.txt" ]; then
+            echo "📦 Checking dependencies..."
+            # Try to find pip in venv
+            if [ -f "venv/bin/pip" ]; then
+              ./venv/bin/pip install --upgrade pip
+              ./venv/bin/pip install -r requirements.txt
+            elif [ -f "bot_venv/bin/pip" ]; then
+              ./bot_venv/bin/pip install --upgrade pip
+              ./bot_venv/bin/pip install -r requirements.txt
+            else
+              pip3 install --upgrade pip || true
+              pip3 install -r requirements.txt || pip install -r requirements.txt
+            fi
+            echo "✅ Dependencies check complete"
+          fi
+
+          # Restart bot
+          echo ""
           echo "🔄 Restarting bot..."
-          PM2_PATH=$(command -v pm2 || find $HOME -name "pm2" -type f -executable | head -n 1 || echo "pm2")
-          echo "🚀 Using PM2: $PM2_PATH"
+          # Find PM2 process name (default: discordbot)
+          PROCESS_NAME=$(pm2 list | grep -E "discordbot|bot" | awk '{print $2}' | head -n 1)
+          if [ -z "$PROCESS_NAME" ]; then
+            PROCESS_NAME="discordbot"
+          fi
           
-          # Force stop then start to ensure fresh environment
-          $PM2_PATH stop all || echo "Nothing to stop"
-          $PM2_PATH start app.py --name discordbot --update-env || echo "⚠️ Start failed"
+          echo "🔄 Using process name: $PROCESS_NAME"
+          pm2 restart "$PROCESS_NAME" --update-env || pm2 start app.py --name "$PROCESS_NAME"
           
-          echo "✅ DEPLOYMENT FINISHED"
+          echo "✅ Bot restarted"
+          echo ""
+          pm2 status
+          echo ""
+          echo "================================================"
+          echo "✅ DEPLOYMENT COMPLETE!"
           echo "================================================"
           ENDSSH

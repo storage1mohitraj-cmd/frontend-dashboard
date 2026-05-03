@@ -2078,23 +2078,6 @@ class Music(commands.Cog):
                 # Connect bot to the voice channel with retry logic
                 voice_channel = after.channel
                 
-                # Check Lavalink node status before attempting connection
-                if not self.check_lavalink_connected():
-                    print(f"❌ Cannot auto-connect to {voice_channel.name}: No Lavalink nodes are connected!")
-                    # Try to reconnect Lavalink node if it's down
-                    try:
-                        print("🔄 Attempting to re-initialize Lavalink connection...")
-                        await self.cog_load()
-                        await asyncio.sleep(2)
-                    except Exception as node_reconnect_err:
-                        print(f"❌ Failed to re-initialize Lavalink: {node_reconnect_err}")
-                    
-                    if not self.check_lavalink_connected():
-                        # Clear pending connection
-                        if member.id in self.pending_connections:
-                            del self.pending_connections[member.id]
-                        return
-
                 # First, check permissions before attempting to connect
                 permissions = voice_channel.permissions_for(member.guild.me)
                 if not permissions.connect or not permissions.speak:
@@ -2105,41 +2088,30 @@ class Music(commands.Cog):
                     return
                 
                 player = None
-                max_connect_retries = 3
-                # Use varied timeouts for better reliability
-                # Attempt 1: 20s, Attempt 2: 40s, Attempt 3: 60s
-                timeouts = [20.0, 40.0, 60.0]
+                max_connect_retries = 3  # More retries with shorter timeout
+                connect_timeout = 15.0  # Reduced timeout for faster failure (Discord recommends 10-20s)
                 
                 # Diagnostic logging
-                print(f"📊 [v1.4.2] Voice Connection Diagnostics:")
+                print(f"📊 Voice Connection Diagnostics:")
                 print(f"   • Channel: {voice_channel.name} (ID: {voice_channel.id})")
                 print(f"   • Guild: {member.guild.name} (ID: {member.guild.id})")
                 print(f"   • User count in channel: {len(voice_channel.members)}")
                 print(f"   • Bot permissions: Connect={permissions.connect}, Speak={permissions.speak}")
-                print(f"   • Max retries: {max_connect_retries}")
+                print(f"   • Timeout: {connect_timeout}s, Max retries: {max_connect_retries}")
                 
                 for attempt in range(max_connect_retries):
-                    connect_timeout = timeouts[attempt]
                     try:
-                        print(f"🔄 Attempting to connect to {voice_channel.name} (attempt {attempt + 1}/{max_connect_retries}, timeout={connect_timeout}s)...")
+                        print(f"🔄 Attempting to connect to {voice_channel.name} (attempt {attempt + 1}/{max_connect_retries})...")
                         
                         # Add connection start time for timeout tracking
                         import time
                         start_time = time.time()
                         
-                        # If there's a stuck voice client, try to clear it
-                        if member.guild.voice_client:
-                            try:
-                                await member.guild.voice_client.disconnect(force=True)
-                                await asyncio.sleep(1)
-                            except:
-                                pass
-                        
                         player = await voice_channel.connect(
                             cls=CustomPlayer, 
                             timeout=connect_timeout, 
                             self_deaf=True,
-                            reconnect=True
+                            reconnect=True  # Enable automatic reconnection
                         )
                         
                         elapsed = time.time() - start_time

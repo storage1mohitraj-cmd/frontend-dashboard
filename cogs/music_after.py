@@ -1690,8 +1690,7 @@ class Music(commands.Cog):
                 
                 player = None
                 max_connect_retries = 2  # Fewer retries for auto-connect
-                # Increased timeout for more reliability
-                connect_timeout = 90.0
+                connect_timeout = 45.0  # Increased timeout for more reliability
                 
                 for attempt in range(max_connect_retries):
                     try:
@@ -2179,8 +2178,7 @@ class Music(commands.Cog):
                 
                 player = None
                 max_connect_retries = 2
-                # Increased for better reliability
-                connect_timeout = 90.0
+                connect_timeout = 45.0  # Increased for better reliability
                 
                 for attempt in range(max_connect_retries):
                     try:

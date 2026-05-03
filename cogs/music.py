@@ -713,23 +713,7 @@ class VoiceChannelButton(discord.ui.Button):
             
             # Connect bot to the voice channel
             try:
-                # If bot is already in a channel, just move it instead of forcing a disconnect
-                if interaction.guild.voice_client:
-                    if getattr(interaction.guild.voice_client, "channel", None) == self.channel:
-                        player = interaction.guild.voice_client
-                    else:
-                        try:
-                            await interaction.guild.voice_client.move_to(self.channel)
-                            player = interaction.guild.voice_client
-                        except Exception:
-                            try:
-                                await interaction.guild.voice_client.disconnect(force=True)
-                                await asyncio.sleep(1)
-                            except:
-                                pass
-                            player = await self.channel.connect(cls=CustomPlayer, timeout=90.0, self_deaf=True)
-                else:
-                    player = await self.channel.connect(cls=CustomPlayer, timeout=90.0, self_deaf=True)
+                player = await self.channel.connect(cls=CustomPlayer, timeout=60.0, self_deaf=True)
                 player.text_channel = interaction.channel
                 
                 # Optimize voice quality
@@ -1686,178 +1670,50 @@ class Music(commands.Cog):
         self.pending_connections = {}
         # Start cleanup task
         self.cleanup_task = None
-        self.lavalink_node_specs = []
-
-    def _get_lavalink_node_specs(self) -> List[dict]:
-        """Build a deduplicated Lavalink node list with public fallbacks."""
-        primary_spec = {
-            "host": os.getenv('LAVALINK_HOST', 'localhost'),
-            "port": int(os.getenv('LAVALINK_PORT', '2333')),
-            "password": os.getenv('LAVALINK_PASSWORD', 'youshallnotpass'),
-            "secure": os.getenv('LAVALINK_SECURE', 'false').lower() == 'true'
-        }
-
-        fallback_specs = []
-        if os.getenv("LAVALINK_USE_FALLBACKS", "true").lower() == "true":
-            fallback_specs = [
-                {
-                    "host": "lava-v4.millohost.my.id",
-                    "port": 443,
-                    "password": "https://discord.gg/mjS5J2K3ep",
-                    "secure": True
-                },
-                {
-                    "host": "lavalink.jirayu.net",
-                    "port": 443,
-                    "password": "youshallnotpass",
-                    "secure": True
-                },
-                {
-                    "host": "lavalinkv4.serenetia.com",
-                    "port": 80,
-                    "password": "https://seretia.link/discord",
-                    "secure": False
-                },
-                {
-                    "host": "lavalink.oops.wtf",
-                    "port": 443,
-                    "password": "www.freelavalink.ga",
-                    "secure": True
-                },
-                {
-                    "host": "lava-v4.ajieblogs.eu.org",
-                    "port": 443,
-                    "password": "https://dsc.gg/ajidevserver",
-                    "secure": True
-                }
-            ]
-
-        specs: List[dict] = []
-        seen = set()
-        for spec in [primary_spec, *fallback_specs]:
-            uri = f"{'https' if spec['secure'] else 'http'}://{spec['host']}:{spec['port']}"
-            key = (uri, spec["password"])
-            if key in seen:
-                continue
-            seen.add(key)
-            specs.append({
-                "host": spec["host"],
-                "port": spec["port"],
-                "password": spec["password"],
-                "secure": spec["secure"],
-                "uri": uri
-            })
-
-        return specs
-
-    def _connected_lavalink_nodes(self) -> List[wavelink.Node]:
-        """Return connected Lavalink nodes."""
-        if not wavelink.Pool.nodes:
-            return []
-        return [node for node in wavelink.Pool.nodes.values() if node.status == wavelink.NodeStatus.CONNECTED]
-
-    def _log_lavalink_status(self, prefix: str = "🎵 Lavalink status") -> None:
-        """Log current Lavalink node states for troubleshooting."""
-        if not wavelink.Pool.nodes:
-            print(f"{prefix}: no nodes registered")
-            return
-
-        status_parts = []
-        for identifier, node in wavelink.Pool.nodes.items():
-            uri = getattr(node, "uri", identifier)
-            status = getattr(node, "status", "unknown")
-            status_parts.append(f"{identifier}={status} ({uri})")
-        print(f"{prefix}: " + "; ".join(status_parts))
-
-    async def connect_lavalink_pool(self) -> List[wavelink.Node]:
-        """Connect to the primary Lavalink node plus fallbacks."""
-        self.lavalink_node_specs = self._get_lavalink_node_specs()
-        nodes = [
-            wavelink.Node(uri=spec["uri"], password=spec["password"])
-            for spec in self.lavalink_node_specs
-        ]
-
-        print("🎵 Attempting Lavalink nodes:")
-        for spec in self.lavalink_node_specs:
-            print(f"   • {spec['uri']}")
-
-        try:
-            await asyncio.wait_for(wavelink.Pool.connect(client=self.bot, nodes=nodes), timeout=15.0)
-        except asyncio.TimeoutError:
-            print("⚠️ Timeout while connecting to Lavalink pool! Some nodes might be offline.")
-        except Exception as e:
-            print(f"⚠️ Error while connecting to Lavalink pool: {e}")
-            
-        await asyncio.sleep(2)
-        connected_nodes = self._connected_lavalink_nodes()
-        self._log_lavalink_status()
-        return connected_nodes
-
-    @commands.Cog.listener()
-    async def on_socket_response(self, msg):
-        """Monitor gateway for all events to find the missing voice server update"""
-        if isinstance(msg, dict):
-            t = msg.get('t')
-            if t:
-                # Log voice-related events specifically
-                if "VOICE" in t:
-                    print(f"📡 [GATEWAY_EVENT] {t}")
-                
-            if t == 'VOICE_SERVER_UPDATE':
-                print(f"📡 [VOICE_SERVER] SUCCESS! Received voice server update for guild {msg['d'].get('guild_id')}")
-                print(f"   • Endpoint: {msg['d'].get('endpoint')}")
-
-    async def refresh_lavalink_pool(self, reason: str) -> bool:
-        """Reconnect Lavalink pool only if no nodes are currently connected."""
-        connected_nodes = self._connected_lavalink_nodes()
-        if connected_nodes:
-            print(f"ℹ️ Skipping Lavalink pool refresh: {len(connected_nodes)} nodes already connected. Reason: {reason}")
-            return True
-
-        print(f"🔄 Refreshing Lavalink pool (no connected nodes): {reason}")
-        try:
-            # Check if pool is already closed or empty
-            if wavelink.Pool.nodes:
-                await wavelink.Pool.close()
-                await asyncio.sleep(1)
-        except Exception as close_err:
-            print(f"⚠️ Error while closing Lavalink pool: {close_err}")
-
-        try:
-            connected_nodes = await self.connect_lavalink_pool()
-            return bool(connected_nodes)
-        except Exception as reconnect_err:
-            print(f"❌ Lavalink pool refresh failed: {reconnect_err}")
-            return False
         
     async def cog_load(self):
         """Initialize Wavelink node when cog loads"""
-        self.bot.loop.create_task(self.initialize_lavalink())
-        
-    async def initialize_lavalink(self):
-        """Background task to connect to Lavalink and restore states"""
-        await self.bot.wait_until_ready()
         try:
-            connected_nodes = await self.connect_lavalink_pool()
-            if not connected_nodes:
-                raise Exception("No nodes in CONNECTED state")
-
-            connected_uris = [str(getattr(node, "uri", getattr(node, "identifier", "unknown"))) for node in connected_nodes]
-            success_message = f"🎵 Successfully connected to Lavalink nodes: {', '.join(connected_uris)}"
-            if self.logger:
-                self.logger.info(success_message)
+            # Get Lavalink configuration from environment
+            host = os.getenv('LAVALINK_HOST', 'localhost')
+            port = int(os.getenv('LAVALINK_PORT', '2333'))
+            password = os.getenv('LAVALINK_PASSWORD', 'youshallnotpass')
+            secure = os.getenv('LAVALINK_SECURE', 'false').lower() == 'true'
+            
+            # Create node
+            node = wavelink.Node(
+                uri=f"{'https' if secure else 'http'}://{host}:{port}",
+                password=password
+            )
+            
+            # Connect to Lavalink
+            await wavelink.Pool.connect(client=self.bot, nodes=[node])
+            
+            # Wait a bit for connection to establish
+            await asyncio.sleep(2)
+            
+            # Check if connected
+            if wavelink.Pool.nodes:
+                connected_nodes = [n for n in wavelink.Pool.nodes.values() if n.status == wavelink.NodeStatus.CONNECTED]
+                if connected_nodes:
+                    if self.logger:
+                        self.logger.info(f"🎵 Successfully connected to Lavalink at {host}:{port}")
+                    else:
+                        print(f"🎵 Successfully connected to Lavalink at {host}:{port}")
+                    
+                    # Wait for Lavalink to be fully ready before restoring states
+                    print("⏳ Waiting for Lavalink to stabilize before restoring music states...")
+                    await asyncio.sleep(5)
+                    
+                    # Restore music states after connection
+                    await self.restore_music_states()
+                    
+                    # Start cleanup task for pending connections
+                    self.cleanup_task = self.bot.loop.create_task(self.cleanup_stale_connections())
+                else:
+                    raise Exception("No nodes in CONNECTED state")
             else:
-                print(success_message)
-
-            # Wait for Lavalink to be fully ready before restoring states
-            print("⏳ Waiting for Lavalink to stabilize before restoring music states...")
-            await asyncio.sleep(5)
-            
-            # Restore music states after connection
-            await self.restore_music_states()
-            
-            # Start cleanup task for pending connections
-            self.cleanup_task = self.bot.loop.create_task(self.cleanup_stale_connections())
+                raise Exception("No nodes available")
                 
         except Exception as e:
             error_msg = f"❌ Failed to connect to Lavalink: {e}"
@@ -1875,10 +1731,10 @@ class Music(commands.Cog):
             print("   LAVALINK_PASSWORD=www.freelavalink.ga")
             print("   LAVALINK_SECURE=true")
             print("\n2. Or use this alternative:")
-            print("   LAVALINK_HOST=lava-v4.ajieblogs.eu.org")
-            print("   LAVALINK_PORT=443")
+            print("   LAVALINK_HOST=lava-v3.ajieblogs.eu.org")
+            print("   LAVALINK_PORT=80")
             print("   LAVALINK_PASSWORD=https://dsc.gg/ajidevserver")
-            print("   LAVALINK_SECURE=true")
+            print("   LAVALINK_SECURE=false")
             print("\n3. Self-host Lavalink (see MUSIC_SETUP.md)")
             print("="*70 + "\n")
             
@@ -1894,7 +1750,9 @@ class Music(commands.Cog):
     
     def check_lavalink_connected(self) -> bool:
         """Check if any Lavalink nodes are connected"""
-        return bool(self._connected_lavalink_nodes())
+        if not wavelink.Pool.nodes:
+            return False
+        return any(n.status == wavelink.NodeStatus.CONNECTED for n in wavelink.Pool.nodes.values())
     
     async def cleanup_stale_connections(self):
         """Background task to clean up stale pending connections"""
@@ -1958,8 +1816,7 @@ class Music(commands.Cog):
                     # Connect to voice channel with retry logic
                     player = None
                     max_connect_retries = 3
-                    # Reduced from 90s to 20s to speed up ghost session clearing
-                    connect_timeout = 20.0
+                    connect_timeout = 60.0  # Increased from 30s to 60s for stability
                     
                     for attempt in range(max_connect_retries):
                         try:
@@ -1975,13 +1832,7 @@ class Music(commands.Cog):
                             print(f"  ⏱️ Connection timeout (attempt {attempt + 1}/{max_connect_retries})")
                             if attempt < max_connect_retries - 1:
                                 wait_time = (attempt + 1) * 2  # Exponential backoff: 2s, 4s, 6s
-                                print(f"  ⏳ Waiting {wait_time}s before retry... Clearing ghost voice state...")
-                                try:
-                                    if getattr(guild, 'voice_client', None):
-                                        await guild.voice_client.disconnect(force=True)
-                                    await guild.change_voice_state(channel=None)
-                                except Exception as e:
-                                    print(f"  ⚠️ Failed to clear voice state: {e}")
+                                print(f"  ⏳ Waiting {wait_time}s before retry...")
                                 await asyncio.sleep(wait_time)
                             else:
                                 print(f"  ❌ Failed to connect after {max_connect_retries} attempts, skipping...")
@@ -1994,16 +1845,7 @@ class Music(commands.Cog):
                                 continue
                     
                     if not player:
-                        print(f"  ⚠️ Could not establish connection to {channel.name}, removing stale music state from DB...")
-                        try:
-                            # Use the already imported music_state_storage instance
-                            if music_state_storage:
-                                await music_state_storage.delete_state(guild.id)
-                                print(f"  ✅ Stale music state for guild {guild.id} deleted.")
-                            else:
-                                print("  ⚠️ music_state_storage not available, could not delete state.")
-                        except Exception as delete_err:
-                            print(f"  ❌ Failed to delete stale music state: {delete_err}")
+                        print(f"  ⚠️ Could not establish connection to {channel.name}, skipping state restoration...")
                         continue
                     
                     # Optimize voice quality
@@ -2212,11 +2054,6 @@ class Music(commands.Cog):
     @commands.Cog.listener()
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
         """Handle voice state updates - auto-connect bot when user joins a channel"""
-        # Global diagnostic for the bot itself
-        if member.id == self.bot.user.id:
-            print(f"📡 [VOICE_STATE] Bot voice state updated: {before.channel} -> {after.channel}")
-            print(f"   • Session ID: {getattr(after, 'session_id', 'None')}")
-            
         # Check if this user has a pending connection
         if member.id not in self.pending_connections:
             return
@@ -2231,41 +2068,16 @@ class Music(commands.Cog):
             
             # Check if bot is already connected to a voice channel in this guild
             if member.guild.voice_client is not None:
-                # If it's already in the target channel, we're good
-                if member.guild.voice_client.channel == after.channel:
-                    print(f"ℹ️ Bot already connected to {after.channel.name}, skipping auto-connect")
-                    if member.id in self.pending_connections:
-                        del self.pending_connections[member.id]
-                    return
-                else:
-                    # If it's in another channel, we might want to move it, but for auto-connect
-                    # we usually stick to one channel. Let's log it.
-                    print(f"ℹ️ Bot already connected to voice in {member.guild.voice_client.channel.name}, skipping auto-connect")
-                    if member.id in self.pending_connections:
-                        del self.pending_connections[member.id]
-                    return
+                print(f"ℹ️ Bot already connected to voice in {member.guild.name}, skipping auto-connect")
+                # Clear pending connection since bot is already connected
+                if member.id in self.pending_connections:
+                    del self.pending_connections[member.id]
+                return
             
             try:
                 # Connect bot to the voice channel with retry logic
                 voice_channel = after.channel
                 
-                # Check Lavalink node status before attempting connection
-                if not self.check_lavalink_connected():
-                    print(f"❌ Cannot auto-connect to {voice_channel.name}: No Lavalink nodes are connected!")
-                    # Try to reconnect Lavalink node if it's down
-                    try:
-                        print("🔄 Attempting to re-initialize Lavalink connection...")
-                        await self.cog_load()
-                        await asyncio.sleep(2)
-                    except Exception as node_reconnect_err:
-                        print(f"❌ Failed to re-initialize Lavalink: {node_reconnect_err}")
-                    
-                    if not self.check_lavalink_connected():
-                        # Clear pending connection
-                        if member.id in self.pending_connections:
-                            del self.pending_connections[member.id]
-                        return
-
                 # First, check permissions before attempting to connect
                 permissions = voice_channel.permissions_for(member.guild.me)
                 if not permissions.connect or not permissions.speak:
@@ -2276,51 +2088,30 @@ class Music(commands.Cog):
                     return
                 
                 player = None
-                max_connect_retries = 3
-                # Use varied timeouts for better reliability
-                # Attempt 1: 20s, Attempt 2: 40s, Attempt 3: 60s
-                timeouts = [20.0, 40.0, 60.0]
+                max_connect_retries = 3  # More retries with shorter timeout
+                connect_timeout = 60.0  # Increased from 15s to 60s for stability on cloud hosting
                 
                 # Diagnostic logging
-                print(f"📊 [v1.4.3] Voice Connection Diagnostics:")
+                print(f"📊 Voice Connection Diagnostics:")
                 print(f"   • Channel: {voice_channel.name} (ID: {voice_channel.id})")
                 print(f"   • Guild: {member.guild.name} (ID: {member.guild.id})")
                 print(f"   • User count in channel: {len(voice_channel.members)}")
                 print(f"   • Bot permissions: Connect={permissions.connect}, Speak={permissions.speak}")
-                print(f"   • Max retries: {max_connect_retries}")
-                self._log_lavalink_status("   • Lavalink nodes")
+                print(f"   • Timeout: {connect_timeout}s, Max retries: {max_connect_retries}")
                 
                 for attempt in range(max_connect_retries):
-                    connect_timeout = timeouts[attempt]
                     try:
-                        print(f"🔄 Attempting to connect to {voice_channel.name} (attempt {attempt + 1}/{max_connect_retries}, timeout={connect_timeout}s)...")
+                        print(f"🔄 Attempting to connect to {voice_channel.name} (attempt {attempt + 1}/{max_connect_retries})...")
                         
                         # Add connection start time for timeout tracking
                         import time
                         start_time = time.time()
                         
-                        # Use existing client or move it, avoiding forced disconnects that break Wavelink
-                        if member.guild.voice_client:
-                            if getattr(member.guild.voice_client, "channel", None) == voice_channel:
-                                player = member.guild.voice_client
-                                break
-                            else:
-                                try:
-                                    await member.guild.voice_client.move_to(voice_channel)
-                                    player = member.guild.voice_client
-                                    break
-                                except Exception:
-                                    try:
-                                        await member.guild.voice_client.disconnect(force=True)
-                                        await asyncio.sleep(1)
-                                    except:
-                                        pass
-                        
                         player = await voice_channel.connect(
                             cls=CustomPlayer, 
                             timeout=connect_timeout, 
                             self_deaf=True,
-                            reconnect=True
+                            reconnect=True  # Enable automatic reconnection
                         )
                         
                         elapsed = time.time() - start_time
@@ -2331,7 +2122,6 @@ class Music(commands.Cog):
                         if attempt < max_connect_retries - 1:
                             # Exponential backoff: 2s, 4s, 8s
                             wait_time = 2 ** (attempt + 1)
-                            await self.refresh_lavalink_pool(f"auto-connect timeout in {voice_channel.name} (attempt {attempt + 1})")
                             print(f"⏱️ Auto-connect timeout to {voice_channel.name} after {connect_timeout}s, retrying in {wait_time}s... (attempt {attempt + 1}/{max_connect_retries})")
                             await asyncio.sleep(wait_time)
                         else:
@@ -2878,84 +2668,42 @@ class Music(commands.Cog):
                 
                 player = None
                 max_connect_retries = 3  # More retries with shorter timeout
-                # Reduced from 90s to 20s to speed up ghost session clearing
-                connect_timeout = 40.0
-                self._log_lavalink_status("🎵 Manual connect Lavalink nodes")
+                connect_timeout = 60.0  # Increased from 15s to 60s for stability
                 
                 for attempt in range(max_connect_retries):
                     try:
                         print(f"🔄 Connecting to {target_channel.name} (attempt {attempt + 1}/{max_connect_retries})...")
                         
-                        # Attempt to use existing client or move it to avoid Wavelink session breaks
+                        # Ensure any old voice client is disconnected before a new attempt
                         if interaction.guild.voice_client:
-                            if getattr(interaction.guild.voice_client, "channel", None) == target_channel:
-                                player = interaction.guild.voice_client
-                                if player.connected:
-                                    print(f"✅ Already connected to {target_channel.name}")
-                                    break
-                                else:
-                                    print(f"⚠️ Voice client exists but is not fully connected (Ready: {player.connected}). Forcing fresh join...")
-                                    await interaction.guild.voice_client.disconnect(force=True)
-                                    await asyncio.sleep(1.5)
-                            else:
-                                try:
-                                    await interaction.guild.voice_client.move_to(target_channel)
-                                    player = interaction.guild.voice_client
-                                    print(f"🚚 Moved to {target_channel.name}")
-                                    break
-                                except Exception as e:
-                                    print(f"⚠️ Move failed, forcing disconnect: {e}")
-                                    try:
-                                        await interaction.guild.voice_client.disconnect(force=True)
-                                        await asyncio.sleep(1)
-                                    except Exception:
-                                        pass
+                            print(f"🧹 Force disconnecting existing voice client in {interaction.guild.name}")
+                            try:
+                                await interaction.guild.voice_client.disconnect(force=True)
+                                await asyncio.sleep(1)
+                            except Exception:
+                                pass
 
-                        # Use exponential timeout for retries: 40s, 80s, 120s
-                        current_timeout = connect_timeout * (attempt + 1)
                         player = await target_channel.connect(
                             cls=CustomPlayer, 
-                            timeout=current_timeout, 
+                            timeout=connect_timeout, 
                             self_deaf=True,
                             reconnect=True
                         )
                         print(f"✅ Connected to {target_channel.name}")
                         break
-                    except (asyncio.TimeoutError, Exception) as e:
-                        # Catch both standard timeout and wavelink/discord.py specific timeout messages
-                        is_timeout = isinstance(e, asyncio.TimeoutError) or "timeout" in str(e).lower()
-                        
-                        if is_timeout:
-                            if attempt < max_connect_retries - 1:
-                                wait_time = 2 ** (attempt + 1)
-                                # Log node status but don't refresh pool if nodes are connected
-                                self._log_lavalink_status(f"manual connect timeout (attempt {attempt+1})")
-                                print(f"⏱️ Connection timeout to {target_channel.name} (attempt {attempt+1}/{max_connect_retries})... Cleaning ghost voice state and retrying in {wait_time}s...")
-                                
-                                try:
-                                    if interaction.guild.voice_client:
-                                        await interaction.guild.voice_client.disconnect(force=True)
-                                    # Use change_voice_state to ensure Discord side is cleared
-                                    await interaction.guild.change_voice_state(channel=None)
-                                    await asyncio.sleep(wait_time)
-                                except Exception as clear_err:
-                                    print(f"⚠️ Failed to clear ghost voice state: {clear_err}")
-                                
-                                # Try to refresh pool ONLY if all nodes are dead
-                                if not self._connected_lavalink_nodes():
-                                    await self.refresh_lavalink_pool(f"manual connect timeout in {target_channel.name}")
-                            else:
-                                print(f"❌ Connection to {target_channel.name} timed out after {max_connect_retries} attempts.")
-                                raise asyncio.TimeoutError(f"Unable to connect to {target_channel.name} after {max_connect_retries} attempts (last timeout: {connect_timeout}s). This usually happens due to Discord voice server issues or slow Lavalink nodes.")
+                    except asyncio.TimeoutError:
+                        if attempt < max_connect_retries - 1:
+                            wait_time = 2 ** (attempt + 1)
+                            print(f"⏱️ Connection timeout to {target_channel.name} after {connect_timeout}s, retrying in {wait_time}s...")
+                            await asyncio.sleep(wait_time)
                         else:
-                            # Other non-timeout exceptions
-                            print(f"❌ Error connecting to voice: {e}")
-                            if attempt < max_connect_retries - 1:
-                                wait_time = 2
-                                print(f"🔄 Retrying other error in {wait_time}s...")
-                                await asyncio.sleep(wait_time)
-                            else:
-                                raise
+                            raise
+                    except Exception as e:
+                        print(f"❌ Error connecting to voice: {e}")
+                        if attempt < max_connect_retries - 1:
+                            await asyncio.sleep(2)
+                        else:
+                            raise asyncio.TimeoutError(f"Unable to connect to {target_channel.name} after {max_connect_retries} attempts (timeout: {connect_timeout}s each). This may be due to network issues or Discord voice server problems.")
                 
                 if not player:
                     raise Exception(f"Failed to create player for {target_channel.name}")
@@ -3425,23 +3173,7 @@ class Music(commands.Cog):
             # Check if user is in voice channel
             if interaction.user.voice and interaction.user.voice.channel:
                 try:
-                    # Avoid force-disconnecting existing valid clients
-                    if interaction.guild.voice_client:
-                        if getattr(interaction.guild.voice_client, "channel", None) == interaction.user.voice.channel:
-                            player = interaction.guild.voice_client
-                        else:
-                            try:
-                                await interaction.guild.voice_client.move_to(interaction.user.voice.channel)
-                                player = interaction.guild.voice_client
-                            except Exception:
-                                try:
-                                    await interaction.guild.voice_client.disconnect(force=True)
-                                    await asyncio.sleep(1)
-                                except:
-                                    pass
-                                player = await interaction.user.voice.channel.connect(cls=CustomPlayer, timeout=90.0)
-                    else:
-                        player = await interaction.user.voice.channel.connect(cls=CustomPlayer, timeout=90.0)
+                    player = await interaction.user.voice.channel.connect(cls=CustomPlayer, timeout=60.0)
                     player.text_channel = interaction.channel
                 except Exception as e:
                     await interaction.response.send_message(

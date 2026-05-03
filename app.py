@@ -920,8 +920,8 @@ async def setup_hook():
         "cogs.events",
         "cogs.server_age",
         "cogs.personalise_chat",
-        "cogs.music",  # Music bot functionality
-        "cogs.voicetest", # Diagnostic cog
+        # "cogs.music",  # Music bot functionality (Disabled to save memory)
+        # "cogs.voicetest", # Diagnostic cog (Disabled)
         "cogs.presence",  # Rotating Rich Presence
         # "cogs.voice_conversation",  # Voice chat with AI
         # "cogs.tts",  # Text-to-Speech in voice channels

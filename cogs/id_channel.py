@@ -1,10 +1,14 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import sqlite3
 from datetime import datetime, timedelta
 import os
+import time
+import hashlib
+import aiohttp
+import ssl
 
-from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter
+from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter, IDChannelsAdapter
 from admin_utils import get_level_mapping
 
 SECRET = "tB87#kPtkxqOS2"
@@ -36,6 +40,29 @@ class IDChannel(commands.Cog):
         conn.commit()
         conn.close()
 
+    async def log_action(self, action_type: str, user_id: int, guild_id: int, details: dict):
+        """Log actions to file"""
+        try:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_file_path = os.path.join(self.log_directory, 'id_channel_log.txt')
+            
+            guild = self.bot.get_guild(guild_id)
+            guild_name = guild.name if guild else "Unknown Server"
+            
+            user_name = f"User {user_id}"
+            user = self.bot.get_user(user_id)
+            if user:
+                user_name = str(user)
+            
+            with open(log_file_path, 'a', encoding='utf-8') as log_file:
+                log_file.write(f"\n[{timestamp}] {action_type}\n")
+                log_file.write(f"User: {user_name} (ID: {user_id})\n")
+                log_file.write(f"Server: {guild_name} (ID: {guild_id})\n")
+                for key, value in details.items():
+                    log_file.write(f"  {key}: {value}\n")
+        except Exception as e:
+            print(f"Logging error: {e}")
+
     def _log_debug(self, message):
         """Log debug messages"""
         try:
@@ -60,14 +87,10 @@ class IDChannel(commands.Cog):
                 'avatar_image': avatar_image,
             }
             
-            self._log_debug(f"_upsert_member_from_api called for {fid}. Mongo Enabled: {mongo_enabled()}")
-            
             # Try MongoDB first
             try:
                 if mongo_enabled() and AllianceMembersAdapter is not None:
-                    self._log_debug(f"Attempting Mongo upsert for {fid}...")
                     result = AllianceMembersAdapter.upsert_member(str(fid), member_doc)
-                    self._log_debug(f"Mongo upsert result: {result}")
                     if result:
                         return True
             except Exception as e:
@@ -102,10 +125,9 @@ class IDChannel(commands.Cog):
                         avatar_image
                     ))
                     users_db.commit()
-                    self._log_debug(f"SQLite upsert committed successfully.")
                     return True
             except Exception as e:
-                self._log_debug(f"Failed to save member {fid}: {e}")
+                self._log_debug(f"Failed to save member {fid} to SQLite: {e}")
                 return False
                 
         except Exception as e:
@@ -146,105 +168,110 @@ class IDChannel(commands.Cog):
                     # Add success reaction
                     await message.add_reaction('✅')
                     
-                    # Send confirmation
-                    level_str = self.level_mapping.get(furnace_lv, str(furnace_lv))
-                    await message.channel.send(
-                        f"✅ **{nickname}** registered successfully!\n"
-                        f"🆔 FID: `{fid}`\n"
-                        f"⚔️ Furnace Level: `{level_str}`",
-                        delete_after=10
+                    # Send confirmation (Old Style: Embed)
+                    furnace_level_name = self.level_mapping.get(furnace_lv, f"Level {furnace_lv}")
+                    
+                    success_embed = discord.Embed(
+                        title=f"✅ Member Successfully Added",
+                        description=(
+                            "━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"**👤 Name:** `{nickname}`\n"
+                            f"**🆔 FID:** `{fid}`\n"
+                            f"**🔥 Furnace Level:** `{furnace_level_name}`\n"
+                            f"**🌍 State:** `{kid}`\n"
+                            "━━━━━━━━━━━━━━━━━━━━━━"
+                        ),
+                        color=discord.Color.green()
+                    )
+
+                    if avatar_image:
+                        success_embed.set_image(url=avatar_image)
+                    if isinstance(stove_lv_content, str) and stove_lv_content.startswith("http"):
+                        success_embed.set_thumbnail(url=stove_lv_content)
+
+                    await message.reply(embed=success_embed)
+                    
+                    await self.log_action(
+                        "ADD_MEMBER",
+                        message.author.id,
+                        message.guild.id,
+                        {
+                            "fid": fid,
+                            "nickname": nickname,
+                            "alliance_id": alliance_id,
+                            "furnace_level": furnace_level_name
+                        }
                     )
                 else:
                     await message.add_reaction('❌')
-                    await message.channel.send(
-                        f"❌ Failed to register FID `{fid}`. Please try again.",
-                        delete_after=10
-                    )
+                    await message.reply("❌ Failed to register FID. Please try again.", delete_after=10)
             else:
                 await message.add_reaction('❌')
-                await message.channel.send(
-                    f"❌ Player with FID `{fid}` not found.",
-                    delete_after=10
-                )
+                await message.reply(f"❌ Player with FID `{fid}` not found.", delete_after=10)
                 
         except Exception as e:
             print(f"Error processing FID {fid}: {e}")
-            import traceback
-            traceback.print_exc()
             await message.add_reaction('❌')
-            await message.channel.send(
-                "❌ An error occurred during the process.",
-                delete_after=10
-            )
+            await message.reply("❌ An error occurred during the process.", delete_after=10)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
         """Listen for FIDs in ID channels"""
         try:
-            # Ignore bot messages and DMs
             if message.author.bot or not message.guild:
                 return
             
-            # Check if message content is a 9-digit FID
             content = message.content.strip()
             if not content.isdigit() or len(content) != 9:
                 return
             
             fid = int(content)
             
-            # ── Check ID Channels ──
-            # Try MongoDB first
+            # Check MongoDB first
             try:
-                from db.mongo_adapters import mongo_enabled, IDChannelsAdapter
                 if mongo_enabled() and IDChannelsAdapter:
                     config = await IDChannelsAdapter.get_channel_async(message.guild.id)
                     if config and config.get('channel_id') == message.channel.id:
-                        self._log_debug(f"Processing FID {fid} in Mongo ID channel {message.channel.id}")
                         await self.process_fid(message, fid, config.get('alliance_id', 0))
                         return
-            except Exception as e:
-                self._log_debug(f"Mongo ID channel check failed: {e}")
+            except Exception:
+                pass
 
-            # Get ID channels from SQLite database (fallback/legacy)
+            # Fallback to SQLite
             with sqlite3.connect('db/id_channel.sqlite') as db:
                 cursor = db.cursor()
                 cursor.execute(
-                    "SELECT channel_id, alliance_id FROM id_channels WHERE guild_id = ?",
-                    (message.guild.id,)
+                    "SELECT alliance_id FROM id_channels WHERE channel_id = ?",
+                    (message.channel.id,)
                 )
-                channels = cursor.fetchall()
-            
-            # Check if message is in an ID channel
-            for channel_id, alliance_id in channels:
-                if message.channel.id == channel_id:
-                    self._log_debug(f"Processing FID {fid} in SQLite ID channel {channel_id} for alliance {alliance_id}")
-                    # Process the FID
-                    await self.process_fid(message, fid, alliance_id)
-                    return
+                row = cursor.fetchone()
+                if row:
+                    await self.process_fid(message, fid, row[0])
         
         except Exception as e:
             print(f"Error in on_message: {e}")
-            import traceback
-            traceback.print_exc()
 
     @commands.Cog.listener()
     async def on_ready(self):
-        """Process old messages on bot startup"""
+        """Initialize background tasks"""
+        if not self.check_channels_loop.is_running():
+            self.check_channels_loop.start()
+
+    @tasks.loop(minutes=5)
+    async def check_channels_loop(self):
+        """Process missed messages in ID channels"""
         try:
             with sqlite3.connect('db/id_channel.sqlite') as db:
                 cursor = db.cursor()
                 cursor.execute("SELECT channel_id, alliance_id FROM id_channels")
                 channels = cursor.fetchall()
 
-            invalid_channels = []
             for channel_id, alliance_id in channels:
                 channel = self.bot.get_channel(channel_id)
                 if not channel:
-                    invalid_channels.append(channel_id)
                     continue
 
-                # Process messages from last 24 hours
-                async for message in channel.history(limit=None, after=datetime.utcnow() - timedelta(days=1)):
+                async for message in channel.history(limit=50):
                     if message.author.bot:
                         continue
 
@@ -257,30 +284,177 @@ class IDChannel(commands.Cog):
                                 break
                         if has_bot_reaction:
                             break
-
                     if has_bot_reaction:
                         continue
 
                     content = message.content.strip()
-                    if not content or not content.isdigit() or len(content) != 9:
-                        continue
-
-                    fid = int(content)
-                    await self.process_fid(message, fid, alliance_id)
-
-            # Clean up invalid channels
-            if invalid_channels:
-                with sqlite3.connect('db/id_channel.sqlite') as db:
-                    cursor = db.cursor()
-                    placeholders = ','.join('?' * len(invalid_channels))
-                    cursor.execute(f"""
-                        DELETE FROM id_channels 
-                        WHERE channel_id IN ({placeholders})
-                    """, invalid_channels)
-                    db.commit()
-
+                    if content.isdigit() and len(content) == 9:
+                        await self.process_fid(message, int(content), alliance_id)
         except Exception as e:
-            print(f"Error in on_ready: {e}")
+            print(f"Error in check_channels_loop: {e}")
+
+    async def show_id_channel_menu(self, interaction: discord.Interaction):
+        """Management menu for ID channels"""
+        try:
+            # Check admin permissions (using simple admin check for now)
+            if not interaction.user.guild_permissions.administrator:
+                await interaction.response.send_message("❌ Administrator permissions required.", ephemeral=True)
+                return
+
+            embed = discord.Embed(
+                title="🆔 ID Channel Management",
+                description=(
+                    "Manage your alliance ID channels here:\n\n"
+                    "**Available Operations**\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "➕ Create new ID channel\n"
+                    "🗑️ Delete existing ID channel\n"
+                    "📋 View active ID channels\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━"
+                ),
+                color=discord.Color.blue()
+            )
+            
+            view = IDChannelView(self)
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            print(f"Error in show_id_channel_menu: {e}")
+
+    async def start_channel_listener(self, channel_id: int, alliance_id: int):
+        pass
+
+    async def stop_channel_listener(self, channel_id: int):
+        pass
+
+class IDChannelView(discord.ui.View):
+    def __init__(self, cog):
+        super().__init__(timeout=None)
+        self.cog = cog
+
+    @discord.ui.button(label="View Channels", emoji="📋", style=discord.ButtonStyle.secondary, custom_id="view_id_channels", row=1)
+    async def view_channels_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            channels = []
+            with sqlite3.connect('db/id_channel.sqlite') as db:
+                cursor = db.cursor()
+                cursor.execute("SELECT channel_id, alliance_id, created_at, created_by FROM id_channels WHERE guild_id = ?", (interaction.guild_id,))
+                id_channels = cursor.fetchall()
+
+            with sqlite3.connect('db/alliance.sqlite') as alliance_db:
+                alliance_cursor = alliance_db.cursor()
+                for channel_id, alliance_id, created_at, created_by in id_channels:
+                    alliance_cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (alliance_id,))
+                    alliance_name = alliance_cursor.fetchone()
+                    if alliance_name:
+                        channels.append((channel_id, alliance_name[0], created_at, created_by))
+
+            if not channels:
+                await interaction.response.send_message("❌ No active ID channels found.", ephemeral=True)
+                return
+
+            embed = discord.Embed(title="📋 Active ID Channels", color=discord.Color.blue())
+            for ch_id, name, created_at, created_by in channels:
+                ch = interaction.guild.get_channel(ch_id)
+                embed.add_field(
+                    name=f"#{ch.name if ch else ch_id}",
+                    value=f"**Alliance:** {name}\n**Created:** {created_at}\n**By:** <@{created_by}>",
+                    inline=False
+                )
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        except Exception as e:
+            print(f"View channels error: {e}")
+
+    @discord.ui.button(label="Delete Channel", emoji="🗑️", style=discord.ButtonStyle.danger, custom_id="delete_id_channel", row=0)
+    async def delete_channel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            with sqlite3.connect('db/id_channel.sqlite') as db:
+                cursor = db.cursor()
+                cursor.execute("SELECT channel_id FROM id_channels WHERE guild_id = ?", (interaction.guild_id,))
+                rows = cursor.fetchall()
+
+            if not rows:
+                await interaction.response.send_message("❌ No active ID channels found.", ephemeral=True)
+                return
+
+            options = []
+            for row in rows:
+                ch = interaction.guild.get_channel(row[0])
+                if ch:
+                    options.append(discord.SelectOption(label=f"#{ch.name}", value=str(row[0])))
+
+            class ChannelSelect(discord.ui.Select):
+                def __init__(self, cog):
+                    super().__init__(placeholder="Select channel to delete", options=options)
+                    self.cog = cog
+                async def callback(self, select_interaction: discord.Interaction):
+                    ch_id = int(self.values[0])
+                    with sqlite3.connect('db/id_channel.sqlite') as db:
+                        cursor = db.cursor()
+                        cursor.execute("DELETE FROM id_channels WHERE channel_id = ?", (ch_id,))
+                        db.commit()
+                    await select_interaction.response.send_message(f"✅ ID Channel <#{ch_id}> deleted.", ephemeral=True)
+
+            view = discord.ui.View()
+            view.add_item(ChannelSelect(self.cog))
+            await interaction.response.send_message("Select the channel to delete:", view=view, ephemeral=True)
+        except Exception as e:
+            print(f"Delete channel error: {e}")
+
+    @discord.ui.button(label="Create Channel", emoji="➕", style=discord.ButtonStyle.success, custom_id="create_id_channel", row=0)
+    async def create_channel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            with sqlite3.connect('db/alliance.sqlite') as alliance_db:
+                cursor = alliance_db.cursor()
+                cursor.execute("SELECT alliance_id, name FROM alliance_list")
+                alliances = cursor.fetchall()
+
+            if not alliances:
+                await interaction.response.send_message("❌ No alliances found.", ephemeral=True)
+                return
+
+            options = [discord.SelectOption(label=name, value=str(aid)) for aid, name in alliances]
+
+            class AllianceSelect(discord.ui.Select):
+                def __init__(self, cog):
+                    super().__init__(placeholder="Select alliance", options=options)
+                    self.cog = cog
+                async def callback(self, select_interaction: discord.Interaction):
+                    aid = int(self.values[0])
+                    class ChannelSelect(discord.ui.ChannelSelect):
+                        def __init__(self, cog, alliance_id):
+                            super().__init__(placeholder="Select text channel", channel_types=[discord.ChannelType.text])
+                            self.cog = cog
+                            self.aid = alliance_id
+                        async def callback(self, ch_interaction: discord.Interaction):
+                            ch = self.values[0]
+                            with sqlite3.connect('db/id_channel.sqlite') as db:
+                                cursor = db.cursor()
+                                try:
+                                    cursor.execute("INSERT INTO id_channels (guild_id, alliance_id, channel_id, created_at, created_by) VALUES (?, ?, ?, ?, ?)",
+                                                 (ch_interaction.guild_id, self.aid, ch.id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ch_interaction.user.id))
+                                    db.commit()
+                                    await ch_interaction.response.send_message(f"✅ <#{ch.id}> is now an ID channel for alliance ID {self.aid}.", ephemeral=True)
+                                except sqlite3.IntegrityError:
+                                    await ch_interaction.response.send_message("❌ This channel is already an ID channel.", ephemeral=True)
+
+                    view = discord.ui.View()
+                    view.add_item(ChannelSelect(self.cog, aid))
+                    await select_interaction.response.send_message("Select the channel:", view=view, ephemeral=True)
+
+            view = discord.ui.View()
+            view.add_item(AllianceSelect(self.cog))
+            await interaction.response.send_message("Select the alliance:", view=view, ephemeral=True)
+        except Exception as e:
+            print(f"Create channel error: {e}")
+
+    @discord.ui.button(label="Back", emoji="◀️", style=discord.ButtonStyle.secondary, custom_id="back_to_other_features", row=2)
+    async def back_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            other_features_cog = self.cog.bot.get_cog("OtherFeatures")
+            if other_features_cog:
+                await other_features_cog.show_other_features_menu(interaction)
+        except Exception as e:
+            print(f"Back button error: {e}")
 
 async def setup(bot):
     await bot.add_cog(IDChannel(bot))

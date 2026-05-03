@@ -81,51 +81,52 @@ async def get_automation_settings(guild_id: str):
     
     try:
         gid_int = int(guild_id)
+        # Robust path detection for Oracle VM and local dev
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        
         # 1. Auto-redeem enabled state
         ar_settings = await AutoRedeemSettingsAdapter.get_settings_async(gid_int)
         auto_redeem_enabled = ar_settings.get('enabled', False) if ar_settings else False
         
-        # Fallback to SQLite if not found in Mongo
-        if not ar_settings:
-            try:
-                db_path = 'db/giftcode.sqlite'
-                if os.path.exists(db_path):
-                    with sqlite3.connect(db_path) as conn:
-                        cursor = conn.cursor()
-                        cursor.execute("SELECT enabled FROM auto_redeem_settings WHERE guild_id = ?", (gid_int,))
-                        row = cursor.fetchone()
-                        if row:
-                            auto_redeem_enabled = bool(row[0])
-            except Exception as e:
-                logger.warning(f"SQLite fallback for auto_redeem_settings failed: {e}")
-
         # 2. Auto-redeem log channel
         ar_channel_doc = await AutoRedeemChannelsAdapter.get_channel_async(gid_int)
         auto_redeem_channel_id = str(ar_channel_doc.get('channel_id')) if ar_channel_doc else None
         
         if not auto_redeem_channel_id:
             try:
-                db_path = 'db/giftcode.sqlite'
-                if os.path.exists(db_path):
-                    with sqlite3.connect(db_path) as conn:
+                gift_db_path = os.path.join(base_dir, 'db', 'giftcode.sqlite')
+                if os.path.exists(gift_db_path):
+                    import sqlite3
+                    with sqlite3.connect(gift_db_path) as conn:
                         cursor = conn.cursor()
+                        # Check both tables as they might be in either depending on version
                         cursor.execute("SELECT channel_id FROM auto_redeem_channels WHERE guild_id = ?", (gid_int,))
                         row = cursor.fetchone()
+                        if not row:
+                            cursor.execute("SELECT channel_id FROM auto_redeem_settings WHERE guild_id = ?", (gid_int,))
+                            row = cursor.fetchone()
+                        
                         if row:
                             auto_redeem_channel_id = str(row[0])
+                            # Also check enabled state if we didn't find it in Mongo
+                            if not ar_settings:
+                                cursor.execute("SELECT enabled FROM auto_redeem_settings WHERE guild_id = ?", (gid_int,))
+                                en_row = cursor.fetchone()
+                                if en_row:
+                                    auto_redeem_enabled = bool(en_row[0])
             except Exception as e:
-                logger.warning(f"SQLite fallback for auto_redeem_channels failed: {e}")
+                logger.warning(f"SQLite fallback for auto_redeem failed: {e}")
 
         # 3. ID registration channel
         id_channel_doc = await IDChannelsAdapter.get_channel_async(gid_int)
         registration_channel_id = str(id_channel_doc.get('channel_id')) if id_channel_doc else None
         
-        # Fallback to SQLite for registration channel if not in Mongo
         if not registration_channel_id:
             try:
-                db_path = 'db/id_channel.sqlite'
-                if os.path.exists(db_path):
-                    with sqlite3.connect(db_path) as conn:
+                id_db_path = os.path.join(base_dir, 'db', 'id_channel.sqlite')
+                if os.path.exists(id_db_path):
+                    import sqlite3
+                    with sqlite3.connect(id_db_path) as conn:
                         cursor = conn.cursor()
                         cursor.execute("SELECT channel_id FROM id_channels WHERE guild_id = ?", (gid_int,))
                         row = cursor.fetchone()

@@ -4354,15 +4354,15 @@ class ManageGiftCode(commands.Cog):
                     "```\n"
                     "**Choose how to add members:**\n\n"
                     f"👥 **Current Members:** `{member_count}`\n\n"
-                    "**📝 Add via FID**\n"
-                    "   ▸ Manually enter player FID and nickname\n"
+                    "**📝 Add via ID**\n"
+                    "   ▸ Manually enter player ID and nickname\n"
                     "   ▸ Add one member at a time\n\n"
                     "**🤖 Import from Alliance**\n"
                     "   ▸ Import members from alliance list\n"
                     "   ▸ Multi-select interface\n\n"
                     "**📺 Auto Register**\n"
-                    "   ▸ Monitor a channel for FID codes\n"
-                    "   ▸ Auto-add players who post their FID\n"
+                    "   ▸ Monitor a channel for ID codes\n"
+                    "   ▸ Auto-add players who post their ID\n"
                 ),
                 color=0x2B2D31
             )
@@ -4370,7 +4370,7 @@ class ManageGiftCode(commands.Cog):
             
             view = discord.ui.View()
             view.add_item(discord.ui.Button(
-                label="Add via FID",
+                label="Add via ID",
                 emoji="📝",
                 style=discord.ButtonStyle.success,
                 custom_id="auto_redeem_add_via_fid",
@@ -4443,7 +4443,7 @@ class ManageGiftCode(commands.Cog):
                         
                         if not fid_entries:
                             await modal_interaction.response.send_message(
-                                "❌ No valid FIDs found. Please enter numeric FIDs.",
+                                "❌ No valid IDs found. Please enter numeric IDs.",
                                 ephemeral=True
                             )
                             return
@@ -4494,7 +4494,7 @@ class ManageGiftCode(commands.Cog):
                                     results.append(f"❌ Failed to add: `{fid}`")
                                     fail_count += 1
                             else:
-                                results.append(f"❌ Invalid FID or API error: `{fid}`")
+                                results.append(f"❌ Invalid ID or API error: `{fid}`")
                                 fail_count += 1
                         
                         # Final result
@@ -4551,9 +4551,9 @@ class ManageGiftCode(commands.Cog):
                     "```\n"
                     "**Choose how to remove members:**\n\n"
                     f"👥 **Current Members:** `{member_count}`\n\n"
-                    "**📝 Remove via FID**\n"
-                    "   ▸ Manually enter player FID(s) to remove\n"
-                    "   ▸ Support single or multiple FIDs\n\n"
+                    "**📝 Remove via ID**\n"
+                    "   ▸ Manually enter player ID(s) to remove\n"
+                    "   ▸ Support single or multiple IDs\n\n"
                     "**🗑️ Bulk Remove from List**\n"
                     "   ▸ Select members from current auto-redeem list\n"
                     "   ▸ Multi-select interface for bulk removal\n"
@@ -4564,7 +4564,7 @@ class ManageGiftCode(commands.Cog):
             
             view = discord.ui.View()
             view.add_item(discord.ui.Button(
-                label="Remove via FID",
+                label="Remove via ID",
                 emoji="📝",
                 style=discord.ButtonStyle.success,
                 custom_id="auto_redeem_remove_via_fid",
@@ -4623,7 +4623,7 @@ class ManageGiftCode(commands.Cog):
                         
                         if not fids:
                             await modal_interaction.response.send_message(
-                                "❌ No valid FIDs found.",
+                                "❌ No valid IDs found.",
                                 ephemeral=True
                             )
                             return
@@ -4914,10 +4914,10 @@ class ManageGiftCode(commands.Cog):
                     "**Current Configuration:**\n\n"
                     f"🔘 **Status:** {'🟢 Enabled' if enabled else '🔴 Disabled'}\n"
                     f"👥 **Members:** `{member_count}`\n"
-                    f"📢 **FID Monitor Channel:** {channel_name}\n\n"
+                    f"📢 **ID Monitor Channel:** {channel_name}\n\n"
                     "**Features:**\n"
                     "• Automatically redeem new gift codes\n"
-                    "• Monitor channel for FID codes\n"
+                    "• Monitor channel for ID codes\n"
                     "• Track redemption success/failure\n"
                 ),
                 color=0x57F287 if enabled else 0xED4245
@@ -4944,9 +4944,9 @@ class ManageGiftCode(commands.Cog):
                     row=0
                 ))
             
-            # Set FID monitor channel button
+            # Set ID monitor channel button
             view.add_item(discord.ui.Button(
-                label="Set FID Monitor Channel",
+                label="Set ID Monitor Channel",
                 emoji="📢",
                 style=discord.ButtonStyle.primary,
                 custom_id="auto_redeem_import_from_channel",
@@ -5758,7 +5758,7 @@ class ManageGiftCode(commands.Cog):
                     title="📺 Channel Already Configured",
                     description=(
                         f"**Current monitored channel:** {channel_mention}\n\n"
-                        "The bot is currently monitoring this channel for FID codes.\n\n"
+                        "The bot is currently monitoring this channel for ID codes.\n\n"
                         "Do you want to change to a different channel?"
                     ),
                     color=0xFEE75C
@@ -5831,7 +5831,7 @@ class ManageGiftCode(commands.Cog):
                         
                         if options:
                             select = discord.ui.Select(
-                                placeholder="Select a channel to monitor for FIDs",
+                                placeholder="Select a channel to monitor for IDs",
                                 options=options,
                                 min_values=1,
                                 max_values=1
@@ -5890,8 +5890,8 @@ class ManageGiftCode(commands.Cog):
                                 description=(
                                     f"**Channel:** {channel.mention}\n\n"
                                     "**How it works:**\n"
-                                    "▸ Bot will monitor this channel for 9-digit FID codes\n"
-                                    "▸ Valid FIDs will be automatically added to auto-redeem list\n"
+                                    "▸ Bot will monitor this channel for 9-digit ID codes\n"
+                                    "▸ Valid IDs will be automatically added to auto-redeem list\n"
                                     "▸ Players will receive confirmation when added\n\n"
                                     "**Example:** When someone posts `123456789`, the bot will validate and add them."
                                 ),
@@ -5921,7 +5921,7 @@ class ManageGiftCode(commands.Cog):
                 
                 view = ChannelSelectView(text_channels, self, interaction.guild.id, interaction.user.id)
                 await interaction.followup.send(
-                    f"**Select a channel to monitor for FID codes:**\n\nTotal channels: {len(text_channels)}",
+                    f"**Select a channel to monitor for ID codes:**\n\nTotal channels: {len(text_channels)}",
                     view=view,
                     ephemeral=True
                 )
@@ -5993,7 +5993,7 @@ class ManageGiftCode(commands.Cog):
                         
                         if options:
                             select = discord.ui.Select(
-                                placeholder="Select a channel to monitor for FIDs",
+                                placeholder="Select a channel to monitor for IDs",
                                 options=options,
                                 min_values=1,
                                 max_values=1
@@ -6052,8 +6052,8 @@ class ManageGiftCode(commands.Cog):
                                 description=(
                                     f"**New monitored channel:** {channel.mention}\n\n"
                                     "**How it works:**\n"
-                                    "▸ Bot will monitor this channel for 9-digit FID codes\n"
-                                    "▸ Valid FIDs will be automatically added to auto-redeem list\n"
+                                    "▸ Bot will monitor this channel for 9-digit ID codes\n"
+                                    "▸ Valid IDs will be automatically added to auto-redeem list\n"
                                     "▸ Players will receive confirmation when added\n\n"
                                     "**Example:** When someone posts `123456789`, the bot will validate and add them."
                                 ),
@@ -6083,7 +6083,7 @@ class ManageGiftCode(commands.Cog):
                 
                 view = ChannelSelectView(text_channels, self, interaction.guild.id, interaction.user.id)
                 await interaction.followup.send(
-                    f"**Select a new channel to monitor for FID codes:**\n\nTotal channels: {len(text_channels)}",
+                    f"**Select a new channel to monitor for ID codes:**\n\nTotal channels: {len(text_channels)}",
                     view=view,
                     ephemeral=True
                 )

@@ -9,7 +9,7 @@ from typing import List, Dict, Optional
 import os
 from .login_handler import LoginHandler
 from command_animator import command_animation
-from admin_utils import is_admin, is_global_admin, grant_admin_if_discord_admin, is_bot_owner, get_level_mapping
+from admin_utils import is_admin, is_global_admin, grant_admin_if_discord_admin, is_bot_owner, get_level_mapping, format_furnace_level
 from .pagination_helper import ResultsPaginationView
 try:
     from db.mongo_adapters import mongo_enabled, AdminsAdapter, AlliancesAdapter, AllianceSettingsAdapter, AllianceMembersAdapter, FurnaceHistoryAdapter, AllianceMonitoringAdapter, ServerLimitsAdapter, AllianceEventsAdapter
@@ -3613,7 +3613,7 @@ class Alliance(commands.Cog):
 
                 embed = self._create_change_embed(change, guild)
                 await channel.send(embed=embed)
-                self.log_message(f"Posted {change['type']} notification for FID {change['fid']}")
+                self.log_message(f"Posted {change['type']} notification for ID {change['fid']}")
             
             if changes_detected:
                 self.log_message(f"Detected {len(changes_detected)} changes for alliance {alliance_id}")
@@ -3631,7 +3631,7 @@ class Alliance(commands.Cog):
                 color=discord.Color.blue()
             )
             
-            furnace_level_str = self.level_mapping.get(change['furnace_lv'], str(change['furnace_lv']))
+            furnace_level_str = format_furnace_level(change['furnace_lv'])
             fl_emoji = self.get_fl_emoji(change['furnace_lv'])
             
             embed.add_field(name="Player 🆔 ", value=f"`{change['fid']}`", inline=False)
@@ -3650,7 +3650,7 @@ class Alliance(commands.Cog):
                 color=discord.Color.purple()
             )
             
-            furnace_level_str = self.level_mapping.get(change['furnace_lv'], str(change['furnace_lv']))
+            furnace_level_str = format_furnace_level(change['furnace_lv'])
             fl_emoji = self.get_fl_emoji(change['furnace_lv'])
             
             embed.add_field(name="🆔 Player ID", value=f"`{change['fid']}`", inline=False)
@@ -3680,8 +3680,8 @@ class Alliance(commands.Cog):
                 color=color
             )
             
-            old_level_str = self.level_mapping.get(change['old_value'], str(change['old_value']))
-            new_level_str = self.level_mapping.get(change['new_value'], str(change['new_value']))
+            old_level_str = format_furnace_level(change['old_value'])
+            new_level_str = format_furnace_level(change['new_value'])
             old_emoji = self.get_fl_emoji(change['old_value'])
             new_emoji = self.get_fl_emoji(change['new_value'])
             

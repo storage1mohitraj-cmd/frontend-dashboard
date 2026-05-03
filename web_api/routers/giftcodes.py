@@ -49,7 +49,7 @@ class GiftCodeAutomationSettings(BaseModel):
     latest_code_channel_id: Optional[str] = None
 
 class AutoRedeemMemberAdd(BaseModel):
-    fid: str
+    id: str
     nickname: Optional[str] = "Unknown"
     furnace_lv: Optional[int] = 0
     avatar_image: Optional[str] = ""
@@ -63,6 +63,10 @@ async def get_auto_redeem_members(guild_id: str):
     
     try:
         members = await AutoRedeemMembersAdapter.get_members_async(int(guild_id))
+        # Rebrand fid to id in response
+        for m in members:
+            if 'fid' in m:
+                m['id'] = m.pop('fid')
         return {"members": members}
     except Exception as e:
         logger.error(f"Failed to get members for guild {guild_id}: {e}", exc_info=True)
@@ -205,7 +209,7 @@ async def add_auto_redeem_member(guild_id: str, member: AutoRedeemMemberAdd):
             "added_at": datetime.now(timezone.utc).isoformat()
         }
         
-        success = await AutoRedeemMembersAdapter.add_member_async(int(guild_id), member.fid, member_data)
+        success = await AutoRedeemMembersAdapter.add_member_async(int(guild_id), member.id, member_data)
         if not success:
             raise HTTPException(status_code=500, detail="Failed to add member")
             
@@ -220,9 +224,9 @@ async def remove_auto_redeem_member(guild_id: str, payload: dict = Body(...)):
         raise HTTPException(status_code=503, detail="MongoDB or Adapter not enabled")
     
     try:
-        fid = payload.get("fid")
+        fid = payload.get("id") or payload.get("fid")
         if not fid:
-            raise HTTPException(status_code=400, detail="FID is required")
+            raise HTTPException(status_code=400, detail="ID is required")
             
         success = await AutoRedeemMembersAdapter.remove_member_async(int(guild_id), fid)
         if not success:
@@ -623,17 +627,17 @@ async def add_giftcode(code: str, reward_text: str = ""):
 
 @router.post("/player-info")
 async def get_player_info_api(request: Request):
-    """Fetch player information for a given FID."""
+    """Fetch player information for a given player ID."""
     try:
         body = await request.json()
-        fid = body.get("fid")
+        fid = body.get("id") or body.get("fid")
         if not fid:
-            raise HTTPException(status_code=400, detail="FID is required")
+            raise HTTPException(status_code=400, detail="ID is required")
         
-        # Clean FID
+        # Clean ID
         fid = ''.join(c for c in str(fid) if c.isdigit())
         if len(fid) != 9:
-            raise HTTPException(status_code=400, detail="FID must be exactly 9 digits")
+            raise HTTPException(status_code=400, detail="ID must be exactly 9 digits")
 
         bot = getattr(request.app.state, "bot", None)
         if bot is None:
@@ -650,7 +654,7 @@ async def get_player_info_api(request: Request):
         return {
             "status": "success",
             "data": {
-                "fid": fid,
+                "id": fid,
                 "nickname": player_data.get("nickname"),
                 "furnace_lv": player_data.get("furnace_lv"),
                 "furnace_lv_formatted": manage_cog.format_furnace_level(player_data.get("furnace_lv", 0)),
@@ -668,14 +672,14 @@ async def redeem_giftcodes_api(request: Request):
     """Manually redeem gift codes for a player."""
     try:
         body = await request.json()
-        fid = body.get("fid")
+        fid = body.get("id") or body.get("fid")
         codes = body.get("codes", [])
         guild_id = body.get("guild_id")
         
         if not fid or not codes:
-            raise HTTPException(status_code=400, detail="FID and codes are required")
+            raise HTTPException(status_code=400, detail="ID and codes are required")
         
-        # Clean FID
+        # Clean ID
         fid = ''.join(c for c in str(fid) if c.isdigit())
         
         bot = getattr(request.app.state, "bot", None)

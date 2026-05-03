@@ -1352,7 +1352,7 @@
                             <div class="form-group">
                                 <label>Enter Player ID</label>
                                 <div class="player-input-wrap">
-                                    <input type="text" id="redeem-fid" placeholder="e.g. 123456789" maxlength="9">
+                                    <input type="text" id="redeem-id" placeholder="e.g. 123456789" maxlength="9">
                                     <button onclick="fetchPlayerInfo()" class="btn btn-primary" id="fetch-player-btn">
                                         <i data-lucide="search" style="width: 16px;"></i>
                                     </button>
@@ -1687,7 +1687,7 @@
                 <div class="form-group">
                     <label>Player ID (9 digits)</label>
                     <div class="player-input-wrap">
-                        <input type="text" id="add-member-fid" placeholder="e.g. 123456789" maxlength="9">
+                        <input type="text" id="add-member-id" placeholder="e.g. 123456789" maxlength="9">
                         <button onclick="lookupMemberForAdd()" class="btn btn-primary" id="lookup-member-btn">
                             <i data-lucide="search" style="width: 16px;"></i>
                         </button>
@@ -2301,20 +2301,18 @@
         }
 
         function formatFurnaceLevel(lv) {
-            try {
-                if (!lv) return "0";
-                const level = parseInt(lv);
-                if (isNaN(level)) return lv;
-                
-                if (level <= 30) return level.toString();
-                
-                // Fire Crystal levels start at 31
-                const adjustedLevel = level - 30;
-                const tier = Math.floor((adjustedLevel - 1) / 5) + 1;
-                const stage = ((adjustedLevel - 1) % 5) + 1;
-                
-                return `${tier}-${stage}`;
-            } catch (e) { return lv; }
+            if (!lv) return "0";
+            let val = parseInt(lv);
+            if (isNaN(val)) return String(lv);
+            if (val <= 30) return String(val);
+            let adjustedLevel = val - 30;
+            let tier = Math.floor((adjustedLevel - 1) / 5) + 1;
+            let stage = ((adjustedLevel - 1) % 5) + 1;
+            if (stage === 5) {
+                return `FC ${tier}`;
+            } else {
+                return `FC ${tier}-${stage}`;
+            }
         }
 
         async function loadGiftCodes(forceRefresh = false) {
@@ -2475,8 +2473,8 @@
         }
 
         async function fetchPlayerInfo() {
-            const fidInput = document.getElementById('redeem-fid');
-            const fid = fidInput.value.trim();
+            const idInput = document.getElementById('redeem-id');
+            const fid = idInput.value.trim();
             const container = document.getElementById('player-info-container');
             const btn = document.getElementById('fetch-player-btn');
 
@@ -2492,7 +2490,7 @@
             try {
                 const res = await fetchData('/api/giftcodes/player-info', {
                     method: 'POST',
-                    body: JSON.stringify({ fid })
+                    body: JSON.stringify({ id: fid })
                 });
 
                 if (res.status === 'success') {
@@ -2501,7 +2499,7 @@
                         <img src="${res.data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="player-avatar-large" alt="Avatar">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
-                            <p>ID: ${res.data.fid} • ${res.data.furnace_lv_formatted}</p>
+                            <p>ID: ${res.data.id} • ${res.data.furnace_lv_formatted}</p>
                         </div>
                     `;
                     updateRedeemButtonState();
@@ -2535,7 +2533,7 @@
                 const res = await fetchData('/api/giftcodes/redeem', {
                     method: 'POST',
                     body: JSON.stringify({
-                        fid: currentPlayer.fid,
+                        id: currentPlayer.id,
                         codes: codesArray,
                         guild_id: guildId
                     })
@@ -2672,7 +2670,7 @@
 
                 list.innerHTML = '';
                 members.forEach(m => {
-                    const fid = m.fid || m._id || 'Unknown';
+                    const fid = m.id || m.fid || m._id || 'Unknown';
                     const nick = m.nickname || 'Unknown Player';
                     const furnace = m.furnace_lv || 0;
                     const formattedFurnace = formatFurnaceLevel(furnace);
@@ -2709,7 +2707,7 @@
             try {
                 await fetchData(`/api/giftcodes/members/${guildId}/remove`, {
                     method: 'POST',
-                    body: JSON.stringify({ fid })
+                    body: JSON.stringify({ id: fid })
                 });
                 showNotification(`Removed ${nickname} from auto-redeem`);
                 loadAutoRedeemMembers();
@@ -2720,20 +2718,6 @@
             }
         }
 
-        function formatFurnaceLevel(lv) {
-            if (!lv) return "0";
-            let val = parseInt(lv);
-            if (isNaN(val)) return String(lv);
-            if (val <= 30) return String(val);
-            let adjustedLevel = val - 30;
-            let tier = Math.floor((adjustedLevel - 1) / 5) + 1;
-            let stage = ((adjustedLevel - 1) % 5) + 1;
-            if (stage === 5) {
-                return `FC ${tier}`;
-            } else {
-                return `FC ${tier}-${stage}`;
-            }
-        }
 
         function toggleBulkRemoveButton() {
             const checkboxes = document.querySelectorAll('.ar-member-checkbox:checked');
@@ -2760,7 +2744,7 @@
                 try {
                     await fetchData(`/api/giftcodes/members/${guildId}/remove`, {
                         method: 'POST',
-                        body: JSON.stringify({ fid: cb.value })
+                        body: JSON.stringify({ id: cb.value })
                     });
                     successCount++;
                 } catch (e) {
@@ -2776,7 +2760,7 @@
 
         function openAddMemberModal() {
             pendingAddMember = null;
-            document.getElementById('add-member-fid').value = '';
+            document.getElementById('add-member-id').value = '';
             document.getElementById('confirm-add-member-btn').disabled = true;
             document.getElementById('add-member-preview').innerHTML = `
                 <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
@@ -2792,8 +2776,8 @@
         }
 
         async function lookupMemberForAdd() {
-            const fidInput = document.getElementById('add-member-fid');
-            const fid = fidInput.value.trim();
+            const idInput = document.getElementById('add-member-id');
+            const fid = idInput.value.trim();
             const preview = document.getElementById('add-member-preview');
             const btn = document.getElementById('lookup-member-btn');
             const confirmBtn = document.getElementById('confirm-add-member-btn');
@@ -2812,7 +2796,7 @@
             try {
                 const res = await fetchData('/api/giftcodes/player-info', {
                     method: 'POST',
-                    body: JSON.stringify({ fid })
+                    body: JSON.stringify({ id: fid })
                 });
 
                 if (res.status === 'success' && res.data) {
@@ -2823,7 +2807,7 @@
                              onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
-                            <p>ID: ${res.data.fid} • ${formatFurnaceLevel(res.data.furnace_lv || 0)}</p>
+                            <p>ID: ${res.data.id} • ${formatFurnaceLevel(res.data.furnace_lv || 0)}</p>
                         </div>
                         <div style="margin-left: auto; color: #34d399;"><i data-lucide="check-circle" style="width: 22px;"></i></div>`;
                     confirmBtn.disabled = false;
@@ -2851,7 +2835,7 @@
                 await fetchData(`/api/giftcodes/members/${guildId}/add`, {
                     method: 'POST',
                     body: JSON.stringify({
-                        fid: pendingAddMember.fid,
+                        id: pendingAddMember.id,
                         nickname: pendingAddMember.nickname || 'Unknown',
                         furnace_lv: pendingAddMember.furnace_lv || 0,
                         avatar_image: pendingAddMember.avatar_image || ''
@@ -3261,7 +3245,7 @@
                             <img src="${m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="member-avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                             <div class="member-info">
                                 <h4>${escapeHTML(m.nickname)}</h4>
-                                <p>ID: ${m.fid}</p>
+                                <p>ID: ${m.id || m.fid}</p>
                                 <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
                                     <span class="furnace-badge">${formatFurnaceLevel(m.furnace_lv)}</span>
                                 </div>

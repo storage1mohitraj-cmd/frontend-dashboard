@@ -124,7 +124,7 @@ async def get_monitor_history(guild_id: int, limit: int = 50):
 
             history.append({
                 "type": e_type,
-                "fid": e.get("fid"),
+                "id": e.get("fid"),
                 "nickname": e.get("nickname"),
                 "value_text": val_text,
                 "timestamp": e.get("timestamp")
@@ -160,7 +160,7 @@ async def get_monitored_members(guild_id: int, alliance_id: Optional[int] = None
         result = []
         for m in alliance_members:
             result.append({
-                "fid": str(m.get('fid')),
+                "id": str(m.get('fid')),
                 "nickname": m.get('nickname'),
                 "furnace_lv": m.get('furnace_lv', 0),
                 "avatar_image": m.get('avatar_image', ''),

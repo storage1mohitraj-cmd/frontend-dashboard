@@ -29,7 +29,7 @@ jobs:
               -o StrictHostKeyChecking=no \
               -o ServerAliveInterval=30 \
               -o ConnectTimeout=30 \
-              ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} "bash -l" << 'ENDSSH'
+              ${{ secrets.ORACLE_USER }}@${{ secrets.ORACLE_HOST }} << 'ENDSSH'
           set -e
           echo "================================================"
           echo "🤖 WOS Bot Auto-Deploy — $(date)"
@@ -109,33 +109,43 @@ jobs:
           echo ""
           echo "🔄 Restarting bot..."
           
-          # Check if PM2 is available
+          # Check if PM2 is available, if not, try to find it
+          PM2_CMD="pm2"
           if ! command -v pm2 &> /dev/null; then
-            echo "⚠️ PM2 not found in PATH, searching in common locations..."
-            export PATH=$PATH:$HOME/.npm-global/bin:$HOME/node_modules/.bin:$HOME/.nvm/versions/node/$(node -v)/bin
-          fi
-          
-          if ! command -v pm2 &> /dev/null; then
-             echo "❌ ERROR: PM2 is not installed or not in PATH"
-             exit 1
+            echo "⚠️ PM2 not found in PATH, searching..."
+            # Common PM2 paths
+            PM2_PATHS=(
+              "$HOME/.local/bin/pm2"
+              "$HOME/.npm-global/bin/pm2"
+              "/usr/local/bin/pm2"
+              "/usr/bin/pm2"
+            )
+            for path in "${PM2_PATHS[@]}"; do
+              if [ -f "$path" ]; then
+                PM2_CMD="$path"
+                echo "✅ Found PM2 at $path"
+                break
+              fi
+            done
           fi
 
-          # Find PM2 process name (default: discordbot)
-          # Use a simpler grep-based approach that doesn't need jq
-          PROCESS_NAME=$(pm2 list | grep -oE "discordbot|bot" | head -n 1)
-          
-          if [ -z "$PROCESS_NAME" ]; then
-            PROCESS_NAME="discordbot"
-          fi
-          
+          # Find PM2 process name
+          PROCESS_NAME=$($PM2_CMD list | grep -oE "discordbot|bot" | head -n 1 || echo "discordbot")
           echo "🔄 Using process name: $PROCESS_NAME"
-          # Try to restart, if fails (like if process doesn't exist), start it
+          
+          # Force a restart of the specific process or start it
           cd "$BOT_DIR"
-          pm2 restart "$PROCESS_NAME" --update-env || pm2 start app.py --name "$PROCESS_NAME"
+          if $PM2_CMD info "$PROCESS_NAME" > /dev/null 2>&1; then
+            echo "✅ Process exists, restarting..."
+            $PM2_CMD restart "$PROCESS_NAME" --update-env
+          else
+            echo "⚠️ Process not found, starting new..."
+            $PM2_CMD start app.py --name "$PROCESS_NAME"
+          fi
           
           echo "✅ Bot restarted"
           echo ""
-          pm2 status
+          $PM2_CMD status
           echo ""
           echo "================================================"
           echo "✅ DEPLOYMENT COMPLETE!"

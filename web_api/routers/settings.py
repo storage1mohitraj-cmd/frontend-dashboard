@@ -167,6 +167,14 @@ class TranslateSettings(BaseModel):
     target_language: str
     style: str
     enabled: bool
+    # Extra fields to match bot
+    delete_original: bool = False
+    auto_disappear: int = 0
+    ignore_if_source_is_target: bool = True
+    ignore_if_source_is_not_input: bool = False
+    skip_attachments: bool = False
+    attachment_mode: str = "link"
+    min_text_length: int = 10
 
 
 @router.post("/translate/{guild_id}")
@@ -181,7 +189,15 @@ async def save_translate_configs(guild_id: int, settings: TranslateSettings):
         "source_language": settings.source_language,
         "target_language": settings.target_language,
         "style": settings.style,
-        "enabled": settings.enabled
+        "enabled": settings.enabled,
+        # Extra fields
+        "delete_original": settings.delete_original,
+        "auto_disappear": settings.auto_disappear,
+        "ignore_if_source_is_target": settings.ignore_if_source_is_target,
+        "ignore_if_source_is_not_input": settings.ignore_if_source_is_not_input,
+        "skip_attachments": settings.skip_attachments,
+        "attachment_mode": settings.attachment_mode,
+        "min_text_length": settings.min_text_length
     }
 
     if settings.config_id:

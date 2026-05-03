@@ -1701,12 +1701,6 @@ class Music(commands.Cog):
         if os.getenv("LAVALINK_USE_FALLBACKS", "true").lower() == "true":
             fallback_specs = [
                 {
-                    "host": "lavalink.lexnet.cc",
-                    "port": 443,
-                    "password": "lexn3tl@val!nk",
-                    "secure": True
-                },
-                {
                     "host": "lava-v4.ajieblogs.eu.org",
                     "port": 443,
                     "password": "https://dsc.gg/ajidevserver",
@@ -1763,7 +1757,13 @@ class Music(commands.Cog):
         for spec in self.lavalink_node_specs:
             print(f"   • {spec['uri']}")
 
-        await wavelink.Pool.connect(client=self.bot, nodes=nodes)
+        try:
+            await asyncio.wait_for(wavelink.Pool.connect(client=self.bot, nodes=nodes), timeout=15.0)
+        except asyncio.TimeoutError:
+            print("⚠️ Timeout while connecting to Lavalink pool! Some nodes might be offline.")
+        except Exception as e:
+            print(f"⚠️ Error while connecting to Lavalink pool: {e}")
+            
         await asyncio.sleep(2)
         connected_nodes = self._connected_lavalink_nodes()
         self._log_lavalink_status()

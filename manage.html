@@ -13,16 +13,16 @@
     
     <style>
         :root {
-            --primary: #8b5cf6; /* Purple like the screenshot */
-            --primary-hover: #7c3aed;
+            --primary: #ffffff; /* Professional Dark/White Theme */
+            --primary-hover: #e2e8f0;
             --accent: #f59e0b;
-            --bg-dark: #0f1115;
-            --sidebar-bg: #16191f;
-            --card-bg: #1e2229;
-            --glass-bg: rgba(30, 34, 41, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --text-main: #e2e8f0;
-            --text-muted: #94a3b8;
+            --bg-dark: #0a0a0a;
+            --sidebar-bg: #121212;
+            --card-bg: #1a1a1a;
+            --glass-bg: rgba(26, 26, 26, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --text-main: #f8fafc;
+            --text-muted: #64748b;
             --sidebar-width: 280px;
             --top-bar-height: 70px;
         }
@@ -718,103 +718,141 @@
             margin-top: 8px;
         }
 
-        /* Time Wheel Picker Styles */
+        /* Time Wheel Picker Styles - Professional Black & White */
         .time-picker-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #11141a;
-            padding: 24px;
-            border-radius: 20px;
+            background: #0a0a0a;
+            padding: 30px;
+            border-radius: 12px;
             margin: 15px 0;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid #222;
             user-select: none;
             position: relative;
-            box-shadow: inset 0 4px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 2px 10px rgba(255,255,255,0.05);
             overflow: hidden;
         }
         
-        /* The highlight lens in the middle */
+        /* The highlight lens in the middle - Glassy/Chrome look */
         .time-picker-row::before {
             content: '';
             position: absolute;
             top: 50%;
-            left: 15px;
-            right: 15px;
-            height: 44px;
-            background: rgba(139, 92, 246, 0.12);
-            border-top: 1px solid rgba(139, 92, 246, 0.3);
-            border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: linear-gradient(to bottom, 
+                rgba(255,255,255,0.08) 0%, 
+                rgba(255,255,255,0.03) 50%, 
+                rgba(255,255,255,0.08) 100%
+            );
+            border-top: 1px solid rgba(255,255,255,0.2);
+            border-bottom: 1px solid rgba(255,255,255,0.2);
             transform: translateY(-50%);
-            border-radius: 12px;
             pointer-events: none;
-            z-index: 1;
-            box-shadow: 0 0 20px rgba(139, 92, 246, 0.05);
+            z-index: 3;
         }
 
         .wheel-container {
-            height: 180px;
+            height: 200px;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scrollbar-width: none;
-            width: 75px;
+            width: 80px;
             text-align: center;
             position: relative;
             z-index: 2;
             mask-image: linear-gradient(to bottom, 
                 transparent 0%, 
-                rgba(0,0,0,0.1) 15%, 
-                black 45%, 
-                black 55%, 
-                rgba(0,0,0,0.1) 85%, 
+                black 40%, 
+                black 60%, 
                 transparent 100%
             );
             -webkit-mask-image: linear-gradient(to bottom, 
                 transparent 0%, 
-                rgba(0,0,0,0.1) 15%, 
-                black 45%, 
-                black 55%, 
-                rgba(0,0,0,0.1) 85%, 
+                black 40%, 
+                black 60%, 
                 transparent 100%
             );
             cursor: grab;
-            perspective: 800px;
-            transition: transform 0.2s;
+            perspective: 1000px;
         }
 
         .wheel-container:active { cursor: grabbing; }
         .wheel-container::-webkit-scrollbar { display: none; }
 
         .wheel-item {
-            height: 44px;
+            height: 50px;
             display: flex;
             align-items: center;
             justify-content: center;
             scroll-snap-align: center;
-            font-size: 1.15rem;
-            color: rgba(255,255,255,0.25);
-            transition: all 0.25s cubic-bezier(0.2, 0, 0.2, 1);
+            font-size: 1.8rem;
+            color: rgba(255,255,255,0.2);
+            transition: all 0.2s cubic-bezier(0.1, 0, 0.1, 1);
             cursor: pointer;
             backface-visibility: hidden;
             transform-style: preserve-3d;
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-weight: 700;
         }
 
         .wheel-item.selected {
             color: #fff;
             font-weight: 800;
-            font-size: 1.7rem;
-            text-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
-            transform: scale(1.1) translateZ(10px);
+            font-size: 2.4rem;
+            transform: scale(1.1) translateZ(20px);
+            opacity: 1 !important;
         }
 
         .wheel-label {
-            color: rgba(255,255,255,0.15);
+            color: #444;
             font-weight: 800;
-            font-size: 1.6rem;
+            font-size: 2rem;
             margin: 0 10px;
-            z-index: 2;
+            z-index: 4;
             pointer-events: none;
         }
+
+        /* Dark Theme - No Purple */
+        :root {
+            --primary: #ffffff;
+            --primary-rgb: 255, 255, 255;
+            --primary-hover: #e0e0e0;
+            --bg-dark: #0f1115;
+            --bg-card: #16191f;
+            --border: rgba(255, 255, 255, 0.08);
+        }
+
+        .btn-primary {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: none !important;
+            font-weight: 700 !important;
+            box-shadow: 0 4px 12px rgba(255,255,255,0.1) !important;
+        }
+        .btn-primary:hover {
+            background: #e0e0e0 !important;
+            transform: translateY(-1px);
+        }
+
+        .ar-icon-box.purple {
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+        }
+
+        .pulse-dot { background: #ffffff; }
+
+        .dc-bot-tag {
+            background: #5865f2; /* Keep Discord Blurple for tag as it's authentic */
+        }
+
+        #reminder-preview-embed {
+            border-left: 4px solid #ffffff !important;
+        }
+
+        .preview-label span { background: #ffffff; }
         .timezone-group {
             margin-top: 10px;
         }
@@ -1480,7 +1518,7 @@
         <div class="modal-content" style="max-width: 1000px; border-radius: 24px; overflow: hidden; background: #1a1d24;">
             <div class="modal-header" style="padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); background: #16191f;">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="ar-icon-box purple" style="width: 40px; height: 40px;">
+                    <div class="ar-icon-box dark" style="width: 40px; height: 40px; background: rgba(255,255,255,0.05); color: #fff;">
                         <i data-lucide="bell" style="width: 20px;"></i>
                     </div>
                     <div>
@@ -1667,7 +1705,7 @@
                                     </div>
                                     
                                     <!-- Embed card -->
-                                    <div class="dc-embed" id="reminder-preview-embed" style="border-left: 4px solid #8b5cf6; background: #2b2d31; border-radius: 4px; padding: 12px 16px; margin: 8px 0; max-width: 450px;">
+                                    <div class="dc-embed" id="reminder-preview-embed" style="border-left: 4px solid #ffffff; background: #2b2d31; border-radius: 4px; padding: 12px 16px; margin: 8px 0; max-width: 450px;">
                                         <div class="dc-embed-inner">
                                             <div style="display: flex; gap: 12px;">
                                                 <div style="flex: 1;">
@@ -1701,7 +1739,7 @@
             </div>
             <div class="modal-footer" style="padding: 20px 32px; background: #16191f; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
                 <button onclick="closeReminderModal()" class="btn btn-secondary" style="background: rgba(255,255,255,0.05);">Cancel</button>
-                <button onclick="createReminder()" class="btn btn-primary" style="padding: 10px 32px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">Create Reminder</button>
+                <button onclick="createReminder()" class="btn btn-primary" style="padding: 10px 32px; box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);">Create Reminder</button>
             </div>
         </div>
     </div>
@@ -1912,12 +1950,12 @@
                 const diff = centerY - itemCenterY;
                 const absDiff = Math.abs(diff);
                 
-                // 3D Rotation effect
-                const rotation = (diff / containerRect.height) * 110; // Max rotation
-                const opacity = Math.max(0.1, 1 - (absDiff / (containerRect.height / 2)));
-                const scale = Math.max(0.75, 1 - (absDiff / containerRect.height));
+                // Professional Drum Rotation effect
+                const rotation = (diff / containerRect.height) * 140; // More dramatic rotation for "drum" look
+                const opacity = Math.max(0.05, 1 - (absDiff / (containerRect.height / 1.8)));
+                const scale = Math.max(0.7, 1 - (absDiff / containerRect.height));
                 
-                item.style.transform = `rotateX(${rotation}deg) scale(${scale})`;
+                item.style.transform = `rotateX(${rotation}deg) translateZ(${scale * 20}px)`;
                 item.style.opacity = opacity;
                 
                 if (absDiff < minDiff) {

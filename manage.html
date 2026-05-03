@@ -1370,9 +1370,17 @@
                         ...(options.headers || {})
                     }
                 });
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return await response.json();
+                
+                const data = await response.json().catch(() => ({}));
+                
+                if (!response.ok) {
+                    const errorMsg = data.message || data.detail || `HTTP error! status: ${response.status}`;
+                    console.error('API Error:', data);
+                    throw new Error(errorMsg);
+                }
+                return data;
             } catch (e) {
+                console.error('Fetch failed:', e);
                 showNotification(e.message, true);
                 throw e;
             }
@@ -2349,6 +2357,15 @@
             setupDragDrop();
             // Kick off an initial preview render in case no settings exist yet
             updatePreview();
+            // Fetch bot branding separately
+            fetchData('/api/status').then(data => {
+                if (data.bot_avatar) {
+                    document.querySelectorAll('.brand img').forEach(img => {
+                        img.src = data.bot_avatar;
+                    });
+                }
+            }).catch(() => {});
+
             lucide.createIcons();
         })();
     </script>

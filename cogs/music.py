@@ -1701,6 +1701,24 @@ class Music(commands.Cog):
         if os.getenv("LAVALINK_USE_FALLBACKS", "true").lower() == "true":
             fallback_specs = [
                 {
+                    "host": "lava-v4.millohost.my.id",
+                    "port": 443,
+                    "password": "https://discord.gg/mjS5J2K3ep",
+                    "secure": True
+                },
+                {
+                    "host": "lavalink.jirayu.net",
+                    "port": 443,
+                    "password": "youshallnotpass",
+                    "secure": True
+                },
+                {
+                    "host": "lavalinkv4.serenetia.com",
+                    "port": 80,
+                    "password": "https://seretia.link/discord",
+                    "secure": False
+                },
+                {
                     "host": "lavalink.oops.wtf",
                     "port": 443,
                     "password": "www.freelavalink.ga",

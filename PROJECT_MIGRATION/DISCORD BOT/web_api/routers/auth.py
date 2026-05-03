@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
+from typing import Optional, List
 import httpx
 import os
 import logging

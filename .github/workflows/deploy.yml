@@ -116,27 +116,24 @@ jobs:
           # Restart bot
           echo ""
           echo "🔄 Restarting bot..."
+          echo "🔍 DEBUG: BOT_DIR is $BOT_DIR"
           
-          # Try common PM2 locations if not in PATH
+          # Try to find PM2
           PM2_CMD="pm2"
-          [ -f "$HOME/.local/bin/pm2" ] && PM2_CMD="$HOME/.local/bin/pm2"
-          [ -f "$HOME/.npm-global/bin/pm2" ] && PM2_CMD="$HOME/.npm-global/bin/pm2"
+          if ! command -v pm2 &> /dev/null; then
+            PM2_CMD=$(find $HOME -name "pm2" -type f -executable 2>/dev/null | head -n 1 || echo "pm2")
+          fi
           
           echo "🔄 Using PM2 command: $PM2_CMD"
-          $PM2_CMD -v || echo "PM2 not working"
           
           # Force restart or start
-          cd "$BOT_DIR"
-          echo "📂 Contents of $BOT_DIR:"
-          ls -F
-          
-          # Try to restart
-          echo "🔄 Executing restart..."
-          $PM2_CMD restart discordbot --update-env || $PM2_CMD restart bot --update-env || $PM2_CMD restart all --update-env || $PM2_CMD start app.py --name discordbot || echo "Restart failed but continuing..."
+          (
+            cd "$BOT_DIR"
+            $PM2_CMD restart discordbot --update-env || $PM2_CMD restart bot --update-env || $PM2_CMD start app.py --name discordbot
+          ) || echo "⚠️ Restart subshell failed but ignoring..."
           
           echo "✅ Restart attempt finished"
-          echo ""
-          $PM2_CMD status
+          $PM2_CMD status || echo "Could not show status"
           echo ""
           echo "================================================"
           echo "✅ DEPLOYMENT COMPLETE!"

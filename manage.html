@@ -2517,7 +2517,7 @@
 
             for (const cb of checkboxes) {
                 try {
-                    await fetchData(\`/api/giftcodes/members/\${guildId}/remove\`, {
+                    await fetchData(`/api/giftcodes/members/${guildId}/remove`, {
                         method: 'POST',
                         body: JSON.stringify({ fid: cb.value })
                     });

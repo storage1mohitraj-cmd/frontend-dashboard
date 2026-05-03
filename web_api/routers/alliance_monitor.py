@@ -1,9 +1,10 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 import logging
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timedelta
 from admin_utils import format_furnace_level
+from wos_api import fetch_player_info
 
 try:
     from db.mongo_adapters import (
@@ -12,6 +13,7 @@ try:
         FurnaceHistoryAdapter, 
         AlliancesAdapter,
         AllianceEventsAdapter,
+        ServerAllianceAdapter,
         mongo_enabled
     )
 except ImportError:
@@ -21,16 +23,27 @@ except ImportError:
     FurnaceHistoryAdapter = None
     AlliancesAdapter = None
     AllianceEventsAdapter = None
+    ServerAllianceAdapter = None
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/alliance-monitor", tags=["Alliance Monitor"])
 
 class MonitorSettings(BaseModel):
     guild_id: int
-    alliance_id: int
+    alliance_id: Optional[int] = None
     channel_id: int
     enabled: bool = True
     check_interval: int = 240
+
+class AddMemberRequest(BaseModel):
+    guild_id: int
+    fid: str
+    nickname: str
+    furnace_lv: int
+    avatar_image: Optional[str] = None
+
+class RemoveBatchRequest(BaseModel):
+    fids: List[str]
 
 @router.get("/alliances")
 async def get_all_alliances():
@@ -55,10 +68,12 @@ async def get_monitor_status(guild_id: int):
         monitor = next((m for m in monitors if m['guild_id'] == guild_id), None)
         
         if not monitor:
+            # Try to get alliance ID from ServerAllianceAdapter
+            alliance_id = await ServerAllianceAdapter.get_alliance_async(guild_id)
             return {
                 "enabled": False,
                 "guild_id": guild_id,
-                "alliance_id": 0,
+                "alliance_id": alliance_id or 0,
                 "channel_id": 0,
                 "check_interval": 240
             }
@@ -80,9 +95,17 @@ async def save_monitor_settings(settings: MonitorSettings):
         return {"status": "error", "message": "MongoDB not enabled"}
     
     try:
+        # If alliance_id is not provided, try to get it from ServerAllianceAdapter
+        alliance_id = settings.alliance_id
+        if not alliance_id or alliance_id == 0:
+            alliance_id = await ServerAllianceAdapter.get_alliance_async(settings.guild_id)
+            
+        if not alliance_id:
+            return {"status": "error", "message": "No alliance assigned to this server. Please assign an alliance first."}
+
         success = await AllianceMonitoringAdapter.upsert_monitor_async(
             guild_id=settings.guild_id,
-            alliance_id=settings.alliance_id,
+            alliance_id=alliance_id,
             channel_id=settings.channel_id,
             enabled=1 if settings.enabled else 0,
             check_interval=settings.check_interval
@@ -145,8 +168,13 @@ async def get_monitored_members(guild_id: int, alliance_id: Optional[int] = None
             monitors = await AllianceMonitoringAdapter.get_all_monitors_async()
             monitor = next((m for m in monitors if m['guild_id'] == guild_id), None)
             if not monitor:
-                return []
-            alliance_id = monitor['alliance_id']
+                # Try getting from ServerAllianceAdapter
+                alliance_id = await ServerAllianceAdapter.get_alliance_async(guild_id)
+            else:
+                alliance_id = monitor['alliance_id']
+        
+        if not alliance_id:
+            return []
             
         all_members = await AllianceMembersAdapter.get_all_members_async()
         
@@ -172,3 +200,85 @@ async def get_monitored_members(guild_id: int, alliance_id: Optional[int] = None
     except Exception as e:
         logger.error(f"Error getting monitored members: {e}")
         return []
+
+@router.get("/members/lookup/{fid}")
+async def lookup_monitor_player(fid: str):
+    try:
+        player = await fetch_player_info(fid)
+        if player:
+            return {
+                "id": player.get("id"),
+                "nickname": player.get("name"),
+                "level": player.get("level"),
+                "avatar_image": player.get("avatar_image")
+            }
+        return None
+    except Exception as e:
+        logger.error(f"Error looking up player {fid}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/members/add")
+async def add_monitored_member(request: AddMemberRequest):
+    if not mongo_enabled():
+        return {"status": "error", "message": "MongoDB not enabled"}
+    
+    try:
+        # Get alliance ID for this guild
+        alliance_id = await ServerAllianceAdapter.get_alliance_async(request.guild_id)
+        if not alliance_id:
+            # Check monitor settings if not in ServerAllianceAdapter
+            monitors = await AllianceMonitoringAdapter.get_all_monitors_async()
+            monitor = next((m for m in monitors if m['guild_id'] == request.guild_id), None)
+            if monitor:
+                alliance_id = monitor['alliance_id']
+        
+        if not alliance_id:
+            return {"status": "error", "message": "No alliance assigned to this server."}
+
+        member_data = {
+            "fid": request.fid,
+            "nickname": request.nickname,
+            "furnace_lv": request.furnace_lv,
+            "avatar_image": request.avatar_image,
+            "alliance_id": int(alliance_id),
+            "alliance": int(alliance_id),
+            "last_checked": datetime.utcnow().isoformat()
+        }
+        
+        success = await AllianceMembersAdapter.upsert_member_async(request.fid, member_data)
+        if success:
+            return {"status": "success", "message": f"Added {request.nickname} to monitor"}
+        return {"status": "error", "message": "Failed to add member to database"}
+    except Exception as e:
+        logger.error(f"Error adding monitored member: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/members/{fid}")
+async def remove_monitored_member(fid: str):
+    if not mongo_enabled():
+        return {"status": "error", "message": "MongoDB not enabled"}
+    
+    try:
+        success = await AllianceMembersAdapter.delete_member_async(fid)
+        if success:
+            return {"status": "success", "message": f"Removed player {fid}"}
+        return {"status": "error", "message": "Player not found or failed to remove"}
+    except Exception as e:
+        logger.error(f"Error removing monitored member: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/members/remove-batch")
+async def remove_monitored_members_batch(request: RemoveBatchRequest):
+    if not mongo_enabled():
+        return {"status": "error", "message": "MongoDB not enabled"}
+    
+    try:
+        count = 0
+        for fid in request.fids:
+            if await AllianceMembersAdapter.delete_member_async(fid):
+                count += 1
+        
+        return {"status": "success", "message": f"Successfully removed {count} members"}
+    except Exception as e:
+        logger.error(f"Error removing members batch: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

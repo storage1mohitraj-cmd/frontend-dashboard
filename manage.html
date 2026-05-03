@@ -723,83 +723,97 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            background: #000000;
-            padding: 20px;
-            border-radius: 16px;
-            margin: 10px 0;
-            border: 1px solid rgba(255,255,255,0.1);
+            background: #11141a;
+            padding: 24px;
+            border-radius: 20px;
+            margin: 15px 0;
+            border: 1px solid rgba(255,255,255,0.08);
             user-select: none;
             position: relative;
+            box-shadow: inset 0 4px 25px rgba(0,0,0,0.5);
+            overflow: hidden;
         }
-        .time-picker-row::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 10px;
-            right: 10px;
-            height: 33px;
-            background: rgba(255,255,255,0.05);
-            transform: translateY(-50%);
-            border-radius: 8px;
-            pointer-events: none;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
+        
+        /* The highlight lens in the middle */
         .time-picker-row::before {
             content: '';
             position: absolute;
             top: 50%;
-            left: 0;
-            right: 0;
-            height: 36px;
-            border-top: 1px solid var(--primary);
-            border-bottom: 1px solid var(--primary);
+            left: 15px;
+            right: 15px;
+            height: 44px;
+            background: rgba(139, 92, 246, 0.12);
+            border-top: 1px solid rgba(139, 92, 246, 0.3);
+            border-bottom: 1px solid rgba(139, 92, 246, 0.3);
             transform: translateY(-50%);
-            background: rgba(var(--primary-rgb), 0.05);
+            border-radius: 12px;
             pointer-events: none;
             z-index: 1;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.05);
         }
+
         .wheel-container {
-            height: 100px;
+            height: 180px;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scrollbar-width: none;
-            width: 60px;
+            width: 75px;
             text-align: center;
             position: relative;
             z-index: 2;
-            mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
-            -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+            mask-image: linear-gradient(to bottom, 
+                transparent 0%, 
+                rgba(0,0,0,0.1) 15%, 
+                black 45%, 
+                black 55%, 
+                rgba(0,0,0,0.1) 85%, 
+                transparent 100%
+            );
+            -webkit-mask-image: linear-gradient(to bottom, 
+                transparent 0%, 
+                rgba(0,0,0,0.1) 15%, 
+                black 45%, 
+                black 55%, 
+                rgba(0,0,0,0.1) 85%, 
+                transparent 100%
+            );
             cursor: grab;
-            user-select: none;
+            perspective: 800px;
+            transition: transform 0.2s;
         }
-        .wheel-container:active {
-            cursor: grabbing;
-        }
+
+        .wheel-container:active { cursor: grabbing; }
         .wheel-container::-webkit-scrollbar { display: none; }
+
         .wheel-item {
-            height: 33px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
             scroll-snap-align: center;
-            font-size: 1.1rem;
-            color: rgba(255,255,255,0.4);
-            transition: all 0.2s;
+            font-size: 1.15rem;
+            color: rgba(255,255,255,0.25);
+            transition: all 0.25s cubic-bezier(0.2, 0, 0.2, 1);
             cursor: pointer;
+            backface-visibility: hidden;
+            transform-style: preserve-3d;
         }
+
         .wheel-item.selected {
             color: #fff;
-            font-weight: 700;
-            font-size: 1.4rem;
+            font-weight: 800;
+            font-size: 1.7rem;
+            text-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+            transform: scale(1.1) translateZ(10px);
         }
+
         .wheel-label {
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 1.5rem;
-            margin: 0 5px;
+            color: rgba(255,255,255,0.15);
+            font-weight: 800;
+            font-size: 1.6rem;
+            margin: 0 10px;
             z-index: 2;
+            pointer-events: none;
         }
         .timezone-group {
             margin-top: 10px;
@@ -1463,48 +1477,68 @@
 
     <!-- Reminder Modal -->
     <div id="reminder-modal" class="modal">
-        <div class="modal-content" style="max-width: 900px;">
-            <div class="modal-header">
-                <h3>New Reminder</h3>
-                <button onclick="closeReminderModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
-                    <i data-lucide="x"></i>
+        <div class="modal-content" style="max-width: 1000px; border-radius: 24px; overflow: hidden; background: #1a1d24;">
+            <div class="modal-header" style="padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); background: #16191f;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div class="ar-icon-box purple" style="width: 40px; height: 40px;">
+                        <i data-lucide="bell" style="width: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.25rem;">New Reminder</h3>
+                        <p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-muted);">Schedule a notification for your server</p>
+                    </div>
+                </div>
+                <button onclick="closeReminderModal()" style="background:rgba(255,255,255,0.05); border:none; color:var(--text-muted); cursor:pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
+                    <i data-lucide="x" style="width: 18px;"></i>
                 </button>
             </div>
-            <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+            <div class="modal-body" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 0; padding: 0; height: 75vh;">
                 <!-- Left Side: Form -->
-                <div class="reminder-form" style="max-height: 70vh; overflow-y: auto; padding-right: 12px;">
+                <div class="reminder-form" style="padding: 32px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05);">
                     <div class="form-group">
                         <label>Title Message</label>
-                        <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()">
+                        <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()" style="font-size: 1rem; padding: 14px;">
                     </div>
                     <div class="form-group">
                         <label>Description (Body)</label>
-                        <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 60px;" oninput="updateReminderPreview()"></textarea>
+                        <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 80px; font-size: 0.95rem;" oninput="updateReminderPreview()"></textarea>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Start Date</label>
-                            <input type="date" id="reminder-date">
+                            <div style="position: relative;">
+                                <input type="date" id="reminder-date" style="padding-left: 40px;">
+                                <i data-lucide="calendar" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label>Channel</label>
-                            <select id="reminder-channel" class="guild-channels"></select>
+                            <div style="position: relative;">
+                                <select id="reminder-channel" class="guild-channels" style="padding-left: 40px;"></select>
+                                <i data-lucide="hash" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Start Time (Scroll to Select)</label>
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label style="display: flex; justify-content: space-between; align-items: center;">
+                            Start Time
+                            <span style="font-size: 0.75rem; color: var(--primary); font-weight: 500;">Scroll to select</span>
+                        </label>
                         <div class="time-picker-row">
-                            <div class="wheel-container" id="wheel-hour"></div>
+                            <div class="wheel-container" id="wheel-hour" onscroll="updateWheelSelection(this)"></div>
                             <span class="wheel-label">:</span>
-                            <div class="wheel-container" id="wheel-min"></div>
+                            <div class="wheel-container" id="wheel-min" onscroll="updateWheelSelection(this)"></div>
                             <span class="wheel-label">:</span>
-                            <div class="wheel-container" id="wheel-sec"></div>
-                            <div class="wheel-container" id="wheel-ampm" style="width: 70px;">
-                                <div class="wheel-item" style="height:33px;"></div>
+                            <div class="wheel-container" id="wheel-sec" onscroll="updateWheelSelection(this)"></div>
+                            <div class="wheel-container" id="wheel-ampm" style="width: 80px;" onscroll="updateWheelSelection(this)">
+                                <div class="wheel-item spacer"></div>
+                                <div class="wheel-item spacer"></div>
                                 <div class="wheel-item" data-val="AM">AM</div>
                                 <div class="wheel-item" data-val="PM">PM</div>
-                                <div class="wheel-item" style="height:33px;"></div>
+                                <div class="wheel-item spacer"></div>
+                                <div class="wheel-item spacer"></div>
                             </div>
                         </div>
                     </div>
@@ -1523,7 +1557,7 @@
                         </select>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Repeat / Recurrence</label>
                             <select id="reminder-recurrence" onchange="toggleCustomInterval()">
@@ -1538,7 +1572,10 @@
                             <input type="number" id="reminder-interval" min="1" value="1">
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+
+                    <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 24px 0;"></div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Mention</label>
                             <select id="reminder-mention" onchange="updateReminderPreview()">
@@ -1553,13 +1590,14 @@
                             <div style="display: flex; gap: 8px;">
                                 <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
                                 <input type="file" id="reminder-image-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-image')">
-                                <button onclick="document.getElementById('reminder-image-file').click()" class="btn btn-secondary" style="padding: 8px; min-width: 42px;" title="Upload Image">
-                                    <i data-lucide="upload" style="width: 16px;"></i>
+                                <button onclick="document.getElementById('reminder-image-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
+                                    <i data-lucide="upload" style="width: 18px;"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Thumbnail Presets</label>
                             <select id="reminder-thumbnail-preset" onchange="applyThumbnailPreset(this.value)">
@@ -1575,13 +1613,14 @@
                             <div style="display: flex; gap: 8px;">
                                 <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
                                 <input type="file" id="reminder-thumbnail-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-thumbnail')">
-                                <button onclick="document.getElementById('reminder-thumbnail-file').click()" class="btn btn-secondary" style="padding: 8px; min-width: 42px;" title="Upload Thumbnail">
-                                    <i data-lucide="upload" style="width: 16px;"></i>
+                                <button onclick="document.getElementById('reminder-thumbnail-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
+                                    <i data-lucide="upload" style="width: 18px;"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Footer Text</label>
                             <input type="text" id="reminder-footer" placeholder="Optional footer" oninput="updateReminderPreview()">
@@ -1591,63 +1630,78 @@
                             <div style="display: flex; gap: 8px;">
                                 <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
                                 <input type="file" id="reminder-footer-icon-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-footer-icon')">
-                                <button onclick="document.getElementById('reminder-footer-icon-file').click()" class="btn btn-secondary" style="padding: 8px; min-width: 42px;" title="Upload Footer Icon">
-                                    <i data-lucide="upload" style="width: 16px;"></i>
+                                <button onclick="document.getElementById('reminder-footer-icon-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
+                                    <i data-lucide="upload" style="width: 18px;"></i>
                                 </button>
                             </div>
                         </div>
                     </div>
-                        <div class="form-group">
-                            <label>Author URL</label>
-                            <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
-                        </div>
+                    <div class="form-group">
+                        <label>Author URL (Clickable Title)</label>
+                        <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
                     </div>
                 </div>
 
                 <!-- Right Side: Preview -->
-                <div class="reminder-preview-side">
-                    <div class="preview-label"><span></span> Live Reminder Preview</div>
-                    <div class="dc-chat">
-                        <div class="dc-message">
-                            <img class="dc-bot-avatar" src="/logo.gif" alt="Bot">
-                            <div class="dc-message-body">
-                                <div class="dc-message-header">
-                                    <span class="dc-bot-name">Whiteout Survival</span>
-                                    <span class="dc-bot-tag">APP</span>
-                                    <span class="dc-timestamp">Reminder</span>
-                                </div>
-                                <!-- Embed card -->
-                                <div class="dc-embed" id="reminder-preview-embed" style="border-left-color: #8b5cf6;">
-                                    <div class="dc-embed-inner">
-                                        <div style="display: flex; gap: 12px;">
-                                            <div style="flex: 1;">
-                                                <div class="dc-embed-title" id="reminder-preview-title">Bear Trap starts now!</div>
-                                                <div class="dc-embed-desc" id="reminder-preview-body">Optional detailed text</div>
+                <div class="reminder-preview-side" style="padding: 32px; background: #16191f; display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+                        <div class="preview-label" style="margin: 0; font-size: 0.85rem; letter-spacing: 0.05em;">
+                            <span class="pulse-dot"></span> LIVE REMINDER PREVIEW
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #ff5f56;"></div>
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #ffbd2e;"></div>
+                            <div style="width: 8px; height: 8px; border-radius: 50%; background: #27c93f;"></div>
+                        </div>
+                    </div>
+
+                    <div class="dc-chat" style="flex: 1; display: flex; align-items: flex-start;">
+                        <div class="dc-message" style="width: 100%; padding: 0;">
+                            <div style="display: flex; gap: 16px;">
+                                <img class="dc-bot-avatar" src="/logo.gif" alt="Bot" style="width: 40px; height: 40px; margin: 0;">
+                                <div class="dc-message-body" style="flex: 1;">
+                                    <div class="dc-message-header" style="margin-bottom: 4px;">
+                                        <span class="dc-bot-name" style="font-weight: 600; font-size: 1rem;">Whiteout Survival</span>
+                                        <span class="dc-bot-tag">APP</span>
+                                        <span class="dc-timestamp">Today at 12:00 PM</span>
+                                    </div>
+                                    
+                                    <!-- Embed card -->
+                                    <div class="dc-embed" id="reminder-preview-embed" style="border-left: 4px solid #8b5cf6; background: #2b2d31; border-radius: 4px; padding: 12px 16px; margin: 8px 0; max-width: 450px;">
+                                        <div class="dc-embed-inner">
+                                            <div style="display: flex; gap: 12px;">
+                                                <div style="flex: 1;">
+                                                    <div class="dc-embed-title" id="reminder-preview-title" style="font-weight: 700; font-size: 1rem; color: #fff; margin-bottom: 8px;">Bear Trap starts now!</div>
+                                                    <div class="dc-embed-desc" id="reminder-preview-body" style="font-size: 0.9rem; color: #dbdee1; line-height: 1.4;">Optional detailed text</div>
+                                                </div>
+                                                <img id="reminder-preview-thumbnail" src="" style="width: 80px; height: 80px; border-radius: 4px; object-fit: cover; display: none;">
                                             </div>
-                                            <img id="reminder-preview-thumbnail" src="" style="width: 80px; height: 80px; border-radius: 4px; object-fit: cover; display: none;">
-                                        </div>
-                                        <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 8px; border-radius: 4px;">
-                                        <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 8px;">
-                                            <img id="reminder-preview-footer-icon" src="" style="width: 18px; height: 18px; border-radius: 50%; display: none;">
-                                            <span id="reminder-preview-footer-text"></span>
+                                            <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 12px; border-radius: 4px; max-width: 100%;">
+                                            <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 8px; margin-top: 12px;">
+                                                <img id="reminder-preview-footer-icon" src="" style="width: 20px; height: 20px; border-radius: 50%; display: none;">
+                                                <span id="reminder-preview-footer-text" style="font-size: 0.75rem; color: #dbdee1; font-weight: 500;"></span>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div id="reminder-preview-mention" class="dc-text" style="margin-top: 4px; color: #00a8fc; font-weight: 500; font-size: 0.95rem;">@everyone</div>
                                 </div>
-                                <div id="reminder-preview-mention" class="dc-text" style="margin-top: 4px;">@everyone</div>
                             </div>
                         </div>
                     </div>
                     
-                    <div style="margin-top:16px; padding:12px; background:rgba(139,92,246,0.06); border-radius:10px; border:1px solid rgba(139,92,246,0.15);">
-                        <p style="font-size:0.78rem; color:var(--text-muted); line-height:1.6;">
-                            This is how your reminder will appear in Discord. Use URLs for images and icons.
-                        </p>
+                    <div style="margin-top:24px; padding:16px; background:rgba(139,92,246,0.08); border-radius:12px; border:1px solid rgba(139,92,246,0.15);">
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <i data-lucide="info" style="width: 18px; color: var(--primary); flex-shrink: 0; margin-top: 2px;"></i>
+                            <p style="font-size:0.8rem; color:var(--text-muted); line-height:1.5; margin: 0;">
+                                This preview shows exactly how your reminder will look in Discord. Make sure to use high-quality images and clear messages.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button onclick="closeReminderModal()" class="btn btn-secondary">Cancel</button>
-                <button onclick="createReminder()" class="btn btn-primary">Create Reminder</button>
+            <div class="modal-footer" style="padding: 20px 32px; background: #16191f; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
+                <button onclick="closeReminderModal()" class="btn btn-secondary" style="background: rgba(255,255,255,0.05);">Cancel</button>
+                <button onclick="createReminder()" class="btn btn-primary" style="padding: 10px 32px; box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);">Create Reminder</button>
             </div>
         </div>
     </div>
@@ -1779,7 +1833,9 @@
                 if (id !== 'wheel-ampm') {
                     const max = id === 'wheel-hour' ? 12 : 59;
                     const start = id === 'wheel-hour' ? 1 : 0;
-                    el.innerHTML = '<div class="wheel-item spacer"></div>';
+                    
+                    // Add double spacers for better 3D centering
+                    el.innerHTML = '<div class="wheel-item spacer"></div><div class="wheel-item spacer"></div>';
                     for(let i=start; i<=max; i++) {
                         const val = String(i).padStart(2, '0');
                         const item = document.createElement('div');
@@ -1789,7 +1845,7 @@
                         item.onclick = () => setWheelValue(el, val);
                         el.appendChild(item);
                     }
-                    el.innerHTML += '<div class="wheel-item spacer"></div>';
+                    el.innerHTML += '<div class="wheel-item spacer"></div><div class="wheel-item spacer"></div>';
                 } else {
                     // AM/PM already has spacers in HTML
                     el.querySelectorAll('.wheel-item[data-val]').forEach(item => {
@@ -1853,10 +1909,19 @@
             el.querySelectorAll('.wheel-item[data-val]').forEach(item => {
                 const rect = item.getBoundingClientRect();
                 const itemCenterY = rect.top + rect.height / 2;
-                const diff = Math.abs(centerY - itemCenterY);
+                const diff = centerY - itemCenterY;
+                const absDiff = Math.abs(diff);
                 
-                if (diff < minDiff) {
-                    minDiff = diff;
+                // 3D Rotation effect
+                const rotation = (diff / containerRect.height) * 110; // Max rotation
+                const opacity = Math.max(0.1, 1 - (absDiff / (containerRect.height / 2)));
+                const scale = Math.max(0.75, 1 - (absDiff / containerRect.height));
+                
+                item.style.transform = `rotateX(${rotation}deg) scale(${scale})`;
+                item.style.opacity = opacity;
+                
+                if (absDiff < minDiff) {
+                    minDiff = absDiff;
                     closestItem = item;
                 }
                 item.classList.remove('selected');
@@ -1885,7 +1950,11 @@
                 const item = items[index];
                 const scrollPos = item.offsetTop - el.offsetTop - (el.clientHeight / 2) + (item.clientHeight / 2);
                 el.scrollTo({ top: scrollPos, behavior: 'smooth' });
-                // Mark selected immediately for better UX
+                
+                // Ensure 3D effects are updated during and after smooth scroll
+                const updateLoop = setInterval(() => updateWheelSelection(el), 16);
+                setTimeout(() => clearInterval(updateLoop), 500);
+                
                 items.forEach(i => i.classList.remove('selected'));
                 item.classList.add('selected');
             }

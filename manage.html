@@ -851,6 +851,10 @@
                     <i data-lucide="party-popper"></i>
                     <span>Welcome</span>
                 </button>
+                <button class="nav-item" onclick="switchTab('alliance')">
+                    <i data-lucide="shield"></i>
+                    <span>Alliance Monitor</span>
+                </button>
                 <button class="nav-item" onclick="showNotification('Premium required for advanced settings', true)">
                     <i data-lucide="shield-check"></i>
                     <span>Premium/Pro</span>
@@ -1132,6 +1136,103 @@
                                     <code style="color:#a78bfa;">{date}</code> — today's date
                                 </p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alliance Monitor Tab -->
+            <div id="tab-alliance" class="tab-content">
+                <h2 class="section-title">Alliance Monitor</h2>
+                
+                <div class="card">
+                    <div class="section-header">
+                        <h3><i data-lucide="shield" style="width:18px;height:18px;color:var(--primary);"></i> Monitor Configuration</h3>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <span id="monitor-enabled-pill" class="enabled-pill off">Disabled</span>
+                            <label class="switch">
+                                <input type="checkbox" id="monitor-enabled" onchange="toggleMonitor(this)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="welcome-layout">
+                        <div class="welcome-editor">
+                            <div class="form-group">
+                                <label>🏰 Select Alliance</label>
+                                <select id="monitor-alliance">
+                                    <option value="">Select an alliance</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>📢 Log Channel</label>
+                                <select id="monitor-channel" class="guild-channels">
+                                    <option value="">Select a channel</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>⏱️ Check Interval (minutes)</label>
+                                <input type="number" id="monitor-interval" value="240" min="5" max="1440">
+                            </div>
+
+                            <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:12px;">
+                                <button onclick="saveMonitorSettings()" class="btn btn-primary">
+                                    <i data-lucide="save" style="width:15px;height:15px;"></i> Save Monitor Settings
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="preview-container" style="background: var(--card-bg);">
+                            <div class="preview-label"><span></span> Feature Overview</div>
+                            <div style="padding: 10px;">
+                                <ul style="list-style: none; display: grid; gap: 12px;">
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="user-check" style="width: 18px; color: var(--primary);"></i>
+                                        <span>Track player name changes</span>
+                                    </li>
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="flame" style="width: 18px; color: #f59e0b;"></i>
+                                        <span>Monitor furnace level changes</span>
+                                    </li>
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="image" style="width: 18px; color: #10b981;"></i>
+                                        <span>Detect avatar changes</span>
+                                    </li>
+                                    <li style="display: flex; gap: 10px; font-size: 0.9rem;">
+                                        <i data-lucide="map" style="width: 18px; color: #3b82f6;"></i>
+                                        <span>Monitor State movement</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+                    <div class="card">
+                        <div class="section-header">
+                            <h3><i data-lucide="history" style="width:18px;height:18px;color:var(--primary);"></i> Recent Events</h3>
+                            <button onclick="loadMonitorHistory()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
+                                <i data-lucide="refresh-cw" style="width: 12px;"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="monitor-history-list" style="max-height: 400px; overflow-y: auto; display: grid; gap: 10px;">
+                            <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading history...</div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="section-header">
+                            <h3><i data-lucide="users" style="width:18px;height:18px;color:var(--primary);"></i> Monitored Members</h3>
+                            <button onclick="loadMonitoredMembers()" class="btn btn-secondary" style="padding: 4px 10px; font-size: 0.8rem;">
+                                <i data-lucide="refresh-cw" style="width: 12px;"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="monitor-members-list" style="max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                            <div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading members...</div>
                         </div>
                     </div>
                 </div>
@@ -1589,6 +1690,14 @@
 
             document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            if (tabName === 'alliance') {
+                loadMonitorAlliances();
+                loadMonitorSettings();
+                loadMonitorHistory();
+                loadMonitoredMembers();
+            }
+            
             lucide.createIcons();
         }
 
@@ -3008,6 +3117,181 @@
             }
         }
 
+        // ──────────────────────────────────────────────────
+        //  Alliance Monitor: Management
+        // ──────────────────────────────────────────────────
+        async function loadMonitorAlliances() {
+            try {
+                const alliances = await fetchData('/api/alliance-monitor/alliances');
+                const select = document.getElementById('monitor-alliance');
+                if (!select) return;
+                const currentVal = select.value;
+                select.innerHTML = '<option value="">Select an alliance</option>';
+                alliances.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = a.name;
+                    select.appendChild(opt);
+                });
+                if (currentVal) select.value = currentVal;
+            } catch (e) {
+                console.error('Failed to load monitor alliances:', e);
+            }
+        }
+
+        async function loadMonitorSettings() {
+            try {
+                const settings = await fetchData(`/api/alliance-monitor/status/${guildId}`);
+                
+                const allianceSelect = document.getElementById('monitor-alliance');
+                const channelSelect = document.getElementById('monitor-channel');
+                const intervalInput = document.getElementById('monitor-interval');
+                const toggle = document.getElementById('monitor-enabled');
+                const pill = document.getElementById('monitor-enabled-pill');
+
+                if (allianceSelect) allianceSelect.value = settings.alliance_id || '';
+                if (channelSelect) channelSelect.value = settings.channel_id || '';
+                if (intervalInput) intervalInput.value = settings.check_interval || 240;
+                
+                if (toggle) toggle.checked = settings.enabled;
+                
+                if (pill) {
+                    if (settings.enabled) {
+                        pill.textContent = 'Active';
+                        pill.className = 'enabled-pill on';
+                    } else {
+                        pill.textContent = 'Disabled';
+                        pill.className = 'enabled-pill off';
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to load monitor settings:', e);
+            }
+        }
+
+        async function saveMonitorSettings() {
+            const alliance_id = document.getElementById('monitor-alliance').value;
+            const channel_id = document.getElementById('monitor-channel').value;
+            const interval = document.getElementById('monitor-interval').value;
+            const enabled = document.getElementById('monitor-enabled').checked;
+
+            if (!alliance_id || !channel_id) {
+                showNotification('Please select both alliance and channel', true);
+                return;
+            }
+
+            showLoading(true);
+            try {
+                await fetchData('/api/alliance-monitor/settings', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        guild_id: parseInt(guildId),
+                        alliance_id: parseInt(alliance_id),
+                        channel_id: parseInt(channel_id),
+                        enabled: enabled,
+                        check_interval: parseInt(interval)
+                    })
+                });
+                showNotification('Monitor settings saved');
+                loadMonitorSettings();
+            } catch (e) {
+                showNotification('Failed to save monitor settings', true);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        async function toggleMonitor(checkbox) {
+            const pill = document.getElementById('monitor-enabled-pill');
+            if (checkbox.checked) {
+                pill.textContent = 'Active';
+                pill.className = 'enabled-pill on';
+            } else {
+                pill.textContent = 'Disabled';
+                pill.className = 'enabled-pill off';
+            }
+        }
+
+        async function loadMonitorHistory() {
+            const list = document.getElementById('monitor-history-list');
+            if (!list) return;
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading history...</div>';
+            try {
+                const history = await fetchData(`/api/alliance-monitor/history/${guildId}`);
+                if (history.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No recent events found.</div>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                history.forEach(event => {
+                    const div = document.createElement('div');
+                    div.style.padding = '12px';
+                    div.style.background = 'rgba(255,255,255,0.03)';
+                    div.style.borderRadius = '8px';
+                    div.style.display = 'flex';
+                    div.style.alignItems = 'center';
+                    div.style.gap = '12px';
+                    
+                    let icon = 'activity';
+                    let iconColor = 'var(--primary)';
+                    if (event.type === 'furnace') { icon = 'flame'; iconColor = '#f59e0b'; }
+                    else if (event.type === 'name') { icon = 'user-check'; iconColor = '#10b981'; }
+                    else if (event.type === 'avatar') { icon = 'image'; iconColor = '#3b82f6'; }
+                    
+                    const time = new Date(event.timestamp).toLocaleString();
+                    
+                    div.innerHTML = `
+                        <div style="background: rgba(255,255,255,0.05); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i data-lucide="${icon}" style="width: 16px; color: ${iconColor};"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; font-size: 0.9rem; color: #fff;">${escapeHTML(event.nickname)}</div>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);">${escapeHTML(event.value_text)}</div>
+                        </div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted); white-space: nowrap;">${time}</div>
+                    `;
+                    list.appendChild(div);
+                });
+                lucide.createIcons();
+            } catch (e) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Failed to load history.</div>';
+            }
+        }
+
+        async function loadMonitoredMembers() {
+            const list = document.getElementById('monitor-members-list');
+            if (!list) return;
+            list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading members...</div>';
+            try {
+                const members = await fetchData(`/api/alliance-monitor/members/${guildId}`);
+                if (members.length === 0) {
+                    list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No members found.</div>';
+                    return;
+                }
+                
+                list.innerHTML = '';
+                members.forEach(m => {
+                    const div = document.createElement('div');
+                    div.style.padding = '10px';
+                    div.style.background = 'rgba(255,255,255,0.03)';
+                    div.style.borderRadius = '8px';
+                    div.style.textAlign = 'center';
+                    
+                    const avatar = m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png';
+                    
+                    div.innerHTML = `
+                        <img src="${avatar}" style="width: 40px; height: 40px; border-radius: 50%; margin-bottom: 8px; border: 2px solid var(--glass-border);">
+                        <div style="font-weight: 600; font-size: 0.8rem; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(m.nickname)}">${escapeHTML(m.nickname)}</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">Lv. ${m.furnace_lv}</div>
+                    `;
+                    list.appendChild(div);
+                });
+            } catch (e) {
+                list.innerHTML = '<div style="text-align: center; padding: 20px; color: #ef4444;">Failed to load members.</div>';
+            }
+        }
+
         (async () => {
             initTimeWheels();
             showLoading(true);
@@ -3047,6 +3331,10 @@
                 await loadAutoRedeemSettings();
                 await loadAutoRedeemMembers();
                 await loadReminders();
+                await loadMonitorAlliances();
+                await loadMonitorSettings();
+                await loadMonitorHistory();
+                await loadMonitoredMembers();
             } catch (e) { console.error('Init error:', e); } finally { showLoading(false); }
 
             // Setup drag-and-drop on upload area (DOM guaranteed ready now)

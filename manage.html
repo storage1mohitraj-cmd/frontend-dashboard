@@ -1350,7 +1350,7 @@
                     <div class="redeem-grid">
                         <div class="redeem-left">
                             <div class="form-group">
-                                <label>Enter Player FID</label>
+                                <label>Enter Player ID</label>
                                 <div class="player-input-wrap">
                                     <input type="text" id="redeem-fid" placeholder="e.g. 123456789" maxlength="9">
                                     <button onclick="fetchPlayerInfo()" class="btn btn-primary" id="fetch-player-btn">
@@ -1361,7 +1361,7 @@
 
                             <div id="player-info-container" class="player-info-display">
                                 <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
-                                    Enter FID and search to fetch player details
+                                    Enter ID and search to fetch player details
                                 </div>
                             </div>
 
@@ -1434,7 +1434,7 @@
                                 <option value="">Select a channel</option>
                             </select>
                             <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
-                                Players write their FID here to register for auto-redeem
+                                Players write their ID here to register for auto-redeem
                             </p>
                         </div>
                     </div>
@@ -1685,7 +1685,7 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Player FID (9 digits)</label>
+                    <label>Player ID (9 digits)</label>
                     <div class="player-input-wrap">
                         <input type="text" id="add-member-fid" placeholder="e.g. 123456789" maxlength="9">
                         <button onclick="lookupMemberForAdd()" class="btn btn-primary" id="lookup-member-btn">
@@ -1696,7 +1696,7 @@
 
                 <div id="add-member-preview" class="add-member-lookup">
                     <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
-                        Enter a FID and search to verify the player
+                            <p>Enter an ID and search to verify the player</p>
                     </div>
                 </div>
             </div>
@@ -2300,6 +2300,23 @@
             return false;
         }
 
+        function formatFurnaceLevel(lv) {
+            try {
+                if (!lv) return "0";
+                const level = parseInt(lv);
+                if (isNaN(level)) return lv;
+                
+                if (level <= 30) return level.toString();
+                
+                // Fire Crystal levels start at 31
+                const adjustedLevel = level - 30;
+                const tier = Math.floor((adjustedLevel - 1) / 5) + 1;
+                const stage = ((adjustedLevel - 1) % 5) + 1;
+                
+                return `${tier}-${stage}`;
+            } catch (e) { return lv; }
+        }
+
         async function loadGiftCodes(forceRefresh = false) {
             const list = document.getElementById('giftcodes-list');
             const meta = document.getElementById('giftcodes-meta');
@@ -2464,7 +2481,7 @@
             const btn = document.getElementById('fetch-player-btn');
 
             if (!fid || fid.length !== 9 || !/^\d+$/.test(fid)) {
-                showNotification('Please enter a valid 9-digit FID', true);
+                showNotification('Please enter a valid 9-digit ID', true);
                 return;
             }
 
@@ -2484,7 +2501,7 @@
                         <img src="${res.data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="player-avatar-large" alt="Avatar">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
-                            <p>FID: ${res.data.fid} • ${res.data.furnace_lv_formatted}</p>
+                            <p>ID: ${res.data.fid} • ${res.data.furnace_lv_formatted}</p>
                         </div>
                     `;
                     updateRedeemButtonState();
@@ -2669,7 +2686,7 @@
                         <img src="${escapeAttribute(avatar)}" class="ar-member-avatar" alt="Avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                         <div class="ar-member-info">
                             <h5>${escapeHTML(nick)}</h5>
-                            <p>FID: ${escapeHTML(fid)} • Furnace Lv ${formattedFurnace}${addedAt ? ' • Added ' + addedAt : ''}</p>
+                            <p>ID: ${escapeHTML(fid)} • ${formattedFurnace}${addedAt ? ' • Added ' + addedAt : ''}</p>
                         </div>
                         <button class="ar-member-remove" onclick="removeAutoRedeemMember('${escapeAttribute(fid)}', '${escapeAttribute(nick)}')" title="Remove member">
                             <i data-lucide="x" style="width: 14px;"></i>
@@ -2686,7 +2703,7 @@
         }
 
         async function removeAutoRedeemMember(fid, nickname) {
-            if (!confirm(`Remove ${nickname} (FID: ${fid}) from auto-redeem?`)) return;
+            if (!confirm(`Remove ${nickname} (ID: ${fid}) from auto-redeem?`)) return;
 
             showLoading(true);
             try {
@@ -2763,7 +2780,7 @@
             document.getElementById('confirm-add-member-btn').disabled = true;
             document.getElementById('add-member-preview').innerHTML = `
                 <div style="color: var(--text-muted); font-size: 0.9rem; text-align: center; width: 100%;">
-                    Enter a FID and search to verify the player
+                    Enter an ID and search to verify the player
                 </div>`;
             document.getElementById('add-member-modal').style.display = 'flex';
             lucide.createIcons();
@@ -2782,7 +2799,7 @@
             const confirmBtn = document.getElementById('confirm-add-member-btn');
 
             if (!fid || fid.length !== 9 || !/^\d+$/.test(fid)) {
-                showNotification('Please enter a valid 9-digit FID', true);
+                showNotification('Please enter a valid 9-digit ID', true);
                 return;
             }
 
@@ -2806,7 +2823,7 @@
                              onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
-                            <p>FID: ${res.data.fid} • Furnace Lv ${formatFurnaceLevel(res.data.furnace_lv || 0)}</p>
+                            <p>ID: ${res.data.fid} • ${formatFurnaceLevel(res.data.furnace_lv || 0)}</p>
                         </div>
                         <div style="margin-left: auto; color: #34d399;"><i data-lucide="check-circle" style="width: 22px;"></i></div>`;
                     confirmBtn.disabled = false;
@@ -3244,9 +3261,9 @@
                             <img src="${m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="member-avatar" onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                             <div class="member-info">
                                 <h4>${escapeHTML(m.nickname)}</h4>
-                                <p>FID: ${m.fid}</p>
+                                <p>ID: ${m.fid}</p>
                                 <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
-                                    <span class="furnace-badge">Lv.${m.furnace_lv}</span>
+                                    <span class="furnace-badge">${formatFurnaceLevel(m.furnace_lv)}</span>
                                 </div>
                             </div>
                         </div>

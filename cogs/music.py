@@ -1701,16 +1701,10 @@ class Music(commands.Cog):
         if os.getenv("LAVALINK_USE_FALLBACKS", "true").lower() == "true":
             fallback_specs = [
                 {
-                    "host": "lavalink.lexis.host",
+                    "host": "lavalink.oops.wtf",
                     "port": 443,
-                    "password": "lexishost",
+                    "password": "www.freelavalink.ga",
                     "secure": True
-                },
-                {
-                    "host": "lava.link",
-                    "port": 80,
-                    "password": "youshallnotpass",
-                    "secure": False
                 },
                 {
                     "host": "lava-v4.ajieblogs.eu.org",

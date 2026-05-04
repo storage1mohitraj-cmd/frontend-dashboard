@@ -4,153 +4,191 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Whiteout Survival Bot | Premium Discord Management</title>
-  
-  <!-- Modern Typography -->
+  <title>Whiteout Survival Bot - Discord alliance automation</title>
+  <meta name="description" content="A dark, professional frontend for a Whiteout Survival Discord bot with alliance monitoring, DeepL translation, AI chat, reminders, gift codes, and admin tools.">
+  <meta property="og:title" content="Whiteout Survival Bot - Discord alliance automation">
+  <meta property="og:description" content="Alliance monitoring, auto gift codes, DeepL translation, AI chat, reminders, games, and admin tools for Discord.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-  
-  <link rel="stylesheet" href="index.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/site.css">
+  <style>
+    .feature-card,
+    .stats-grid article,
+    .log-rows div,
+    .cta-card {
+      will-change: transform;
+    }
+
+    .hero-copy {
+      animation: heroFadeIn 0.75s ease-out;
+    }
+
+    @keyframes heroFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 1024px) {
+      .header-inner {
+        justify-content: space-between;
+      }
+
+      .hero-content {
+        padding-top: 4.25rem;
+        padding-bottom: 4rem;
+      }
+
+      .section-heading.split {
+        align-items: flex-start;
+        gap: 0.65rem;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .site-header {
+        position: sticky;
+      }
+
+      .hero-copy {
+        text-align: left;
+      }
+
+      .stats-grid article strong {
+        font-size: 1.55rem;
+      }
+    }
+  </style>
 </head>
 
 <body>
-  <!-- Background Lines -->
-  <div class="bg-lines">
-    <svg viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M-100 200C200 100 600 600 1500 300" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M-100 400C400 200 800 800 1500 500" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M-100 600C300 400 900 900 1500 700" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M400 -100C200 200 800 600 600 1200" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M800 -100C600 300 1200 700 1000 1200" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-    </svg>
-  </div>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="assets/brand-logo.gif" alt="">
+        </span>
+        <span>Whiteout Survival</span>
+      </a>
 
-  <header>
-    <div class="logo-area">
-      <div class="logo-text">WOS<span style="color: var(--primary)">$</span></div>
-      <div class="email-info">support@wosbot.io</div>
-    </div>
-    
-    <nav>
-      <ul>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#alliance">Alliance</a></li>
-        <li><a href="#statistics">Statistics</a></li>
-      </ul>
-    </nav>
-    
-    <div class="header-right">
-      <a href="#" class="support-link">Customer Support</a>
-      <a href="login.html" class="btn-outline">Get Started</a>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="features.html">Features</a>
+        <a href="commands.html">Commands</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="ghost-link" href="login.html" data-dashboard-link>Dashboard</a>
+      </div>
     </div>
   </header>
 
-  <main class="hero">
-    <div class="hero-content">
-      <h1>Elevate Your<br>Alliance Game.</h1>
-      <p>The ultimate management suite for Whiteout Survival servers. Automate gift codes, track statistics, and lead your alliance to victory.</p>
-      
-      <div class="hero-actions">
-        <a href="login.html" class="btn-primary">Get Started</a>
-        <a href="#" class="link-demo">Watch a Demo</a>
+  <main>
+    <section class="hero">
+      <div class="glow-background" aria-hidden="true">
+        <div class="hero-glow"></div>
+        <div class="grid-bg"></div>
       </div>
-    </div>
-
-    <div class="hero-visual">
-      <!-- Profile Tag -->
-      <div class="profile-tag">
-        <img src="assets/avatar_male.png" alt="User">
-        <div class="profile-info">
-          <h4>Arthur Morgan</h4>
-          <span><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Request for Stats</span>
+      <div class="hero-art" aria-hidden="true">
+        <img src="assets/whiteout-heroes.png" alt="">
+        <div class="hero-art-tiles">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
         </div>
       </div>
-
-      <!-- Credit Card (Stats Card) -->
-      <div class="credit-card">
-        <div class="card-top">
-          <span>Alliance Premium Card</span>
-          <span>WOS Bot</span>
-        </div>
-        <div class="card-number">
-          7742 9020 4521 1454
-        </div>
-        <div class="card-bottom">
-          <div class="card-holder">
-            <h5>Alliance Lead</h5>
-            <p>John Marston</p>
+      <div class="container hero-content">
+        <div class="hero-copy">
+          <div class="eyebrow"><span></span>Built for serious Whiteout Survival alliances</div>
+          <h1>
+            <span>Run your Alliance smarter with</span>
+            <span class="typing-line"><span id="typed-phrase">alliance tracking</span><i></i></span>
+          </h1>
+          <p>Alliance monitoring, gift code automation, DeepL translation, AI voice tools, reminders, games, and admin workflows in one professional Discord bot.</p>
+          <div class="action-row">
+            <a class="button" href="login.html">Add to Discord <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+            <a class="button secondary" href="commands.html">View commands <svg viewBox="0 0 24 24"><path d="m4 17 5-5-5-5"/><path d="M12 19h8"/></svg></a>
           </div>
-          <div class="card-holder" style="text-align: right;">
-            <h5>Exp Date</h5>
-            <p>08 / 26</p>
-          </div>
-          <div class="card-logo">
-            <div class="logo-circle orange"></div>
-            <div class="logo-circle yellow"></div>
+          <div class="stats-grid">
+            <article><strong data-live-stat="servers">--</strong><span>servers</span></article>
+            <article><strong data-live-stat="uptime">--</strong><span>uptime</span></article>
+            <article><strong data-live-stat="members">--</strong><span>total members</span></article>
           </div>
         </div>
       </div>
+    </section>
 
-      <!-- Mini Card (Gift Code Card) -->
-      <div class="mini-card">
-        <img src="assets/avatar_smiley.png" alt="Happy">
-        <h5>Auto Redeem</h5>
-        <p>Get Gift Codes Instantly Now!</p>
+    <section class="section container">
+      <div class="section-heading split">
+        <div>
+          <p>Features</p>
+          <h2>Everything your alliance needs in Discord.</h2>
+        </div>
+        <a class="section-link" href="features.html">Explore features -></a>
       </div>
+      <div class="feature-grid" data-feature-grid></div>
+    </section>
 
-      <!-- Notification (Bot Update) -->
-      <div class="notif-bar">
-        <img src="assets/avatar_female.png" alt="Notification">
-        <div class="notif-content">
-          <h5>Update Sent to Discord</h5>
-          <span><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Sync Success</span>
+    <section class="operation-band">
+      <div class="container operation-grid">
+        <div>
+          <p class="section-kicker">Operations</p>
+          <h2>Automate the busywork between events.</h2>
+          <p class="section-copy">Keep leadership focused on timing, growth, and coordination while the bot handles recurring reminders, translation bridges, cache refreshes, and gift code workflows.</p>
+          <div class="check-grid">
+            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Gift code scan completed</span>
+            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>3 active codes detected</span>
+            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Alliance reminder queued</span>
+            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Cache synced from remote source</span>
+          </div>
+        </div>
+        <div class="log-panel">
+          <div class="log-top"><span>live-operation.log</span><b>online</b></div>
+          <div class="log-rows">
+            <div><span>01</span>Gift code scan completed</div>
+            <div><span>02</span>3 active codes detected</div>
+            <div><span>03</span>Alliance reminder queued</div>
+            <div><span>04</span>Cache synced from remote source</div>
+          </div>
         </div>
       </div>
-    </div>
+    </section>
+
+    <section class="section container">
+      <div class="cta-card">
+        <h2>Ready to power up your alliance?</h2>
+        <p>Launch the bot frontend now, then connect the real dashboard and Discord OAuth when you are ready.</p>
+        <div class="action-row">
+          <a class="button" href="login.html">Add to Discord</a>
+          <a class="button secondary" href="login.html" data-dashboard-link>Open dashboard</a>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <section class="partners">
-    <h3>Our Partners</h3>
-    <div class="partner-grid">
-      <div class="partner-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        WARREN
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div>
+        <a class="brand" href="index.html">
+          <span class="brand-mark" aria-hidden="true"><img src="assets/brand-logo.gif" alt=""></span>
+          <span>Whiteout Survival</span>
+        </a>
+        <p>A professional Discord bot frontend for alliance automation, translation, reminders, music, and AI tools.</p>
       </div>
-      <div class="partner-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        SPARK
-      </div>
-      <div class="partner-logo">
-        <div style="width: 24px; height: 24px; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">E/C</div>
-        EVELYN CHAMBERS
-      </div>
-      <div class="partner-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
-        ORLEY ENTERPRISES
-      </div>
-      <div class="partner-logo">
-        EVA & AILEEN
-      </div>
-      <div class="partner-logo">
-        <div style="display: flex; gap: 2px;">
-          <div style="width: 12px; height: 12px; background: currentColor; border-radius: 50%;"></div>
-          <div style="width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%;"></div>
-        </div>
-        MOMOKA
-      </div>
+      <nav aria-label="Footer navigation">
+        <a href="features.html">Features</a>
+        <a href="commands.html">Commands</a>
+        <a href="login.html" data-dashboard-link>Dashboard</a>
+      </nav>
     </div>
-  </section>
-
-  <footer style="padding: 60px 40px; text-align: center; color: var(--text-muted); font-size: 14px; border-top: 1px solid var(--border-glass);">
-    Whiteout Survival Bot © 2026 • Premium Management Infrastructure
   </footer>
 
-  <script>
-    if (localStorage.getItem('discord_access_token')) {
-      window.location.href = 'dashboard.html';
-    }
-  </script>
+  <script src="assets/site-data.js"></script>
+  <script src="assets/site.js"></script>
 </body>
 
 </html>

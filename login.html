@@ -14,8 +14,8 @@
     :root {
       --primary: #5865F2;
       --primary-hover: #4752C4;
-      --bg-dark: #0a0a0c;
-      --glass-bg: rgba(20, 20, 24, 0.65);
+      --bg-dark: #07080d;
+      --glass-bg: rgba(16, 17, 26, 0.68);
       --glass-border: rgba(255, 255, 255, 0.08);
     }
 
@@ -27,25 +27,65 @@
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: var(--bg-dark);
+      background:
+        radial-gradient(circle at 12% 14%, rgba(88, 101, 242, 0.24), transparent 28rem),
+        radial-gradient(circle at 88% 4%, rgba(59, 130, 246, 0.17), transparent 24rem),
+        var(--bg-dark);
       color: #fff;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 20px;
-      overflow: hidden;
+      padding: 24px 16px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      position: relative;
     }
 
-    /* Animated background */
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+
     .bg-animation {
       position: absolute;
-      top: -10%; left: -10%; width: 120vw; height: 120vh;
+      inset: -10%;
       background: url('hero-bg.png') no-repeat center center/cover;
-      opacity: 0.35;
+      opacity: 0.26;
       z-index: -1;
-      filter: blur(8px) brightness(0.6);
-      animation: slowPan 30s infinite alternate linear;
+      filter: blur(7px) brightness(0.58);
+      animation: slowPan 24s infinite alternate ease-in-out;
+    }
+
+    .bg-animation::before,
+    .bg-animation::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(22px);
+      opacity: 0.44;
+    }
+
+    .bg-animation::before {
+      width: 18rem;
+      height: 18rem;
+      left: 8%;
+      top: 12%;
+      background: rgba(88, 101, 242, 0.34);
+      animation: pulseOrb 10s infinite ease-in-out;
+    }
+
+    .bg-animation::after {
+      width: 14rem;
+      height: 14rem;
+      right: 10%;
+      bottom: 8%;
+      background: rgba(56, 189, 248, 0.32);
+      animation: pulseOrb 11s infinite ease-in-out reverse;
     }
 
     @keyframes slowPan {
@@ -54,14 +94,14 @@
     }
 
     .login-container {
-      background: var(--glass-bg);
+      background: linear-gradient(160deg, rgba(22, 24, 36, 0.84), var(--glass-bg));
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--glass-border);
       border-radius: 24px;
-      padding: 60px 40px;
+      padding: 52px 40px;
       text-align: center;
-      max-width: 480px;
+      max-width: 500px;
       width: 100%;
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.1);
       animation: floatUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -73,13 +113,19 @@
       to { transform: translateY(0); opacity: 1; }
     }
 
+    @keyframes pulseOrb {
+      0%, 100% { transform: scale(1); opacity: 0.42; }
+      50% { transform: scale(1.08); opacity: 0.62; }
+    }
+
     .bot-avatar {
-      width: 130px;
-      height: 130px;
+      width: 124px;
+      height: 124px;
       border-radius: 50%;
       margin: 0 auto 30px;
       border: 2px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+      object-fit: cover;
     }
 
     h1 {
@@ -94,10 +140,11 @@
     }
 
     .subtitle {
-      color: #949499;
-      font-size: 1.1em;
-      margin-bottom: 40px;
-      font-weight: 300;
+      color: #a6a8b7;
+      font-size: 1.04rem;
+      margin-bottom: 34px;
+      font-weight: 400;
+      line-height: 1.5;
     }
 
     .discord-btn {
@@ -112,14 +159,14 @@
       border-radius: 12px;
       font-size: 1.2em;
       font-weight: 600;
-      transition: all 0.3s ease;
+      transition: transform 0.24s ease, box-shadow 0.24s ease, background 0.24s ease;
       box-shadow: 0 8px 20px rgba(88, 101, 242, 0.3);
       width: 100%;
     }
 
     .discord-btn:hover {
       background: var(--primary-hover);
-      transform: translateY(-2px);
+      transform: translateY(-2px) scale(1.01);
       box-shadow: 0 12px 25px rgba(88, 101, 242, 0.4);
     }
 
@@ -140,13 +187,59 @@
     .back-link:hover {
       color: #fff;
     }
+
+    @media (max-width: 768px) {
+      body {
+        align-items: flex-start;
+        padding-top: 32px;
+        padding-bottom: 32px;
+      }
+
+      .login-container {
+        padding: 40px 26px;
+        border-radius: 20px;
+      }
+
+      h1 {
+        font-size: 2.1em;
+      }
+
+      .subtitle {
+        font-size: 1rem;
+      }
+
+      .discord-btn {
+        font-size: 1.08em;
+        padding: 15px 20px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .login-container {
+        padding: 32px 18px;
+      }
+
+      .bot-avatar {
+        width: 104px;
+        height: 104px;
+        margin-bottom: 22px;
+      }
+
+      h1 {
+        font-size: 1.8em;
+      }
+
+      .back-link {
+        margin-top: 22px;
+      }
+    }
   </style>
 </head>
 
 <body>
   <div class="bg-animation"></div>
   <div class="login-container">
-    <img src="/logo.gif"
+    <img src="logo.gif"
       alt="Bot Avatar" class="bot-avatar">
 
     <h1>Whiteout Survival</h1>
@@ -164,6 +257,10 @@
   </div>
 
   <script>
+    if (localStorage.getItem('discord_access_token')) {
+      window.location.href = 'dashboard.html';
+    }
+
     const DISCORD_CLIENT_ID = '1399025185046134866';
     
     // Dynamically calculate the redirect URI based on wherever the site is hosted!

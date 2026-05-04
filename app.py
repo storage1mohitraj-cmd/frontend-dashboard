@@ -1160,6 +1160,8 @@ bot.setup_hook = setup_hook
 async def on_ready():
     """Called when the bot is ready and connected to Discord"""
     try:
+        if not hasattr(bot, "ready_at"):
+            bot.ready_at = datetime.utcnow()
         logger.info(f"🤖 Logged in as {bot.user} (ID: {bot.user.id})")
         logger.info(f"📊 Connected to {len(bot.guilds)} guild(s)")
         

@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 from datetime import datetime
 from fastapi import FastAPI, APIRouter, Request
@@ -80,8 +81,11 @@ async def health_check():
 async def get_status():
     bot = getattr(app.state, "bot", None)
     now = datetime.utcnow()
-    uptime_seconds = int((now - STARTED_AT).total_seconds())
+    bot_ready_at = getattr(bot, "ready_at", None) if bot else None
+    uptime_started_at = bot_ready_at if isinstance(bot_ready_at, datetime) else STARTED_AT
+    uptime_seconds = int((now - uptime_started_at).total_seconds())
     guilds = list(bot.guilds) if bot else []
+    total_members = sum((guild.member_count or 0) for guild in guilds)
     commands_count = 0
     if bot:
         try:
@@ -89,16 +93,19 @@ async def get_status():
         except Exception:
             commands_count = 0
     return {
-        "status": "online",
+        "status": "online" if bot and getattr(bot, "is_ready", lambda: False)() else "starting",
         "bot_id": str(bot.user.id) if bot and bot.user else None,
         "bot_name": bot.user.name if bot and bot.user else "Whiteout Survival Bot",
         "bot_avatar": str(bot.user.avatar.url) if bot and bot.user and bot.user.avatar else None,
         "guilds_count": len(guilds),
         "servers_count": len(guilds),
-        "members_count": sum((guild.member_count or 0) for guild in guilds),
+        "members_count": total_members,
+        "total_members": total_members,
         "commands_count": commands_count,
         "uptime_seconds": uptime_seconds,
-        "started_at": STARTED_AT.isoformat(),
+        "started_at": uptime_started_at.isoformat(),
+        "api_started_at": STARTED_AT.isoformat(),
+        "bot_ready_at": bot_ready_at.isoformat() if isinstance(bot_ready_at, datetime) else None,
         "latency_ms": round(bot.latency * 1000) if bot else None,
     }
 

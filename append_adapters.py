@@ -197,7 +197,8 @@ class AutoRedeemMembersAdapter:
                         'updated_at': now
                     },
                     '$setOnInsert': {'created_at': now}
-                },
+
+                                    },
                 upsert=True
             )
             return True

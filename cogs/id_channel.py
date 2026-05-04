@@ -9,7 +9,7 @@ import aiohttp
 import ssl
 
 from db.mongo_adapters import mongo_enabled, AllianceMembersAdapter, IDChannelsAdapter
-from admin_utils import get_level_mapping
+from admin_utils import get_level_mapping, format_furnace_level
 
 SECRET = "tB87#kPtkxqOS2"
 
@@ -135,14 +135,8 @@ class IDChannel(commands.Cog):
             return False
 
     def format_furnace_level(self, furnace_lv):
-        """Format furnace level to FC style if above 30"""
-        if not furnace_lv: return "Lv 0"
-        try:
-            lv = int(furnace_lv)
-            if lv >= 31: return f"FC {lv - 30}"
-            return f"Lv {lv}"
-        except:
-            return str(furnace_lv)
+        """Format furnace level display using shared utility"""
+        return format_furnace_level(furnace_lv)
 
     async def process_fid(self, message: discord.Message, fid: int, alliance_id: int):
         """Process a FID from an ID channel"""

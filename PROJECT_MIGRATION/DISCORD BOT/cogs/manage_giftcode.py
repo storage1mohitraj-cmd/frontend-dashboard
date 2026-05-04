@@ -557,29 +557,42 @@ class ManageGiftCode(commands.Cog):
     
     def format_furnace_level(self, furnace_lv):
         """Format furnace level display matching game logic"""
-        if not furnace_lv or furnace_lv <= 30:
-            return str(furnace_lv) if furnace_lv else "0"
+        if not furnace_lv:
+            return "0"
+        try:
+            lv = int(furnace_lv)
+        except (ValueError, TypeError):
+            return str(furnace_lv)
+            
+        if lv <= 30:
+            return str(lv)
         
-        # Level 31-34 = 30-1 to 30-4
-        if 31 <= furnace_lv <= 34:
-            level_in_tier = furnace_lv - 30
-            return f"30-{level_in_tier}"
+        # Specific requested mapping
+        if lv == 31: return "30-1"
+        if lv == 32: return "30-2"
+        if lv == 33: return "30-3"
+        if lv == 34: return "30-4"
+        if lv == 35: return "1"
+        if lv == 36: return "1-1"
+        if lv == 37: return "1-2"
+        if lv == 38: return "1-3"
+        if lv == 39: return "1-4"
+        if lv == 40: return "2"
+        if lv == 41: return "2-1"
+        if lv == 42: return "2-1"
+        if lv == 43: return "2-1"
+        if lv == 44: return "2-2"
+        if lv == 45: return "3"
         
-        # Level 35+ follows pattern:
-        # 35 = FC 1, 36-39 = FC 1-1 to FC 1-4
-        # 40 = FC 2, 41-44 = FC 2-1 to FC 2-4
-        # 45 = FC 3, 46-49 = FC 3-1 to FC 3-4
-        # etc.
-        adjusted_level = furnace_lv - 35  # 35 becomes 0, 36 becomes 1, etc.
-        tier = (adjusted_level // 5) + 1
-        level_in_tier = adjusted_level % 5
+        # Default pattern for 46+
+        relative = lv - 45
+        tier = (relative // 5) + 3
+        stage = relative % 5
         
-        if level_in_tier == 0:
-            # Base tier level (35, 40, 45, etc.)
-            return f"FC {tier}"
+        if stage == 0:
+            return str(tier)
         else:
-            # Sub-tier level (36-39, 41-44, etc.)
-            return f"FC {tier}-{level_in_tier}"
+            return f"{tier}-{stage}"
     
     async def _redeem_for_member(self, guild_id, fid, nickname, furnace_lv, giftcode):
         """

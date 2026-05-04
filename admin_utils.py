@@ -205,11 +205,13 @@ def format_furnace_level(furnace_lv):
     """
     Format furnace level display matching game logic.
     Fire Crystal levels start at level 31:
-    - Level 31-34: FC 1-1 to 1-4
-    - Level 35: FC 1
-    - Level 36-39: FC 2-1 to 2-4
-    - Level 40: FC 2
-    - etc.
+    - 31-34: 30-1 to 30-4
+    - 35: 1
+    - 36-39: 1-1 to 1-4
+    - 40: 2
+    - 41-43: 2-1
+    - 44: 2-2
+    - 45: 3
     """
     try:
         if furnace_lv is None:
@@ -220,21 +222,32 @@ def format_furnace_level(furnace_lv):
         if lv <= 30:
             return str(lv)
         
-        # Special mapping for Tier 1
-        if lv == 31: return "1"
-        if lv == 32: return "1-1"
-        if lv == 33: return "1-2"
-        if lv == 34: return "1-4"
+        # Specific requested mapping
+        if lv == 31: return "30-1"
+        if lv == 32: return "30-2"
+        if lv == 33: return "30-3"
+        if lv == 34: return "30-4"
+        if lv == 35: return "1"
+        if lv == 36: return "1-1"
+        if lv == 37: return "1-2"
+        if lv == 38: return "1-3"
+        if lv == 39: return "1-4"
+        if lv == 40: return "2"
+        if lv == 41: return "2-1"
+        if lv == 42: return "2-1"
+        if lv == 43: return "2-1"
+        if lv == 44: return "2-2"
+        if lv == 45: return "3"
         
-        # 5-level cycle for lvl 35 and above
-        # 35: 2, 36: 2-1, 37: 2-2, 38: 2-3, 39: 2-4, 40: 3
-        relative = lv - 35
-        tier = (relative // 5) + 2
+        # Default pattern for 46+ (FC 3-1, 3-2, etc.)
+        relative = lv - 45
+        tier = (relative // 5) + 3
         stage = relative % 5
         
         if stage == 0:
             return str(tier)
         return f"{tier}-{stage}"
+            
     except (ValueError, TypeError):
         return str(furnace_lv) if furnace_lv else "0"
 

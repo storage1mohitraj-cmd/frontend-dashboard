@@ -2,9 +2,12 @@
   const FLAKE_COUNT = 120;
   const MIN_SIZE = 1;
   const MAX_SIZE = 4;
-  const MIN_SPEED = 0.4;
-  const MAX_SPEED = 1.8;
+  // Slightly slower snowfall for a calmer look.
+  const MIN_SPEED = 0.2;
+  const MAX_SPEED = 1.0;
   const WIND_STRENGTH = 0.25;
+  const COLLISION_PUSH = 0.9;
+  const COLLISION_SCAN_MS = 650;
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -24,6 +27,8 @@
 
   let width = window.innerWidth;
   let height = window.innerHeight;
+  let obstacles = [];
+  let lastObstacleScan = 0;
 
   function rand(min, max) {
     return Math.random() * (max - min) + min;
@@ -47,6 +52,75 @@
     height = window.innerHeight;
     canvas.width = width;
     canvas.height = height;
+    scanObstacles();
+  }
+
+  function scanObstacles() {
+    // Approximate "text collision" by bouncing off major content blocks.
+    // Keeping this small avoids heavy DOM work each frame.
+    const selectors = [
+      "header",
+      ".site-header",
+      "main",
+      ".container",
+      ".hero-card",
+      ".login-container",
+      ".cta-card",
+      ".user-profile"
+    ];
+
+    const seen = new Set();
+    const nodes = [];
+    for (const selector of selectors) {
+      for (const el of document.querySelectorAll(selector)) {
+        if (!el || seen.has(el)) continue;
+        seen.add(el);
+        nodes.push(el);
+      }
+    }
+
+    obstacles = nodes
+      .map((el) => el.getBoundingClientRect())
+      .filter((r) => r.width > 40 && r.height > 40)
+      .map((r) => ({
+        left: r.left,
+        right: r.right,
+        top: r.top,
+        bottom: r.bottom
+      }));
+  }
+
+  function bounceOffObstacles(flake) {
+    // If a flake enters a content rectangle, push it out and invert drift.
+    for (let i = 0; i < obstacles.length; i += 1) {
+      const o = obstacles[i];
+      if (
+        flake.x >= o.left &&
+        flake.x <= o.right &&
+        flake.y >= o.top &&
+        flake.y <= o.bottom
+      ) {
+        const dLeft = Math.abs(flake.x - o.left);
+        const dRight = Math.abs(o.right - flake.x);
+        const dTop = Math.abs(flake.y - o.top);
+        const dBottom = Math.abs(o.bottom - flake.y);
+        const min = Math.min(dLeft, dRight, dTop, dBottom);
+
+        if (min === dTop) {
+          flake.y = o.top - flake.size - 0.5;
+        } else if (min === dBottom) {
+          flake.y = o.bottom + flake.size + 0.5;
+        } else if (min === dLeft) {
+          flake.x = o.left - flake.size - 0.5;
+        } else {
+          flake.x = o.right + flake.size + 0.5;
+        }
+
+        flake.drift = -flake.drift || rand(-WIND_STRENGTH, WIND_STRENGTH);
+        flake.y -= COLLISION_PUSH; // small "bounce" upward
+        return;
+      }
+    }
   }
 
   function populate() {
@@ -60,10 +134,27 @@
     ctx.clearRect(0, 0, width, height);
     ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
 
+    const now = performance.now();
+    if (now - lastObstacleScan > COLLISION_SCAN_MS) {
+      lastObstacleScan = now;
+      scanObstacles();
+    }
+
     for (let i = 0; i < flakes.length; i += 1) {
       const flake = flakes[i];
       flake.y += flake.speedY;
       flake.x += flake.drift + Math.sin((flake.y + flake.phase) * flake.wobble);
+
+      // Keep flakes within the viewport horizontally.
+      if (flake.x < -10) {
+        flake.x = -10;
+        flake.drift = Math.abs(flake.drift) || rand(0.02, WIND_STRENGTH);
+      } else if (flake.x > width + 10) {
+        flake.x = width + 10;
+        flake.drift = -Math.abs(flake.drift) || -rand(0.02, WIND_STRENGTH);
+      }
+
+      bounceOffObstacles(flake);
 
       if (flake.y > height + 10 || flake.x < -20 || flake.x > width + 20) {
         flakes[i] = createFlake(-10);

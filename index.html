@@ -4,152 +4,724 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Whiteout Survival Bot | Premium Discord Management</title>
+  <title>Whiteout Hub | Premium Discord Management</title>
   
   <!-- Modern Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@600;800&family=JetBrains+Mono&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="index.css">
+  <style>
+    :root {
+      --primary: #7b61ff;
+      --primary-hover: #6a4ff5;
+      --primary-glow: rgba(123, 97, 255, 0.5);
+      --bg-black: #050505;
+      --bg-card: rgba(255, 255, 255, 0.03);
+      --border-glass: rgba(255, 255, 255, 0.08);
+      --text-main: #ffffff;
+      --text-muted: #a1a1aa;
+      --font-main: 'Inter', sans-serif;
+      --font-heading: 'Outfit', sans-serif;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-main);
+      background-color: var(--bg-black);
+      color: var(--text-main);
+      line-height: 1.6;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Background Effects */
+    .bg-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .grid-bg {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 50px 50px;
+      mask-image: radial-gradient(ellipse 60% 50% at 50% 0%, black 40%, transparent 100%);
+    }
+
+    .glow-bg {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      height: 600px;
+      background: radial-gradient(circle at 50% 0%, rgba(123, 97, 255, 0.15), transparent 70%);
+      filter: blur(80px);
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 80px;
+      max-width: 1400px;
+      margin: 0 auto;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-text {
+      font-family: var(--font-heading);
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      background: linear-gradient(to bottom right, #fff, #a1a1aa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .logo-text span {
+      color: var(--primary);
+      -webkit-text-fill-color: var(--primary);
+    }
+
+    nav ul {
+      display: flex;
+      list-style: none;
+      gap: 32px;
+    }
+
+    nav ul li a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    nav ul li a:hover {
+      color: var(--text-main);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .btn-login {
+      padding: 10px 24px;
+      background: var(--primary);
+      border-radius: 100px;
+      color: white;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+      box-shadow: 0 4px 12px rgba(123, 97, 255, 0.2);
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(123, 97, 255, 0.4);
+    }
+
+    /* Hero Section */
+    .hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      max-width: 1200px;
+      margin: 100px auto;
+      padding: 0 40px;
+      gap: 60px;
+    }
+
+    .hero-content {
+      flex: 1.2;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      background: rgba(123, 97, 255, 0.1);
+      border: 1px solid rgba(123, 97, 255, 0.2);
+      border-radius: 100px;
+      color: var(--primary);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .hero-content h1 {
+      font-family: var(--font-heading);
+      font-size: 72px;
+      font-weight: 800;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      letter-spacing: -2px;
+    }
+
+    .hero-content h1 span.typed {
+      color: var(--primary);
+    }
+
+    .hero-content p {
+      font-size: 18px;
+      color: var(--text-muted);
+      margin-bottom: 40px;
+      max-width: 480px;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .btn-primary {
+      padding: 16px 40px;
+      background: var(--primary);
+      color: white;
+      text-decoration: none;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+
+    .btn-secondary {
+      padding: 16px 40px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-glass);
+      color: white;
+      text-decoration: none;
+      border-radius: 100px;
+      font-weight: 600;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    /* Visuals Side */
+    .hero-visual {
+      flex: 1;
+      position: relative;
+      height: 500px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .visual-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Card Styles */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-glass);
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .credit-card {
+      position: absolute;
+      width: 380px;
+      height: 240px;
+      left: 20px;
+      top: 100px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transform: perspective(1000px) rotateY(-15deg) rotateX(5deg);
+      z-index: 2;
+      transition: transform 0.5s;
+    }
+
+    .credit-card:hover {
+      transform: perspective(1000px) rotateY(0deg) rotateX(0deg);
+    }
+
+    .card-number {
+      font-family: var(--font-heading);
+      font-size: 24px;
+      letter-spacing: 4px;
+      color: #fff;
+      opacity: 0.9;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .card-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .card-value {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Floating Elements */
+    .float-tag {
+      position: absolute;
+      background: rgba(10, 10, 10, 0.8);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border-glass);
+      border-radius: 100px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 3;
+      animation: float 4s ease-in-out infinite;
+    }
+
+    .tag-1 { top: 40px; left: 0; }
+    .tag-2 { bottom: 60px; right: 0; animation-delay: -1s; }
+
+    .float-tag img {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+    }
+
+    .float-tag .info h4 { font-size: 12px; }
+    .float-tag .info p { font-size: 10px; color: var(--primary); }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    /* Features Section */
+    .section {
+      padding: 100px 40px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .section-header h2 {
+      font-family: var(--font-heading);
+      font-size: 48px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 18px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .feature-card {
+      padding: 40px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-glass);
+      border-radius: 24px;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: var(--primary);
+      transform: translateY(-5px);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(123, 97, 255, 0.1);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      color: var(--primary);
+    }
+
+    .feature-card h3 {
+      font-family: var(--font-heading);
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* Command Log / Feed */
+    .command-feed {
+      background: #000;
+      border-radius: 16px;
+      border: 1px solid var(--border-glass);
+      padding: 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      height: 300px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .feed-title {
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .log-entry {
+      margin-bottom: 8px;
+      opacity: 0;
+      transform: translateY(10px);
+      animation: slideUp 0.5s forwards;
+    }
+
+    @keyframes slideUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .log-time { color: var(--text-muted); margin-right: 12px; }
+    .log-cmd { color: var(--primary); }
+    .log-status { color: #10b981; margin-left: 8px; }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .hero { flex-direction: column; text-align: center; }
+      .hero-content { margin-bottom: 60px; }
+      .hero-content p { margin: 0 auto 40px; }
+      .hero-actions { justify-content: center; }
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+      header { padding: 24px 40px; }
+    }
+
+    @media (max-width: 768px) {
+      .hero-content h1 { font-size: 48px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .credit-card { width: 300px; height: 190px; }
+    }
+  </style>
 </head>
 
 <body>
-  <!-- Background Lines -->
-  <div class="bg-lines">
-    <svg viewBox="0 0 1400 800" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M-100 200C200 100 600 600 1500 300" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M-100 400C400 200 800 800 1500 500" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M-100 600C300 400 900 900 1500 700" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M400 -100C200 200 800 600 600 1200" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-      <path d="M800 -100C600 300 1200 700 1000 1200" stroke="rgba(123, 97, 255, 0.1)" stroke-width="1"/>
-    </svg>
+  <!-- Background Layers -->
+  <div class="bg-container">
+    <div class="grid-bg"></div>
+    <div class="glow-bg"></div>
   </div>
 
   <header>
     <div class="logo-area">
-      <div class="logo-text">WOS<span style="color: var(--primary)">$</span></div>
-      <div class="email-info">support@wosbot.io</div>
+      <div class="logo-text">WOS<span>$</span></div>
+      <div style="font-size: 12px; color: var(--text-muted); border-left: 1px solid var(--border-glass); padding-left: 12px; margin-left: 12px;">Whiteout Hub v2.4</div>
     </div>
     
     <nav>
       <ul>
         <li><a href="#features">Features</a></li>
-        <li><a href="#alliance">Alliance</a></li>
+        <li><a href="#operations">Operations</a></li>
         <li><a href="#statistics">Statistics</a></li>
       </ul>
     </nav>
     
     <div class="header-right">
-      <a href="#" class="support-link">Customer Support</a>
-      <a href="login.html" class="btn-outline">Get Started</a>
+      <a href="login.html" class="btn-login">Get Started</a>
     </div>
   </header>
 
-  <main class="hero">
-    <div class="hero-content">
-      <h1>Elevate Your<br>Alliance Game.</h1>
-      <p>The ultimate management suite for Whiteout Survival servers. Automate gift codes, track statistics, and lead your alliance to victory.</p>
-      
-      <div class="hero-actions">
-        <a href="login.html" class="btn-primary">Get Started</a>
-        <a href="#" class="link-demo">Watch a Demo</a>
-      </div>
-    </div>
-
-    <div class="hero-visual">
-      <!-- Profile Tag -->
-      <div class="profile-tag">
-        <img src="assets/avatar_male.png" alt="User">
-        <div class="profile-info">
-          <h4>Arthur Morgan</h4>
-          <span><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Request for Stats</span>
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <div class="badge">Trusted by 500+ Alliances</div>
+        <h1>Run your Alliance smarter with <br><span class="typed" id="typed-text"></span></h1>
+        <p>The ultimate management suite for Whiteout Survival. Automate gift codes, track statistics, and lead your alliance to victory with AI-powered tools.</p>
+        
+        <div class="hero-actions">
+          <a href="login.html" class="btn-primary">Add to Discord</a>
+          <a href="#" class="btn-secondary" onclick="scrollToId('features')">Explore Features</a>
         </div>
       </div>
 
-      <!-- Credit Card (Stats Card) -->
-      <div class="credit-card">
-        <div class="card-top">
-          <span>Alliance Premium Card</span>
-          <span>WOS Bot</span>
-        </div>
-        <div class="card-number">
-          7742 9020 4521 1454
-        </div>
-        <div class="card-bottom">
-          <div class="card-holder">
-            <h5>Alliance Lead</h5>
-            <p>John Marston</p>
+      <div class="hero-visual">
+        <div class="visual-container">
+          <!-- Profile Tags -->
+          <div class="float-tag tag-1">
+            <img src="https://ui-avatars.com/api/?name=Arthur+Morgan&background=7b61ff&color=fff" alt="User">
+            <div class="info">
+              <h4>Arthur Morgan</h4>
+              <p>Requesting Stats...</p>
+            </div>
           </div>
-          <div class="card-holder" style="text-align: right;">
-            <h5>Exp Date</h5>
-            <p>08 / 26</p>
+
+          <!-- Alliance Card -->
+          <div class="glass-card credit-card">
+            <div class="card-header" style="display: flex; justify-content: space-between;">
+              <span class="card-label">Premium Membership</span>
+              <span style="color: var(--primary); font-weight: 800;">WOS$</span>
+            </div>
+            <div class="card-number" id="card-num-anim">7742 9020 4521 1454</div>
+            <div class="card-footer">
+              <div class="card-item">
+                <div class="card-label">Alliance Lead</div>
+                <div class="card-value">John Marston</div>
+              </div>
+              <div class="card-item" style="text-align: right;">
+                <div class="card-label">Exp Date</div>
+                <div class="card-value">08 / 26</div>
+              </div>
+            </div>
           </div>
-          <div class="card-logo">
-            <div class="logo-circle orange"></div>
-            <div class="logo-circle yellow"></div>
+
+          <div class="float-tag tag-2">
+            <img src="https://ui-avatars.com/api/?name=Sadie+Adler&background=7b61ff&color=fff" alt="User">
+            <div class="info">
+              <h4>Sadie Adler</h4>
+              <p>Redeemed Code!</p>
+            </div>
           </div>
         </div>
       </div>
+    </section>
 
-      <!-- Mini Card (Gift Code Card) -->
-      <div class="mini-card">
-        <img src="assets/avatar_smiley.png" alt="Happy">
-        <h5>Auto Redeem</h5>
-        <p>Get Gift Codes Instantly Now!</p>
+    <!-- Statistics Section -->
+    <section id="statistics" class="section">
+      <div class="section-header">
+        <div class="badge">Global Reach</div>
+        <h2>Battle-tested scale.</h2>
+        <p>Numbers don't lie. We provide the infrastructure for the most competitive alliances in Whiteout Survival.</p>
       </div>
 
-      <!-- Notification (Bot Update) -->
-      <div class="notif-bar">
-        <img src="assets/avatar_female.png" alt="Notification">
-        <div class="notif-content">
-          <h5>Update Sent to Discord</h5>
-          <span><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg> Sync Success</span>
+      <div class="feature-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+        <div class="feature-card" style="text-align: center;">
+          <h3 style="font-size: 40px; color: var(--primary);" id="stat-alliances">0</h3>
+          <p>Active Alliances</p>
+        </div>
+        <div class="feature-card" style="text-align: center;">
+          <h3 style="font-size: 40px; color: var(--primary);" id="stat-codes">0</h3>
+          <p>Codes Redeemed</p>
+        </div>
+        <div class="feature-card" style="text-align: center;">
+          <h3 style="font-size: 40px; color: var(--primary);" id="stat-translations">0</h3>
+          <p>Daily Translations</p>
+        </div>
+        <div class="feature-card" style="text-align: center;">
+          <h3 style="font-size: 40px; color: var(--primary);" id="stat-uptime">99.9</h3>
+          <p>% Uptime</p>
         </div>
       </div>
-    </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="section">
+      <div class="section-header">
+        <div class="badge">Features</div>
+        <h2>Everything your alliance needs.</h2>
+        <p>A comprehensive suite of tools designed specifically for Whiteout Survival leadership.</p>
+      </div>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <h3>Gift Code Automation</h3>
+          <p>Instantly redeem codes for all members automatically. No more manual entry or missed rewards.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7"/><path d="M16 19h6"/><path d="M19 16v6"/><path d="M15 10h.01"/><path d="M11 10h.01"/><path d="M7 10h.01"/></svg>
+          </div>
+          <h3>Alliance Monitoring</h3>
+          <p>Track member activity, furnace levels, and power growth with real-time dashboards and logs.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l6 6 6-6"/><path d="M2 12h20"/><path d="M12 2v20"/></svg>
+          </div>
+          <h3>Translation Bridge</h3>
+          <p>Break language barriers with DeepL integration. Auto-translate alliance chats in real-time.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Operations Section -->
+    <section id="operations" class="section">
+      <div class="section-header">
+        <div class="badge">Operations</div>
+        <h2>Automate the busywork.</h2>
+        <p>Keep leadership focused on strategy while the bot handles the routine tasks and coordination.</p>
+      </div>
+
+      <div class="command-log-container" style="max-width: 800px; margin: 0 auto;">
+        <div class="command-feed" id="command-feed">
+          <div class="feed-title">
+            <span>Live Action Log</span>
+            <span>v2.4.0-stable</span>
+          </div>
+          <!-- Logs will be injected here -->
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="section" style="text-align: center; background: radial-gradient(circle at 50% 50%, rgba(123, 97, 255, 0.05), transparent);">
+      <div class="badge">Ready to Scale?</div>
+      <h2 style="font-size: 56px; margin-bottom: 32px;">Power up your alliance today.</h2>
+      <div class="hero-actions" style="justify-content: center;">
+        <a href="login.html" class="btn-primary" style="padding: 20px 60px; font-size: 18px;">Get Started for Free</a>
+      </div>
+    </section>
   </main>
 
-  <section class="partners">
-    <h3>Our Partners</h3>
-    <div class="partner-grid">
-      <div class="partner-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-        WARREN
-      </div>
-      <div class="partner-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-        SPARK
-      </div>
-      <div class="partner-logo">
-        <div style="width: 24px; height: 24px; border: 2px solid currentColor; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;">E/C</div>
-        EVELYN CHAMBERS
-      </div>
-      <div class="partner-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>
-        ORLEY ENTERPRISES
-      </div>
-      <div class="partner-logo">
-        EVA & AILEEN
-      </div>
-      <div class="partner-logo">
-        <div style="display: flex; gap: 2px;">
-          <div style="width: 12px; height: 12px; background: currentColor; border-radius: 50%;"></div>
-          <div style="width: 12px; height: 12px; border: 2px solid currentColor; border-radius: 50%;"></div>
-        </div>
-        MOMOKA
-      </div>
-    </div>
-  </section>
-
   <footer style="padding: 60px 40px; text-align: center; color: var(--text-muted); font-size: 14px; border-top: 1px solid var(--border-glass);">
-    Whiteout Survival Bot © 2026 • Premium Management Infrastructure
+    Whiteout Hub © 2026 • Premium Management Infrastructure
   </footer>
 
   <script>
+    // Redirect if logged in
     if (localStorage.getItem('discord_access_token')) {
       window.location.href = 'dashboard.html';
     }
+
+    function scrollToId(id) {
+      document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Typing Effect
+    const phrases = ["Gift Codes.", "Alliance Tracking.", "Live Translation.", "Event Reminders.", "Leaderboards."];
+    let i = 0, j = 0;
+    let isDeleting = false;
+    const typedTextElement = document.getElementById("typed-text");
+
+    function type() {
+      const currentPhrase = phrases[i];
+      typedTextElement.textContent = currentPhrase.substring(0, isDeleting ? j-- : j++);
+      
+      if (!isDeleting && j > currentPhrase.length) {
+        isDeleting = true;
+        setTimeout(type, 2000);
+      } else if (isDeleting && j < 0) {
+        isDeleting = false;
+        i = (i + 1) % phrases.length;
+        j = 0;
+        setTimeout(type, 500);
+      } else {
+        setTimeout(type, isDeleting ? 50 : 100);
+      }
+    }
+
+    // Stats Counter
+    function animateValue(obj, start, end, duration) {
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString();
+        if (progress < 1) window.requestAnimationFrame(step);
+      };
+      window.requestAnimationFrame(step);
+    }
+
+    // Command Feed Animation
+    const feed = document.getElementById("command-feed");
+    const commands = [
+      { t: "14:22:01", c: "/giftcode redeem", s: "SUCCESS" },
+      { t: "14:22:05", c: "/stats member:@John", s: "SYNCED" },
+      { t: "14:22:12", c: "/translate mode:auto", s: "ACTIVE" },
+      { t: "14:22:18", c: "/alliance monitor", s: "TRACKING" },
+      { t: "14:22:25", c: "/reminder bear_trap", s: "SCHEDULED" },
+      { t: "14:22:30", c: "/giftcode status", s: "DONE" }
+    ];
+    let cmdIdx = 0;
+
+    function addLog() {
+      const cmd = commands[cmdIdx];
+      const entry = document.createElement("div");
+      entry.className = "log-entry";
+      entry.innerHTML = `<span class="log-time">[${cmd.t}]</span> <span class="log-cmd">${cmd.c}</span> <span class="log-status">${cmd.s}</span>`;
+      feed.appendChild(entry);
+      if (feed.children.length > 10) feed.removeChild(feed.children[1]);
+      cmdIdx = (cmdIdx + 1) % commands.length;
+      setTimeout(addLog, 2000 + Math.random() * 3000);
+    }
+
+    // Start everything
+    window.onload = () => {
+      type();
+      addLog();
+      
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            animateValue(document.getElementById("stat-alliances"), 0, 524, 2000);
+            animateValue(document.getElementById("stat-codes"), 0, 125402, 2000);
+            animateValue(document.getElementById("stat-translations"), 0, 42100, 2000);
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.5 });
+      
+      observer.observe(document.getElementById("statistics"));
+    };
   </script>
 </body>
 

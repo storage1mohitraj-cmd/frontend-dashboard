@@ -15,6 +15,7 @@ except ImportError:
     mongo_enabled = lambda: False
 
 logger = logging.getLogger(__name__)
+STARTED_AT = datetime.utcnow()
 
 app = FastAPI(
     title="Whiteout Survival Bot API",
@@ -78,12 +79,27 @@ async def health_check():
 @app.get("/status")
 async def get_status():
     bot = getattr(app.state, "bot", None)
+    now = datetime.utcnow()
+    uptime_seconds = int((now - STARTED_AT).total_seconds())
+    guilds = list(bot.guilds) if bot else []
+    commands_count = 0
+    if bot:
+        try:
+            commands_count = len(bot.tree.get_commands())
+        except Exception:
+            commands_count = 0
     return {
         "status": "online",
         "bot_id": str(bot.user.id) if bot and bot.user else None,
         "bot_name": bot.user.name if bot and bot.user else "Whiteout Survival Bot",
         "bot_avatar": str(bot.user.avatar.url) if bot and bot.user and bot.user.avatar else None,
-        "guilds_count": len(bot.guilds) if bot else 0
+        "guilds_count": len(guilds),
+        "servers_count": len(guilds),
+        "members_count": sum((guild.member_count or 0) for guild in guilds),
+        "commands_count": commands_count,
+        "uptime_seconds": uptime_seconds,
+        "started_at": STARTED_AT.isoformat(),
+        "latency_ms": round(bot.latency * 1000) if bot else None,
     }
 
 @app.get("/api/debug/env")

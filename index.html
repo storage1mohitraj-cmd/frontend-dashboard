@@ -16,8 +16,45 @@
     .feature-card,
     .stats-grid article,
     .log-rows div,
-    .cta-card {
+    .cta-card,
+    .showcase-card {
       will-change: transform;
+    }
+
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1rem;
+    }
+
+    .showcase-card {
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 0.75rem;
+      background: rgba(17, 16, 20, 0.62);
+      padding: 0.9rem;
+      transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+    }
+
+    .showcase-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(154, 99, 240, 0.58);
+      box-shadow: 0 24px 38px -32px rgba(154, 99, 240, 0.84);
+    }
+
+    .showcase-card img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 0.55rem;
+    }
+
+    .showcase-card p {
+      margin: 0.72rem 0 0;
+      color: #f0ebff;
+      font-family: var(--font-display);
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
     }
 
     .hero-copy {
@@ -49,6 +86,10 @@
         align-items: flex-start;
         gap: 0.65rem;
       }
+
+      .showcase-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
     }
 
     @media (max-width: 640px) {
@@ -62,6 +103,10 @@
 
       .stats-grid article strong {
         font-size: 1.55rem;
+      }
+
+      .showcase-grid {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -80,6 +125,7 @@
       <nav class="primary-nav" aria-label="Primary navigation">
         <a href="features.html">Features</a>
         <a href="commands.html">Commands</a>
+        <a href="#showcase">Showcase</a>
       </nav>
 
       <div class="header-actions">
@@ -155,6 +201,37 @@
             <div><span>04</span>Cache synced from remote source</div>
           </div>
         </div>
+      </div>
+    </section>
+
+    <section class="section container" id="showcase">
+      <div class="section-heading split">
+        <div>
+          <p>Showcase</p>
+          <h2>Live snapshots from core bot workflows.</h2>
+        </div>
+      </div>
+      <div class="showcase-grid">
+        <article class="showcase-card">
+          <img src="assets/showcase-avatar-change.png" alt="Avatar change detected notification screenshot">
+          <p>Avatar Alerts</p>
+        </article>
+        <article class="showcase-card">
+          <img src="assets/showcase-name-change.png" alt="Name change detected notification screenshot">
+          <p>Name Tracking</p>
+        </article>
+        <article class="showcase-card">
+          <img src="assets/showcase-furnace-up.png" alt="Furnace level up notification screenshot">
+          <p>Level Up</p>
+        </article>
+        <article class="showcase-card">
+          <img src="assets/showcase-auto-redeem.png" alt="Auto-redeem complete notification screenshot">
+          <p>Auto Redeem</p>
+        </article>
+        <article class="showcase-card">
+          <img src="assets/showcase-gift-alert.png" alt="New whiteout survival gift code notification screenshot">
+          <p>Gift Codes</p>
+        </article>
       </div>
     </section>
 

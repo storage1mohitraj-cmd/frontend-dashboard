@@ -19,7 +19,7 @@
       --text: #ffffff;
       --text-muted: #888888;
       --card-bg: rgba(255, 255, 255, 0.03);
-      --border: rgba(255, 255, 255, 0.1);
+      --border: rgba(255, 255, 255, 0.08);
       --font-main: 'Inter', sans-serif;
     }
 
@@ -27,6 +27,7 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      scroll-behavior: smooth;
     }
 
     body {
@@ -38,13 +39,13 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* Grid Background */
+    /* Background Effects */
     .grid-overlay {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: 600px;
+      height: 1000px;
       background-image: 
         linear-gradient(to right, rgba(156, 131, 255, 0.05) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(156, 131, 255, 0.05) 1px, transparent 1px);
@@ -59,10 +60,10 @@
       top: -200px;
       left: 50%;
       transform: translateX(-50%);
-      width: 800px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(156, 131, 255, 0.08) 0%, transparent 70%);
-      filter: blur(100px);
+      width: 1000px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(156, 131, 255, 0.1) 0%, transparent 70%);
+      filter: blur(120px);
       z-index: 0;
       pointer-events: none;
     }
@@ -73,8 +74,12 @@
       justify-content: space-between;
       align-items: center;
       padding: 24px 120px;
-      position: relative;
-      z-index: 10;
+      position: sticky;
+      top: 0;
+      background: rgba(3, 3, 3, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
     }
 
     .logo {
@@ -92,15 +97,15 @@
       width: 32px;
       height: 32px;
       background: var(--primary);
-      border-radius: 6px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
     .logo-icon svg {
-      width: 18px;
-      height: 18px;
+      width: 20px;
+      height: 20px;
       color: #000;
     }
 
@@ -131,7 +136,7 @@
     .header-actions {
       display: flex;
       align-items: center;
-      gap: 32px;
+      gap: 24px;
     }
 
     .btn-dashboard {
@@ -154,25 +159,33 @@
       text-decoration: none;
       font-weight: 700;
       font-size: 14px;
-      transition: transform 0.2s;
+      transition: all 0.2s;
     }
 
     .btn-add:hover {
-      transform: translateY(-2px);
+      background: var(--primary-dark);
+      transform: translateY(-1px);
     }
 
-    /* Main Content */
-    main {
-      padding: 100px 120px;
+    /* Main Container */
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 40px;
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 120px 0;
+      text-align: left;
       position: relative;
-      z-index: 1;
     }
 
     .badge {
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      padding: 6px 14px;
+      padding: 8px 16px;
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid var(--border);
       border-radius: 100px;
@@ -183,18 +196,25 @@
     }
 
     .dot {
-      width: 6px;
-      height: 6px;
+      width: 8px;
+      height: 8px;
       background: var(--primary);
       border-radius: 50%;
-      box-shadow: 0 0 8px var(--primary);
+      box-shadow: 0 0 10px var(--primary);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.5); opacity: 0.5; }
+      100% { transform: scale(1); opacity: 1; }
     }
 
     h1 {
       font-size: 84px;
       font-weight: 800;
       letter-spacing: -4px;
-      line-height: 1.1;
+      line-height: 1.05;
       margin-bottom: 32px;
     }
 
@@ -204,53 +224,57 @@
     }
 
     .description {
-      font-size: 18px;
+      font-size: 19px;
       color: var(--text-muted);
-      max-width: 600px;
-      margin-bottom: 48px;
+      max-width: 680px;
+      margin-bottom: 56px;
       line-height: 1.6;
     }
 
-    .actions {
+    .hero-actions {
       display: flex;
       gap: 16px;
-      margin-bottom: 80px;
+      margin-bottom: 100px;
     }
 
-    .btn-primary {
+    .btn-hero-primary {
       background: var(--primary);
       color: #000;
-      padding: 16px 32px;
-      border-radius: 10px;
+      padding: 18px 36px;
+      border-radius: 12px;
       text-decoration: none;
       font-weight: 800;
-      font-size: 16px;
+      font-size: 17px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      transition: transform 0.2s;
+      gap: 10px;
+      transition: all 0.2s;
     }
 
-    .btn-secondary {
+    .btn-hero-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+
+    .btn-hero-secondary {
       background: rgba(255, 255, 255, 0.02);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 16px 32px;
-      border-radius: 10px;
+      padding: 18px 36px;
+      border-radius: 12px;
       text-decoration: none;
       font-weight: 600;
-      font-size: 16px;
+      font-size: 17px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       transition: background 0.2s;
     }
 
-    .btn-secondary:hover {
+    .btn-hero-secondary:hover {
       background: rgba(255, 255, 255, 0.05);
     }
 
-    /* Stats Grid */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -261,46 +285,285 @@
     .stat-card {
       background: rgba(255, 255, 255, 0.01);
       border: 1px solid var(--border);
-      padding: 32px;
-      border-radius: 16px;
+      padding: 36px;
+      border-radius: 20px;
+      transition: border-color 0.3s;
+    }
+
+    .stat-card:hover {
+      border-color: rgba(156, 131, 255, 0.3);
     }
 
     .stat-num {
-      font-size: 40px;
+      font-size: 48px;
       font-weight: 800;
       margin-bottom: 8px;
-      letter-spacing: -1px;
+      letter-spacing: -2px;
     }
 
     .stat-label {
       color: var(--text-muted);
-      font-size: 14px;
+      font-size: 15px;
       font-weight: 500;
     }
 
-    /* Animations */
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0; }
+    /* Section Styles */
+    section.full-width {
+      padding: 120px 0;
+      border-top: 1px solid var(--border);
     }
 
+    .section-header {
+      margin-bottom: 80px;
+      max-width: 800px;
+    }
+
+    .section-header h2 {
+      font-size: 48px;
+      font-weight: 800;
+      letter-spacing: -2px;
+      margin-bottom: 24px;
+    }
+
+    .section-header p {
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      padding: 40px;
+      border-radius: 24px;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      background: rgba(156, 131, 255, 0.03);
+      border-color: rgba(156, 131, 255, 0.2);
+      transform: translateY(-5px);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(156, 131, 255, 0.1);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      color: var(--primary);
+    }
+
+    .feature-card h3 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .feature-card p {
+      font-size: 15px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Operations Section */
+    .operations-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 32px;
+    }
+
+    .op-block {
+      background: rgba(255, 255, 255, 0.015);
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      padding: 48px;
+    }
+
+    .op-block h3 {
+      font-size: 28px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+
+    .op-block .op-desc {
+      color: var(--text-muted);
+      font-size: 16px;
+      margin-bottom: 32px;
+    }
+
+    .capabilities-list {
+      list-style: none;
+    }
+
+    .capabilities-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      font-size: 15px;
+      color: #ddd;
+    }
+
+    .capabilities-list li svg {
+      color: var(--primary);
+    }
+
+    /* Commands Section */
+    .commands-container {
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid var(--border);
+      border-radius: 32px;
+      padding: 48px;
+    }
+
+    .command-category {
+      margin-bottom: 48px;
+    }
+
+    .command-category:last-child {
+      margin-bottom: 0;
+    }
+
+    .command-category h4 {
+      font-size: 14px;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 24px;
+      font-weight: 700;
+    }
+
+    .command-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .command-tag {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #fff;
+      transition: all 0.2s;
+    }
+
+    .command-tag:hover {
+      border-color: var(--primary);
+      background: rgba(156, 131, 255, 0.1);
+    }
+
+    /* CTA Section */
+    .cta-box {
+      background: linear-gradient(135deg, rgba(156, 131, 255, 0.1) 0%, rgba(3, 3, 3, 1) 100%);
+      border: 1px solid var(--border);
+      border-radius: 40px;
+      padding: 100px 60px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-box h2 {
+      font-size: 64px;
+      font-weight: 800;
+      letter-spacing: -3px;
+      margin-bottom: 24px;
+    }
+
+    /* Footer */
+    footer {
+      padding: 100px 0 60px;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 80px;
+    }
+
+    .footer-brand {
+      max-width: 300px;
+    }
+
+    .footer-brand p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 16px;
+    }
+
+    .footer-links-group {
+      display: flex;
+      gap: 80px;
+    }
+
+    .footer-col h5 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      color: #fff;
+    }
+
+    .footer-col ul {
+      list-style: none;
+    }
+
+    .footer-col ul li {
+      margin-bottom: 12px;
+    }
+
+    .footer-col ul li a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      transition: color 0.2s;
+    }
+
+    .footer-col ul li a:hover {
+      color: var(--primary);
+    }
+
+    .footer-bottom {
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Typography Utilities */
     .cursor {
       display: inline-block;
-      width: 2px;
+      width: 3px;
       height: 0.8em;
       background: var(--primary);
-      margin-left: 4px;
+      margin-left: 6px;
       animation: blink 0.8s infinite;
       vertical-align: middle;
     }
 
-    /* Responsive */
-    @media (max-width: 1024px) {
-      header { padding: 24px 40px; }
-      main { padding: 80px 40px; }
-      h1 { font-size: 64px; }
-      .stats-grid { grid-template-columns: 1fr; }
-    }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+    /* Icons Shorthand */
+    .icon-box svg { width: 24px; height: 24px; }
   </style>
 </head>
 
@@ -331,47 +594,228 @@
     </div>
   </header>
 
-  <main>
-    <div class="badge">
-      <div class="dot"></div>
-      Built for serious Whiteout Survival alliances
-    </div>
-
-    <h1>Run your Alliance smarter<br>with <span class="typed-wrapper" id="typed-text"></span><span class="cursor"></span></h1>
-
-    <p class="description">
-      Alliance monitoring, gift code automation, DeepL translation, AI voice tools, reminders, games, and admin workflows in one professional Discord bot.
-    </p>
-
-    <div class="actions">
-      <a href="login.html" class="btn-primary">Add to Discord <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
-      <a href="#commands" class="btn-secondary">View commands <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 7l5 5-5 5M13 7l5 5-5 5"/></svg></a>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-num">40+</div>
-        <div class="stat-label">slash commands</div>
+  <main class="container">
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="badge">
+        <div class="dot"></div>
+        Built for serious Whiteout Survival alliances
       </div>
-      <div class="stat-card">
-        <div class="stat-num">5</div>
-        <div class="stat-label">translation controls</div>
+
+      <h1>Run your Alliance smarter<br>with <span class="typed-wrapper" id="typed-text"></span><span class="cursor"></span></h1>
+
+      <p class="description">
+        Alliance monitoring, gift code automation, DeepL translation, AI voice tools, reminders, games, and admin workflows in one professional Discord bot.
+      </p>
+
+      <div class="hero-actions">
+        <a href="login.html" class="btn-hero-primary">Add to Discord <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></a>
+        <a href="#commands" class="btn-hero-secondary">View commands <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 7l5 5-5 5M13 7l5 5-5 5"/></svg></a>
       </div>
-      <div class="stat-card">
-        <div class="stat-num">24/7</div>
-        <div class="stat-label">alliance utilities</div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-num">40+</div>
+          <div class="stat-label">slash commands</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">5</div>
+          <div class="stat-label">translation controls</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-num">24/7</div>
+          <div class="stat-label">alliance utilities</div>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="full-width">
+      <div class="section-header">
+        <h2>Everything your alliance needs in Discord.</h2>
+        <p>A professional suite of tools designed to streamline management, enhance communication, and drive growth.</p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h7"/><path d="M16 19h6"/><path d="M19 16v6"/></svg></div>
+          <h3>Alliance monitoring</h3>
+          <p>Track furnace changes, activity trends, and alliance growth signals before they become problems.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+          <h3>Auto gift codes</h3>
+          <p>Find, announce, and redeem active gift codes with server-level settings for your alliance.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></div>
+          <h3>Premium music</h3>
+          <p>Queue voice-channel music with clean playback controls, now playing status, and server-friendly commands.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg></div>
+          <h3>DeepL translation</h3>
+          <p>Create real-time channel translation bridges so multilingual alliances stay aligned.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+          <h3>AI chat ֎</h3>
+          <p>Ask Molly for game help, server support, web research, or general answers inside Discord.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></div>
+          <h3>Smart reminders</h3>
+          <p>Set reminders, manage time zones, and review active reminders from an interactive dashboard.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Operations Section -->
+    <section id="operations" class="full-width">
+      <div class="section-header">
+        <h2>Automate the busywork between events.</h2>
+        <p>Keep leadership focused on timing, growth, and coordination while the bot handles the recurring manual tasks.</p>
+      </div>
+
+      <div class="operations-grid">
+        <div class="op-block">
+          <h3>Monitoring</h3>
+          <p class="op-desc">Alliance activity without spreadsheet chaos.</p>
+          <ul class="capabilities-list">
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> 7-day furnace change tracking</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Player lookup (up to 30 IDs)</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Server age milestones</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Activity graph snapshots</li>
+          </ul>
+        </div>
+        <div class="op-block">
+          <h3>Automation</h3>
+          <p class="op-desc">Gift codes, reminders, and data refreshes.</p>
+          <ul class="capabilities-list">
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Gift code settings dashboard</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Remote cache synchronization</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Reminder dashboard</li>
+            <li><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg> Persistent view registration</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Commands Section -->
+    <section id="commands" class="full-width">
+      <div class="section-header">
+        <h2>Professional Slash Commands.</h2>
+        <p>A full set of commands categorized by function, designed for speed and clarity.</p>
+      </div>
+
+      <div class="commands-container">
+        <div class="command-category">
+          <h4>Alliance</h4>
+          <div class="command-list">
+            <span class="command-tag">/allianceactivity</span>
+            <span class="command-tag">/alliancemonitor</span>
+            <span class="command-tag">/editplayerinfo</span>
+            <span class="command-tag">/event</span>
+            <span class="command-tag">/ministerappointment</span>
+            <span class="command-tag">/mostactive</span>
+            <span class="command-tag">/playerinfo</span>
+            <span class="command-tag">/server_age</span>
+          </div>
+        </div>
+        <div class="command-category">
+          <h4>Translation</h4>
+          <div class="command-list">
+            <span class="command-tag">/autotranslatecreate</span>
+            <span class="command-tag">/autotranslatedelete</span>
+            <span class="command-tag">/autotranslateedit</span>
+            <span class="command-tag">/autotranslatelist</span>
+            <span class="command-tag">/autotranslatetoggle</span>
+          </div>
+        </div>
+        <div class="command-category">
+          <h4>AI & Voice</h4>
+          <div class="command-list">
+            <span class="command-tag">/ask</span>
+            <span class="command-tag">/imagine</span>
+            <span class="command-tag">/personalisechat</span>
+            <span class="command-tag">/tts</span>
+            <span class="command-tag">/voice_chat</span>
+            <span class="command-tag">/websearch</span>
+            <span class="command-tag">/end_voice_chat</span>
+          </div>
+        </div>
+        <div class="command-category">
+          <h4>Admin</h4>
+          <div class="command-list">
+            <span class="command-tag">/giftcode</span>
+            <span class="command-tag">/giftcodesettings</span>
+            <span class="command-tag">/refresh</span>
+            <span class="command-tag">/syncdata</span>
+            <span class="command-tag">/welcome</span>
+            <span class="command-tag">/manage</span>
+            <span class="command-tag">/settings</span>
+            <span class="command-tag">/register_view</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="full-width">
+      <div class="cta-box">
+        <h2>Ready to power up your alliance?</h2>
+        <p class="description" style="margin: 0 auto 40px;">Join 500+ top-tier alliances already using Whiteout Survival Hub to lead their states.</p>
+        <div class="hero-actions" style="justify-content: center;">
+          <a href="login.html" class="btn-hero-primary" style="padding: 24px 64px;">Add to Discord</a>
+        </div>
+      </div>
+    </section>
   </main>
 
-  <script>
-    // Redirect if logged in
-    if (localStorage.getItem('discord_access_token')) {
-      // window.location.href = 'dashboard.html';
-    }
+  <footer class="container">
+    <div class="footer-top">
+      <div class="footer-brand">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          Whiteout Survival
+        </div>
+        <p>A professional Discord bot frontend for alliance automation, translation, reminders, music, and AI tools.</p>
+      </div>
 
+      <div class="footer-links-group">
+        <div class="footer-col">
+          <h5>Platform</h5>
+          <ul>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#commands">Commands</a></li>
+            <li><a href="dashboard.html">Dashboard</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h5>Support</h5>
+          <ul>
+            <li><a href="#">Discord Server</a></li>
+            <li><a href="#">Documentation</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <p>Whiteout Survival Hub © 2026. All rights reserved.</p>
+      <div style="display: flex; gap: 24px;">
+        <a href="#" style="color: var(--text-muted); text-decoration: none;">Twitter</a>
+        <a href="#" style="color: var(--text-muted); text-decoration: none;">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
     // Typing Effect
-    const phrases = ["gift code automation", "alliance monitoring", "auto translation", "DeepL integration", "AI voice tools"];
+    const phrases = ["gift code automation", "alliance monitoring", "auto translation", "DeepL integration", "AI voice tools", "admin workflows"];
     let i = 0, j = 0, isDeleting = false;
     const typedTextElement = document.getElementById("typed-text");
 

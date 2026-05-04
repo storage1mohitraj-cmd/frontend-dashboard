@@ -72,6 +72,11 @@
     tick();
   }
 
+  const hasDiscordToken = Boolean(localStorage.getItem("discord_access_token"));
+  document.querySelectorAll("[data-dashboard-link]").forEach((link) => {
+    link.setAttribute("href", hasDiscordToken ? "dashboard.html" : "login.html");
+  });
+
   const liveStats = document.querySelectorAll("[data-live-stat]");
   if (liveStats.length) {
     const setStat = (key, value) => {

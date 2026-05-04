@@ -164,6 +164,10 @@
   </div>
 
   <script>
+    if (localStorage.getItem('discord_access_token')) {
+      window.location.href = 'dashboard.html';
+    }
+
     const DISCORD_CLIENT_ID = '1399025185046134866';
     
     // Dynamically calculate the redirect URI based on wherever the site is hosted!

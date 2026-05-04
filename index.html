@@ -22,23 +22,40 @@
     }
 
     .showcase-grid {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 1rem;
+      column-count: 3;
+      column-gap: 1rem;
     }
 
     .showcase-card {
+      display: inline-block;
+      width: 100%;
+      margin: 0 0 1rem;
+      position: relative;
       border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 0.75rem;
       background: rgba(17, 16, 20, 0.62);
-      padding: 0.9rem;
-      transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease;
+      padding: 0.8rem;
+      break-inside: avoid;
+      overflow: hidden;
+      transition: transform 0.28s ease, border-color 0.28s ease, box-shadow 0.28s ease, background 0.28s ease;
+    }
+
+    .showcase-card::before {
+      content: "";
+      position: absolute;
+      inset: -35% auto auto -25%;
+      width: 10rem;
+      height: 10rem;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(141, 232, 255, 0.18), transparent 70%);
+      pointer-events: none;
     }
 
     .showcase-card:hover {
       transform: translateY(-4px);
       border-color: rgba(154, 99, 240, 0.58);
       box-shadow: 0 24px 38px -32px rgba(154, 99, 240, 0.84);
+      background: rgba(24, 22, 31, 0.82);
     }
 
     .showcase-card img {
@@ -46,15 +63,21 @@
       height: auto;
       display: block;
       border-radius: 0.55rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .showcase-card p {
+      display: inline-flex;
       margin: 0.72rem 0 0;
-      color: #f0ebff;
+      border: 1px solid rgba(191, 170, 255, 0.42);
+      border-radius: 999px;
+      background: rgba(134, 94, 233, 0.16);
+      color: #f2ecff;
       font-family: var(--font-display);
-      font-size: 0.95rem;
+      font-size: 0.88rem;
       font-weight: 600;
-      letter-spacing: 0.01em;
+      letter-spacing: 0.015em;
+      padding: 0.35rem 0.7rem;
     }
 
     .hero-copy {
@@ -87,9 +110,7 @@
         gap: 0.65rem;
       }
 
-      .showcase-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-      }
+      .showcase-grid { column-count: 2; }
     }
 
     @media (max-width: 640px) {
@@ -105,9 +126,7 @@
         font-size: 1.55rem;
       }
 
-      .showcase-grid {
-        grid-template-columns: 1fr;
-      }
+      .showcase-grid { column-count: 1; }
     }
   </style>
 </head>
@@ -239,6 +258,14 @@
         <article class="showcase-card">
           <img src="assets/showcase-auto-translation.png" alt="Auto translation notification screenshot">
           <p>Auto Translation</p>
+        </article>
+        <article class="showcase-card">
+          <img src="assets/showcase-music-system.png" alt="Music system now playing screenshot">
+          <p>Music System</p>
+        </article>
+        <article class="showcase-card">
+          <img src="assets/showcase-state-age.png" alt="State age notification screenshot">
+          <p>State Age</p>
         </article>
       </div>
     </section>

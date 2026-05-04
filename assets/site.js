@@ -72,6 +72,45 @@
     tick();
   }
 
+  const liveStats = document.querySelectorAll("[data-live-stat]");
+  if (liveStats.length) {
+    const setStat = (key, value) => {
+      document.querySelectorAll(`[data-live-stat="${key}"]`).forEach((node) => {
+        node.textContent = value;
+      });
+    };
+    const compactNumber = (value) => {
+      const number = Number(value || 0);
+      if (number >= 1000000) return `${(number / 1000000).toFixed(number >= 10000000 ? 0 : 1)}M`;
+      if (number >= 1000) return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+      return String(number);
+    };
+    const formatUptime = (seconds) => {
+      const total = Number(seconds || 0);
+      const days = Math.floor(total / 86400);
+      const hours = Math.floor((total % 86400) / 3600);
+      const minutes = Math.floor((total % 3600) / 60);
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${Math.max(1, minutes)}m`;
+    };
+    fetch("/api/status", { headers: { Accept: "application/json" } })
+      .then((response) => {
+        if (!response.ok) throw new Error("Status unavailable");
+        return response.json();
+      })
+      .then((status) => {
+        setStat("servers", compactNumber(status.servers_count ?? status.guilds_count));
+        setStat("uptime", formatUptime(status.uptime_seconds));
+        setStat("members", compactNumber(status.members_count));
+      })
+      .catch(() => {
+        setStat("servers", "Live");
+        setStat("uptime", "Online");
+        setStat("members", "Soon");
+      });
+  }
+
   const commandList = document.querySelector("[data-command-list]");
   const categoryWrap = document.querySelector("[data-command-categories]");
   const search = document.querySelector("[data-command-search]");

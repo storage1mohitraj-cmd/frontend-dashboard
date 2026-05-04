@@ -56,17 +56,24 @@
   }
 
   function scanObstacles() {
-    // Approximate "text collision" by bouncing off major content blocks.
-    // Keeping this small avoids heavy DOM work each frame.
+    // Bounce only on text-bearing elements, not full containers/cards.
     const selectors = [
-      "header",
-      ".site-header",
-      "main",
-      ".container",
-      ".hero-card",
-      ".login-container",
-      ".cta-card",
-      ".user-profile"
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "p",
+      "span",
+      "a",
+      "li",
+      "button",
+      "label",
+      "strong",
+      "em",
+      "small",
+      "summary"
     ];
 
     const seen = new Set();
@@ -79,15 +86,17 @@
       }
     }
 
-    obstacles = nodes
-      .map((el) => el.getBoundingClientRect())
-      .filter((r) => r.width > 40 && r.height > 40)
-      .map((r) => ({
-        left: r.left,
-        right: r.right,
-        top: r.top,
-        bottom: r.bottom
-      }));
+    obstacles = nodes.flatMap((el) => {
+      const rects = Array.from(el.getClientRects());
+      return rects
+        .filter((r) => r.width > 8 && r.height > 8)
+        .map((r) => ({
+          left: r.left,
+          right: r.right,
+          top: r.top,
+          bottom: r.bottom
+        }));
+    });
   }
 
   function bounceOffObstacles(flake) {
@@ -144,15 +153,6 @@
       const flake = flakes[i];
       flake.y += flake.speedY;
       flake.x += flake.drift + Math.sin((flake.y + flake.phase) * flake.wobble);
-
-      // Keep flakes within the viewport horizontally.
-      if (flake.x < -10) {
-        flake.x = -10;
-        flake.drift = Math.abs(flake.drift) || rand(0.02, WIND_STRENGTH);
-      } else if (flake.x > width + 10) {
-        flake.x = width + 10;
-        flake.drift = -Math.abs(flake.drift) || -rand(0.02, WIND_STRENGTH);
-      }
 
       bounceOffObstacles(flake);
 

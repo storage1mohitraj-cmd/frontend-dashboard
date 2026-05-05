@@ -2062,6 +2062,7 @@ class ManageGiftCode(commands.Cog):
                         
                     try:
                         response_json = await response.json()
+                        self.logger.info(f"🔍 [API RESPONSE] Status: {response.status} | Result: {response_json}")
                         msg = response_json.get("msg", "Unknown Error").strip('.')
                         err_code = response_json.get("err_code")
                     except Exception as json_error:

@@ -1422,16 +1422,21 @@ class ManageGiftCode(commands.Cog):
                         # Already redeemed - this is a success condition (user already has reward)
                         self.logger.info(f"ℹ️ Already redeemed for {nickname}")
                         break
-                    elif status in ["INVALID_CODE", "EXPIRED", "CDK_NOT_FOUND", "USAGE_LIMIT", "TIME_ERROR"]:
-                        # Permanent failures - code itself is bad, not worth retrying
+                    elif status in ["INVALID_CODE", "EXPIRED", "USAGE_LIMIT", "TIME_ERROR"]:
+                        # Permanent code-level failures - code itself is bad, not worth retrying
                         if status == "TIME_ERROR":
                             self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - Code is EXPIRED")
                         else:
                             self.logger.warning(f"❌ Permanent failure for {nickname}: {status} - code is invalid/expired")
                         
-                        # PROACTIVE: Mark as invalid globally so other guilds don't waste time on it
-                        if status in ("INVALID_CODE", "EXPIRED", "CDK_NOT_FOUND", "TIME_ERROR"):
-                             asyncio.create_task(self.mark_code_invalid(giftcode))
+                        # Mark as invalid globally so other guilds don't waste time on it
+                        if status in ("INVALID_CODE", "EXPIRED", "TIME_ERROR"):
+                            asyncio.create_task(self.mark_code_invalid(giftcode))
+                        break
+                    elif status == "CDK_NOT_FOUND":
+                        # CDK_NOT_FOUND after all captcha retries exhausted — log it but do NOT
+                        # mark the code globally invalid (other members may still succeed)
+                        self.logger.warning(f"❌ CDK_NOT_FOUND for {nickname} after all retries — skipping this member")
                         break
                     elif "RECHARGE_MONEY_VIP" in status or "VIP" in status:
                         # VIP/Purchase requirement - this code requires the player to have VIP or made purchases
@@ -2090,12 +2095,17 @@ class ManageGiftCode(commands.Cog):
                 return "ALREADY_RECEIVED", image_bytes, captcha_code, method
             elif msg == "SAME TYPE EXCHANGE" and err_code == 40011:
                 return "SAME TYPE EXCHANGE", image_bytes, captcha_code, method
-            elif msg == "TIME ERROR":
-                # API sometimes returns 40007 (expired) or 40102 (captcha expired/invalid during window)
-                # In either case, if msg is TIME ERROR, it's a permanent failure/expired code
+            elif msg == "TIME ERROR" and err_code == 40007:
+                # err_code 40007 = true code expiry (permanent failure)
                 return "TIME_ERROR", image_bytes, captcha_code, method
             elif msg == "CDK NOT FOUND":
-                return "CDK_NOT_FOUND", image_bytes, captcha_code, method
+                # WOS API returns CDK NOT FOUND when captcha answer was wrong OR code is truly gone.
+                # Retry like a captcha error — if it persists across all attempts, then treat as failure.
+                self.logger.warning(f"CDK NOT FOUND for FID {player_id} on attempt {attempt + 1} — retrying (may be bad captcha)")
+                if attempt == max_ocr_attempts - 1:
+                    return "CDK_NOT_FOUND", image_bytes, captcha_code, method
+                await asyncio.sleep(random.uniform(1.5, 2.5))
+                continue
             elif msg == "USAGE LIMIT" and err_code == 40009:
                 return "USAGE_LIMIT", image_bytes, captcha_code, method
             else:

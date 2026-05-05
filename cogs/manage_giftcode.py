@@ -201,14 +201,14 @@ class ManageGiftCode(commands.Cog):
         
         # Initialize API session pool for concurrent processing
         self.session_pool = APISessionPool(
-            session_count=5,           # 5 independent API sessions for faster dual+ API system
-            base_delay=1.5,            # 1.5 seconds between requests per session
-            rate_limit_backoff=10.0,   # Initial backoff when rate limited (longer wait)
-            max_backoff=60.0           # Maximum backoff duration
+            session_count=3,           # 3 independent API sessions
+            base_delay=2.5,            # 2.5 seconds between requests per session
+            rate_limit_backoff=15.0,   # Initial backoff when rate limited
+            max_backoff=120.0          # Maximum backoff duration
         )
         
         # Concurrent processing configuration
-        self.concurrent_redemptions = 25  # Process 25 members simultaneously
+        self.concurrent_redemptions = 5  # 5 members at a time to avoid rate limits
         
         # Auto-redeem lock to prevent duplicate processing
         self._active_redemptions = set()  # Track active (guild_id, code) pairs
@@ -1321,11 +1321,11 @@ class ManageGiftCode(commands.Cog):
                             login_successful = True
                             self.logger.info(f"✅ Login successful for {nickname} (FID: {fid}, attempt {login_attempt})")
                             break
-                        elif msg == "NO_MSG" or not msg:
+                        elif msg in ("no_msg", "") or not msg:
                             # Empty response = Cloudflare is rate-limiting us
-                            # Use a long backoff to allow IP to cool down
-                            rate_limit_delay = min(30.0 * login_attempt, 120.0)
-                            self.logger.warning(f"🚫 Login rate-limited (NO_MSG) for {nickname} (FID: {fid}), attempt {login_attempt}/{MAX_LOGIN_RETRIES}. Backing off {rate_limit_delay:.0f}s...")
+                            # Use an aggressive, growing backoff to let the IP cool down
+                            rate_limit_delay = min(15.0 + (20.0 * login_attempt), 180.0)
+                            self.logger.warning(f"🚫 Login rate-limited (no_msg) for {nickname} (FID: {fid}), attempt {login_attempt}/{MAX_LOGIN_RETRIES}. Backing off {rate_limit_delay:.0f}s...")
                             if session_id is not None:
                                 await self.session_pool.mark_rate_limited(session_id)
                             await asyncio.sleep(rate_limit_delay)
@@ -1767,6 +1767,8 @@ class ManageGiftCode(commands.Cog):
             last_update_time = 0
             UPDATE_INTERVAL = 5.0 # Update Discord every 5 seconds max
             
+            retry_members = []  # Members that hit rate limits and need a second pass
+            
             async def process_member_with_semaphore(idx, fid, nickname, furnace_lv):
                 """Process a single member with semaphore control"""
                 nonlocal success_count, failed_count, already_redeemed_count, completed_count, code_is_invalid, last_update_time
@@ -1800,10 +1802,21 @@ class ManageGiftCode(commands.Cog):
                             success_count += success
                             already_redeemed_count += already_redeemed
                             if failed:
-                                failed_count += failed
-                                # Add status reason mapping
-                                reason_key = str(status) if status else "UNKNOWN"
-                                fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
+                                # Check if this is a retryable failure (rate limit / captcha)
+                                retryable = status in (
+                                    "LOGIN_FAILED", "CAPTCHA_FETCH_ERROR",
+                                    "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID",
+                                    "CAPTCHA_SOLVER_NOT_AVAILABLE", "RATE_LIMITED"
+                                )
+                                if retryable:
+                                    # Don't count as failed yet — add to second-pass queue
+                                    retry_members.append((fid, nickname, furnace_lv))
+                                    self.logger.info(f"🔁 Will retry {nickname} (FID: {fid}) in second pass — status: {status}")
+                                else:
+                                    failed_count += failed
+                                    # Add status reason mapping
+                                    reason_key = str(status) if status else "UNKNOWN"
+                                    fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
                             completed_count += 1
                     except Exception as member_err:
                         self.logger.error(f"❌ Error processing member {nickname} (FID: {fid}): {member_err}")
@@ -1862,6 +1875,46 @@ class ManageGiftCode(commands.Cog):
             
             # Process all members concurrently
             await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # ── SECOND PASS: Retry rate-limited members after cooldown ──
+            if retry_members and not code_is_invalid:
+                retry_count = len(retry_members)
+                self.logger.info(f"🔄 Starting second pass for {retry_count} rate-limited members after 60s cooldown...")
+                
+                # Notify channel of the retry
+                try:
+                    retry_embed = discord.Embed(
+                        title="⏳ Retrying Rate-Limited Members",
+                        description=(
+                            f"```ansi\n"
+                            f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
+                            f"```\n"
+                            f"🔄 **{retry_count}** members hit API rate limits.\n"
+                            f"⏳ Waiting **60 seconds** for the API to cool down, then retrying..."
+                        ),
+                        color=0xFEE75C
+                    )
+                    if animation_message:
+                        await animation_message.edit(embed=retry_embed)
+                except Exception:
+                    pass
+                
+                await asyncio.sleep(60)  # Let API rate limit expire
+                
+                # Re-process all the failed members
+                retry_tasks = [
+                    process_member_with_semaphore(idx, fid, nickname, furnace_lv)
+                    for idx, (fid, nickname, furnace_lv) in enumerate(retry_members, 1)
+                ]
+                await asyncio.gather(*retry_tasks, return_exceptions=True)
+                self.logger.info(f"✅ Second pass complete for guild {guild_id}")
+            
+            # Flush any remaining retry_members still in list into failed (edge case)
+            if retry_members:
+                async with progress_lock:
+                    for fid, nickname, furnace_lv in retry_members:
+                        # Only count as failed if they somehow didn't get retried
+                        pass  # They were already processed above
             
             # Send final completion message
             reasons_text = ""

@@ -1551,9 +1551,11 @@ class ManageGiftCode(commands.Cog):
             giftcode: Gift code to redeem
             is_recheck: Whether to bypass all completion caches (manual trigger)
         """
-        # Ensure we always work with uppercase gift codes for consistency
-        giftcode = str(giftcode).upper()
-        code_up = giftcode
+        # IMPORTANT: codes are CASE-SENSITIVE for the WOS API.
+        # Preserve original case for API redemption calls.
+        # Use uppercase ONLY for DB deduplication/tracking/locking.
+        giftcode = str(giftcode).strip()   # original case — sent to WOS API
+        code_up = giftcode.upper()          # uppercase — used only for DB keys/tracking
 
         # --- EARLY EXIT: Case-Insensitive Completion Check ---
         # This ensures we NEVER trigger twice for the same guild/code pair, regardless of casing.
@@ -1561,28 +1563,29 @@ class ManageGiftCode(commands.Cog):
         if not is_recheck:
             try:
                 self.cursor.execute(
-                    "SELECT 1 FROM auto_redeem_completed_guilds WHERE guild_id = ? AND giftcode = ?",
-                    (guild_id, code_up)
+                    "SELECT 1 FROM auto_redeem_completed_guilds WHERE guild_id = ? AND UPPER(giftcode) = UPPER(?)",
+                    (guild_id, giftcode)
                 )
                 if self.cursor.fetchone():
-                    self.logger.info(f"⏭️ [SILENT SKIP] Guild {guild_id} already completed processing for code {code_up}")
+                    self.logger.info(f"⏭️ [SILENT SKIP] Guild {guild_id} already completed processing for code {giftcode}")
                     return
             except Exception as e:
-                self.logger.error(f"Error checking completion status for {code_up}: {e}")
+                self.logger.error(f"Error checking completion status for {giftcode}: {e}")
 
         # Reset stop signal for this guild
         self.stop_signals[guild_id] = False
         
         # Check if redemption already in progress for this guild/code combination
+        # Use uppercase key so ChildrensDay505 and CHILDRENSDAY505 don't run in parallel
         redemption_key = (guild_id, code_up)
         
         async with self._redemption_lock:
             if redemption_key in self._active_redemptions:
-                self.logger.warning(f"⚠️ Auto-redeem already in progress for guild {guild_id} with code {code_up}, skipping duplicate")
+                self.logger.warning(f"⚠️ Auto-redeem already in progress for guild {guild_id} with code {giftcode} (key={code_up}), skipping duplicate")
                 return
             # Mark this redemption as active
             self._active_redemptions.add(redemption_key)
-            self.logger.info(f"🔒 Locked auto-redeem for guild {guild_id} with code {code_up} (Recheck: {is_recheck})")
+            self.logger.info(f"🔒 Locked auto-redeem for guild {guild_id} with code {giftcode} (Recheck: {is_recheck})")
         
         try:
             # Check if auto redeem is enabled - try MongoDB first, fallback to SQLite
@@ -3035,7 +3038,7 @@ class ManageGiftCode(commands.Cog):
         """Process a single gift code for all enabled guilds."""
         try:
             # Always work with uppercase for internal tracking and DB consistency
-            code_up = str(code).upper()
+            code_up = str(code).upper()  # for DB tracking only; original `code` is passed to API
             self.logger.info(f"--- START PROCESS SINGLE CODE: {code_up} ---")
             
             already_processed = await self._is_code_already_processed(code_up)
@@ -3067,7 +3070,7 @@ class ManageGiftCode(commands.Cog):
             self._completion_events[code_up] = asyncio.Event()
             
             for (guild_id,) in pending_guilds:
-                self.auto_redeem_queue.put_nowait((guild_id, code_up, is_recheck))
+                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
             
             # Wait for all jobs for THIS code to complete
             await self.wait_for_code_completion(code_up, len(pending_guilds), already_initialized=True)
@@ -3812,7 +3815,7 @@ class ManageGiftCode(commands.Cog):
                 
                 async def on_submit(self, modal_interaction: discord.Interaction):
                     try:
-                        gift_code = self.code.value.strip().upper()
+                        gift_code = self.code.value.strip()
                         
                         # Send initial processing message
                         processing_embed = discord.Embed(

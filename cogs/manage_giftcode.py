@@ -1439,9 +1439,9 @@ class ManageGiftCode(commands.Cog):
                             asyncio.create_task(self.mark_code_invalid(giftcode))
                         break
                     elif status == "CDK_NOT_FOUND":
-                        # CDK_NOT_FOUND after all captcha retries exhausted — log it but do NOT
-                        # mark the code globally invalid (other members may still succeed)
-                        self.logger.warning(f"❌ CDK_NOT_FOUND for {nickname} after all retries — skipping this member")
+                        # Code not found on WOS servers (often due to case-mismatch from old DB entries)
+                        self.logger.warning(f"❌ CDK_NOT_FOUND for {nickname} — code does not exist. Marking globally invalid.")
+                        asyncio.create_task(self.mark_code_invalid(giftcode))
                         break
                     elif status in ["CAPTCHA_SOLVER_NOT_AVAILABLE", "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID"]:
                         # Captcha system failure - retry once, then give up for this member

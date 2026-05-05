@@ -1973,7 +1973,7 @@ class ManageGiftCode(commands.Cog):
         if not self.captcha_solver or not self.captcha_solver.is_initialized:
             return "CAPTCHA_SOLVER_NOT_AVAILABLE", None, None, None
         
-        max_ocr_attempts = 4
+        max_ocr_attempts = 6
         
         for attempt in range(max_ocr_attempts):
             self.logger.info(f"Attempt {attempt + 1}/{max_ocr_attempts} to redeem for FID {player_id}")

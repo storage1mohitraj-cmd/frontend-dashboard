@@ -1539,7 +1539,8 @@ class ManageGiftCode(commands.Cog):
             is_recheck: Whether to bypass all completion caches (manual trigger)
         """
         # Ensure we always work with uppercase gift codes for consistency
-        code_up = str(giftcode).upper()
+        giftcode = str(giftcode).upper()
+        code_up = giftcode
 
         # --- EARLY EXIT: Case-Insensitive Completion Check ---
         # This ensures we NEVER trigger twice for the same guild/code pair, regardless of casing.
@@ -3017,7 +3018,7 @@ class ManageGiftCode(commands.Cog):
             self._completion_events[code_up] = asyncio.Event()
             
             for (guild_id,) in pending_guilds:
-                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
+                self.auto_redeem_queue.put_nowait((guild_id, code_up, is_recheck))
             
             # Wait for all jobs for THIS code to complete
             await self.wait_for_code_completion(code_up, len(pending_guilds), already_initialized=True)

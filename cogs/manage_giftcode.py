@@ -247,20 +247,12 @@ class ManageGiftCode(commands.Cog):
         self.session = aiohttp.ClientSession()
         self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
 
-        # Sync MongoDB to SQLite on startup
-        sync_task = asyncio.create_task(self._sync_mongo_to_sqlite_on_startup())
-        self._bg_tasks.add(sync_task)
-        sync_task.add_done_callback(self._bg_tasks.discard)
-
         # Start background workers
         self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
         
         # Start API check task
         if not self.api_check_task.is_running():
             self.api_check_task.start()
-
-        # Trigger startup check for existing codes
-        asyncio.create_task(self.process_existing_codes_on_startup())
         self.logger.info("ManageGiftCode: Background tasks started.")
 
     async def cog_unload(self):
@@ -1705,10 +1697,11 @@ class ManageGiftCode(commands.Cog):
             members = members_to_process
             
             if not members:
-                # If is_recheck is True, we don't send any message if there's no work to do
-                # (Manual triggers should now have members, so this is just a safety)
-                if is_recheck:
+                # Silently skip for automated background checks to prevent spam
+                if not is_recheck:
                     self.logger.info(f"✅ Silent skip: All {len(members_data)} members have already redeemed code {code_up} for guild {guild_id}")
+                    # CRITICAL: Mark guild as completed so we don't spam logs again
+                    await self._mark_guild_completed(guild_id, code_up)
                     return
 
                 self.logger.info(f"✅ All {len(members_data)} members have already redeemed code {code_up} for guild {guild_id}")
@@ -1716,7 +1709,7 @@ class ManageGiftCode(commands.Cog):
                 # CRITICAL: Mark guild as completed so we don't spam this skip message again!
                 await self._mark_guild_completed(guild_id, code_up)
 
-                # Send a message to the channel
+                # Send a message to the channel for manual rechecks so the user gets feedback
                 try:
                     skip_embed = discord.Embed(
                         title="🎁 Auto-Redeem Skipped",

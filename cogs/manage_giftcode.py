@@ -1769,7 +1769,7 @@ class ManageGiftCode(commands.Cog):
             
             async def process_member_with_semaphore(idx, fid, nickname, furnace_lv):
                 """Process a single member with semaphore control"""
-                nonlocal success_count, failed_count, already_redeemed_count, completed_count, code_is_invalid
+                nonlocal success_count, failed_count, already_redeemed_count, completed_count, code_is_invalid, last_update_time
                 
                 # Check for stop signal - silently skip without counting as failed
                 if self.stop_signals.get(guild_id) or code_is_invalid:

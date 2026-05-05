@@ -24,8 +24,15 @@ async def fetch_player_info(player_id: str) -> Optional[dict ]:
     ssl_context.verify_mode = ssl.CERT_NONE
     
     headers = {
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
         "Content-Type": "application/x-www-form-urlencoded",
-        "Referer": "https://wos-giftcode-api.centurygame.com",
+        "Origin": "https://wos-giftcode.centurygame.com",
+        "Referer": "https://wos-giftcode.centurygame.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
     }
 
     try:

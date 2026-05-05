@@ -1296,8 +1296,8 @@ class ManageGiftCode(commands.Cog):
         """
         RETRY_DELAY_BASE = 2.0
         MAX_RETRY_DELAY = 30.0  # Cap retry delay at 30 seconds
-        MAX_LOGIN_RETRIES = 5  # Max times to retry login
-        MAX_REDEMPTION_RETRIES = 10  # Max times to retry redemption
+        MAX_LOGIN_RETRIES = 2  # Reduced to prevent spamming
+        MAX_REDEMPTION_RETRIES = 3  # Reduced to prevent spamming
         
         # Normalize gift code to uppercase to avoid case-sensitivity issues
         giftcode = str(giftcode).strip().upper()
@@ -1321,7 +1321,7 @@ class ManageGiftCode(commands.Cog):
                     
                     # Check if login successful
                     try:
-                        msg = player_info.get("msg", "NO_MSG")
+                        msg = str(player_info.get("msg", "NO_MSG")).lower()
                         
                         if msg == "success":  # Player info API returns lowercase success
                             login_successful = True
@@ -1757,6 +1757,10 @@ class ManageGiftCode(commands.Cog):
             # Semaphore to limit concurrent redemptions
             semaphore = asyncio.Semaphore(self.concurrent_redemptions)
             
+            # Throttled progress update state
+            last_update_time = 0
+            UPDATE_INTERVAL = 5.0 # Update Discord every 5 seconds max
+            
             async def process_member_with_semaphore(idx, fid, nickname, furnace_lv):
                 """Process a single member with semaphore control"""
                 nonlocal success_count, failed_count, already_redeemed_count, completed_count, code_is_invalid
@@ -1802,39 +1806,45 @@ class ManageGiftCode(commands.Cog):
                             completed_count += 1
                             fail_reasons["EXCEPTION"] = fail_reasons.get("EXCEPTION", 0) + 1
                         
-                        # Update progress message after each completion
+                        # Update progress message with throttling
                         try:
-                            # Calculate progress percentage and create visual bar
-                            progress_percent = (completed_count / len(members)) * 100
-                            bar_length = 20
-                            filled_length = int(bar_length * completed_count / len(members))
-                            progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                            now = time.time()
+                            is_last = (completed_count == len(members))
                             
-                            reasons_text = ""
-                            if fail_reasons:
-                                reasons_list = [f"  └ {r}: {c}" for r, c in fail_reasons.items()]
-                                reasons_text = "\n" + "\n".join(reasons_list)
-                            
-                            guild_name = channel.guild.name if channel and channel.guild else "Unknown Server"
-                            progress_embed = discord.Embed(
-                                title="🎁 Auto-Redeem In Progress",
-                                description=(
-                                    f"```ansi\n"
-                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                    f"\u001b[1;37mGift Code: {code_up}\u001b[0m\n"
-                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                    f"```\n"
-                                    f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
-                                    f"📊 **Processed:** {completed_count}/{len(members)}\n\n"
-                                    f"✅ **Success:** {success_count}\n"
-                                    f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
-                                    f"❌ **Failed:** {failed_count}{reasons_text}\n"
-                                    f"🏰 **Server:** {guild_name}\n"
-                                ),
-                                color=0x5865F2
-                            )
-                            if animation_message:
-                                await animation_message.edit(embed=progress_embed)
+                            if is_last or (now - last_update_time >= UPDATE_INTERVAL):
+                                last_update_time = now
+                                
+                                # Calculate progress percentage and create visual bar
+                                progress_percent = (completed_count / len(members)) * 100
+                                bar_length = 20
+                                filled_length = int(bar_length * completed_count / len(members))
+                                progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
+                                
+                                reasons_text = ""
+                                if fail_reasons:
+                                    reasons_list = [f"  └ {r}: {c}" for r, c in fail_reasons.items()]
+                                    reasons_text = "\n" + "\n".join(reasons_list)
+                                
+                                guild_name = channel.guild.name if channel and channel.guild else "Unknown Server"
+                                progress_embed = discord.Embed(
+                                    title="🎁 Auto-Redeem In Progress",
+                                    description=(
+                                        f"```ansi\n"
+                                        f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                        f"\u001b[1;37mGift Code: {code_up}\u001b[0m\n"
+                                        f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                        f"```\n"
+                                        f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
+                                        f"📊 **Processed:** {completed_count}/{len(members)}\n\n"
+                                        f"✅ **Success:** {success_count}\n"
+                                        f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
+                                        f"❌ **Failed:** {failed_count}{reasons_text}\n"
+                                        f"🏰 **Server:** {guild_name}\n"
+                                    ),
+                                    color=0x5865F2
+                                )
+                                if animation_message:
+                                    await animation_message.edit(embed=progress_embed)
                         except Exception as e:
                             self.logger.warning(f"Failed to update progress message: {e}")
             
@@ -1976,7 +1986,7 @@ class ManageGiftCode(commands.Cog):
         if not self.captcha_solver or not self.captcha_solver.is_initialized:
             return "CAPTCHA_SOLVER_NOT_AVAILABLE", None, None, None
         
-        max_ocr_attempts = 6
+        max_ocr_attempts = 3  # Reduced to prevent spamming
         
         for attempt in range(max_ocr_attempts):
             self.logger.info(f"Attempt {attempt + 1}/{max_ocr_attempts} to redeem for FID {player_id}")
@@ -2042,10 +2052,15 @@ class ManageGiftCode(commands.Cog):
             # Run async request
             try:
                 headers = {
+                    'Accept': 'application/json, text/plain, */*',
+                    'Accept-Language': 'en-US,en;q=0.9',
                     'Content-Type': 'application/x-www-form-urlencoded',
                     'Origin': 'https://wos-giftcode.centurygame.com',
                     'Referer': 'https://wos-giftcode.centurygame.com/',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-ch-ua-platform': '"Windows"',
                 }
                 timeout = aiohttp.ClientTimeout(total=20)  # Longer timeout for redemption
                 
@@ -2099,6 +2114,8 @@ class ManageGiftCode(commands.Cog):
                     await asyncio.sleep(random.uniform(0.3, 0.7))
                     continue
             
+            msg = str(msg).upper()
+            
             # Determine final status
             if msg == "SUCCESS":
                 return "SUCCESS", image_bytes, captcha_code, method
@@ -2137,10 +2154,15 @@ class ManageGiftCode(commands.Cog):
         
         # Use realistic browser-like headers to avoid Cloudflare fingerprinting
         headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9',
             'Content-Type': 'application/x-www-form-urlencoded',
             'Origin': 'https://wos-giftcode.centurygame.com',
             'Referer': 'https://wos-giftcode.centurygame.com/',
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            'sec-ch-ua-mobile': '?0',
+            'sec-ch-ua-platform': '"Windows"',
         }
         
         try:

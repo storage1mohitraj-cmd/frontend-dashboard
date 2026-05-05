@@ -1299,6 +1299,9 @@ class ManageGiftCode(commands.Cog):
         MAX_LOGIN_RETRIES = 5  # Max times to retry login
         MAX_REDEMPTION_RETRIES = 10  # Max times to retry redemption
         
+        # Normalize gift code to uppercase to avoid case-sensitivity issues
+        giftcode = str(giftcode).strip().upper()
+        
         try:
             # Phase 1: Login with limited retries
             session = None

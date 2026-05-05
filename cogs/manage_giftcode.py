@@ -208,7 +208,7 @@ class ManageGiftCode(commands.Cog):
         )
         
         # Concurrent processing configuration
-        self.concurrent_redemptions = 5  # Process 5 members simultaneously
+        self.concurrent_redemptions = 10  # Process 10 members simultaneously
         
         # Auto-redeem lock to prevent duplicate processing
         self._active_redemptions = set()  # Track active (guild_id, code) pairs
@@ -2092,7 +2092,8 @@ class ManageGiftCode(commands.Cog):
                 if attempt == max_ocr_attempts - 1:
                     return "CAPTCHA_INVALID", image_bytes, captcha_code, method
                 else:
-                    await asyncio.sleep(random.uniform(1.5, 2.5))
+                    # Reduced sleep since we're fetching a fresh captcha anyway
+                    await asyncio.sleep(random.uniform(0.3, 0.7))
                     continue
             
             # Determine final status

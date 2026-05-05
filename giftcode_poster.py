@@ -39,7 +39,7 @@ class GiftCodePoster:
         """Normalize code strings for consistent comparison/storage."""
         if not code:
             return ""
-        return str(code).strip().upper()
+        return str(code).strip()
 
     def _load_state(self):
         loaded_from_mongo = False

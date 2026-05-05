@@ -370,7 +370,7 @@ class GiftCodeScraper:
     def extract_from_div(self, div, is_active):
         codes = []
         text = div.get_text()
-        code_matches = re.findall(r'([A-Z0-9]{4,15})', text)
+        code_matches = re.findall(r'([a-zA-Z0-9]{4,15})', text)
         for code in code_matches:
             code_context = self.find_code_context(text, code)
             codes.append({
@@ -392,7 +392,7 @@ class GiftCodeScraper:
                 break
             section_text += current.get_text() + " "
         
-        code_pattern = r'([A-Z0-9]{4,15})\s+([^0-9\n]+?)(?:\s+([\d-]+\s+[\d:]|\w+\s+\d+))?'
+        code_pattern = r'([a-zA-Z0-9]{4,15})\s+([^0-9\n]+?)(?:\s+([\d-]+\s+[\d:]|\w+\s+\d+))?'
         matches = re.finditer(code_pattern, section_text)
         for match in matches:
             code = match.group(1)

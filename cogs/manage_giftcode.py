@@ -721,13 +721,13 @@ class ManageGiftCode(commands.Cog):
         """Mark a guild as having completed processing for a specific gift code (Case-Insensitive)."""
         try:
             # Always store standardized uppercase
-            code_up = giftcode.upper()
+            code_raw = giftcode.strip()
             self.cursor.execute(
                 "INSERT OR IGNORE INTO auto_redeem_completed_guilds (guild_id, giftcode, status, completed_at) VALUES (?, ?, ?, ?)",
-                (guild_id, code_up, "completed", datetime.now().isoformat())
+                (guild_id, code_raw, "completed", datetime.now().isoformat())
             )
             self.giftcode_db.commit()
-            self.logger.info(f"✅ Marked guild {guild_id} as completed for code {code_up}")
+            self.logger.info(f"✅ Marked guild {guild_id} as completed for code {code_raw}")
         except Exception as e:
             self.logger.error(f"Failed to mark guild completion for {giftcode}: {e}")
     
@@ -1294,13 +1294,15 @@ class ManageGiftCode(commands.Cog):
         
         This method will retry intelligently until success, already_redeemed, or permanent failure.
         """
+        # Ensure code is stripped of whitespace
+        giftcode = str(giftcode).strip()
         RETRY_DELAY_BASE = 2.0
         MAX_RETRY_DELAY = 30.0  # Cap retry delay at 30 seconds
         MAX_LOGIN_RETRIES = 2  # Reduced to prevent spamming
         MAX_REDEMPTION_RETRIES = 3  # Reduced to prevent spamming
         
-        # Normalize gift code to uppercase to avoid case-sensitivity issues
-        giftcode = str(giftcode).strip().upper()
+        # Standardize gift code (strip whitespace, preserve case)
+        giftcode = str(giftcode).strip()
         
         try:
             # Phase 1: Login with limited retries
@@ -1441,6 +1443,14 @@ class ManageGiftCode(commands.Cog):
                         # mark the code globally invalid (other members may still succeed)
                         self.logger.warning(f"❌ CDK_NOT_FOUND for {nickname} after all retries — skipping this member")
                         break
+                    elif status in ["CAPTCHA_SOLVER_NOT_AVAILABLE", "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID"]:
+                        # Captcha system failure - retry once, then give up for this member
+                        self.logger.warning(f"⚠️ Captcha system failure for {nickname}: {status} (attempt {redemption_attempt}/{MAX_REDEMPTION_RETRIES})")
+                        if redemption_attempt >= MAX_REDEMPTION_RETRIES:
+                            self.logger.error(f"❌ Giving up on {nickname} after captcha failures: {status}")
+                            break
+                        retry_delay = min(RETRY_DELAY_BASE * redemption_attempt, MAX_RETRY_DELAY)
+                        await asyncio.sleep(retry_delay)
                     elif "RECHARGE_MONEY_VIP" in status or "VIP" in status:
                         # VIP/Purchase requirement - this code requires the player to have VIP or made purchases
                         self.logger.warning(f"💎 VIP/Purchase required for {nickname}: This gift code requires VIP status or in-game purchases")
@@ -1786,7 +1796,7 @@ class ManageGiftCode(commands.Cog):
                         # If status is permanently invalid for everyone, abort early
                         if status in ["INVALID_CODE", "EXPIRED", "TIME_ERROR", "USAGE_LIMIT", "CDK_NOT_FOUND"]:
                             if not code_is_invalid:
-                                self.logger.warning(f"🚫 Code {code_up} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
+                                self.logger.warning(f"🚫 Code {giftcode} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
                                 code_is_invalid = True
                         
                         # Update counters
@@ -1946,13 +1956,21 @@ class ManageGiftCode(commands.Cog):
                     
                     if response.status == 200:
                         try:
-                            response_json = await response.json()
-                            if response_json.get("msg") == "SUCCESS":  # API returns uppercase SUCCESS
-                                return response_json.get("data"), None
-                            elif response_json.get("msg") == "CAPTCHA GET TOO FREQUENT":
+                            response_json = await response.json(content_type=None)
+                            api_msg = str(response_json.get("msg", "")).lower()
+                            if api_msg == "success":  # WOS API returns lowercase "success"
+                                captcha_data = response_json.get("data")
+                                if captcha_data and isinstance(captcha_data, dict) and captcha_data.get("img"):
+                                    return captcha_data, None
+                                elif captcha_data:
+                                    return captcha_data, None
+                                else:
+                                    self.logger.warning(f"CAPTCHA API success but no data for FID {player_id}: {response_json}")
+                                    return None, "CAPTCHA_FETCH_ERROR"
+                            elif "too frequent" in api_msg or "captcha get too frequent" in api_msg:
                                 return None, "CAPTCHA_TOO_FREQUENT"
                             else:
-                                self.logger.warning(f"CAPTCHA API returned: {response_json.get('msg', 'Unknown')}")
+                                self.logger.warning(f"CAPTCHA API returned unexpected msg for FID {player_id}: '{response_json.get('msg', 'Unknown')}' | Full: {response_json}")
                                 return None, f"API Error: {response_json.get('msg', 'Unknown')}"
                         except Exception as json_error:
                             # Check if response is HTML (rate limit error page)
@@ -1984,9 +2002,10 @@ class ManageGiftCode(commands.Cog):
         import random
         
         if not self.captcha_solver or not self.captcha_solver.is_initialized:
+            self.logger.error(f"❌ CAPTCHA solver not available for FID {player_id} - cannot redeem without captcha solver")
             return "CAPTCHA_SOLVER_NOT_AVAILABLE", None, None, None
         
-        max_ocr_attempts = 3  # Reduced to prevent spamming
+        max_ocr_attempts = 4  # 4 attempts for captcha solving per redemption try
         
         for attempt in range(max_ocr_attempts):
             self.logger.info(f"Attempt {attempt + 1}/{max_ocr_attempts} to redeem for FID {player_id}")
@@ -2006,10 +2025,11 @@ class ManageGiftCode(commands.Cog):
             # Decode captcha image
             try:
                 # API returns dict with 'img' key containing base64 data
+                img_b64_data = None
                 if isinstance(captcha_image_base64, dict):
-                    img_b64_data = captcha_image_base64.get('img', '')
+                    img_b64_data = captcha_image_base64.get('img', '') or captcha_image_base64.get('data', '')
                     # Strip data:image prefix if present
-                    if img_b64_data.startswith("data:image"):
+                    if img_b64_data and img_b64_data.startswith("data:image"):
                         img_b64_data = img_b64_data.split(",", 1)[1]
                 elif isinstance(captcha_image_base64, str):
                     if captcha_image_base64.startswith("data:image"):
@@ -2017,11 +2037,11 @@ class ManageGiftCode(commands.Cog):
                     else:
                         img_b64_data = captcha_image_base64
                 else:
-                    self.logger.error(f"Unexpected CAPTCHA data type: {type(captcha_image_base64)}")
+                    self.logger.error(f"Unexpected CAPTCHA data type: {type(captcha_image_base64)} | Value: {str(captcha_image_base64)[:200]}")
                     return "CAPTCHA_FETCH_ERROR", None, None, None
                 
                 if not img_b64_data:
-                    self.logger.error("CAPTCHA image data is empty")
+                    self.logger.error(f"CAPTCHA image data is empty for FID {player_id} | Raw response: {str(captcha_image_base64)[:200]}")
                     return "CAPTCHA_FETCH_ERROR", None, None, None
                 
                 image_bytes = base64.b64decode(img_b64_data)

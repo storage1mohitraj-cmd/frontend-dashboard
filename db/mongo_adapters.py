@@ -1218,7 +1218,7 @@ class SentGiftCodesAdapter:
             db[SentGiftCodesAdapter.COLL].update_one(
                 {'_id': str(guild_id)},
                 {
-                    '$addToSet': {'codes': {'$each': [str(c).strip().upper() for c in codes if c]}},
+                    '$addToSet': {'codes': {'$each': [str(c).strip() for c in codes if c]}},
                     '$set': {
                         'guild_id': int(guild_id),
                         'last_sent_at': now,
@@ -1241,7 +1241,7 @@ class SentGiftCodesAdapter:
             db = _get_db_main()
             count = db[SentGiftCodesAdapter.COLL].count_documents({
                 '_id': str(guild_id),
-                'codes': str(code).strip().upper()
+                'codes': str(code).strip()
             })
             return count > 0
         except Exception:
@@ -1269,7 +1269,7 @@ class SentGiftCodesAdapter:
             await db[SentGiftCodesAdapter.COLL].update_one(
                 {'_id': str(guild_id)},
                 {
-                    '$addToSet': {'codes': {'$each': [str(c).strip().upper() for c in codes if c]}},
+                    '$addToSet': {'codes': {'$each': [str(c).strip() for c in codes if c]}},
                     '$set': {
                         'guild_id': int(guild_id),
                         'last_sent_at': now,
@@ -1292,7 +1292,7 @@ class SentGiftCodesAdapter:
             db = await _get_db_main_async()
             count = await db[SentGiftCodesAdapter.COLL].count_documents({
                 '_id': str(guild_id),
-                'codes': str(code).strip().upper()
+                'codes': str(code).strip()
             })
             return count > 0
         except Exception:

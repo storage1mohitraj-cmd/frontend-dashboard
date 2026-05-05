@@ -1770,29 +1770,34 @@ class ManageGiftCode(commands.Cog):
                         async with progress_lock:
                             completed_count += 1
                         return
-                    # Process the member
-                    status, success, already_redeemed, failed = await self._redeem_for_member(
-                        guild_id, fid, nickname, furnace_lv, giftcode
-                    )
-                    
-                    # If status is permanently invalid for everyone, abort early
-                    # NOTE: CDK_NOT_FOUND is excluded here - it can be a transient per-member error
-                    # and should NOT abort all remaining members (they may succeed)
-                    if status in ["INVALID_CODE", "EXPIRED", "TIME_ERROR", "USAGE_LIMIT"]:
-                        if not code_is_invalid:
-                            self.logger.warning(f"🚫 Code {code_up} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
-                            code_is_invalid = True
-                    
-                    # Update counters
-                    async with progress_lock:
-                        success_count += success
-                        already_redeemed_count += already_redeemed
-                        if failed:
-                            failed_count += failed
-                            # Add status reason mapping
-                            reason_key = str(status) if status else "UNKNOWN"
-                            fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
-                        completed_count += 1
+                    # Process the member with robust error handling
+                    try:
+                        status, success, already_redeemed, failed = await self._redeem_for_member(
+                            guild_id, fid, nickname, furnace_lv, giftcode
+                        )
+                        
+                        # If status is permanently invalid for everyone, abort early
+                        if status in ["INVALID_CODE", "EXPIRED", "TIME_ERROR", "USAGE_LIMIT", "CDK_NOT_FOUND"]:
+                            if not code_is_invalid:
+                                self.logger.warning(f"🚫 Code {code_up} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
+                                code_is_invalid = True
+                        
+                        # Update counters
+                        async with progress_lock:
+                            success_count += success
+                            already_redeemed_count += already_redeemed
+                            if failed:
+                                failed_count += failed
+                                # Add status reason mapping
+                                reason_key = str(status) if status else "UNKNOWN"
+                                fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
+                            completed_count += 1
+                    except Exception as member_err:
+                        self.logger.error(f"❌ Error processing member {nickname} (FID: {fid}): {member_err}")
+                        async with progress_lock:
+                            failed_count += 1
+                            completed_count += 1
+                            fail_reasons["EXCEPTION"] = fail_reasons.get("EXCEPTION", 0) + 1
                         
                         # Update progress message after each completion
                         try:

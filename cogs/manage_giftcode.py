@@ -201,14 +201,14 @@ class ManageGiftCode(commands.Cog):
         
         # Initialize API session pool for concurrent processing
         self.session_pool = APISessionPool(
-            session_count=2,           # 2 independent API sessions
-            base_delay=3.0,            # 3 seconds between requests per session (more conservative)
+            session_count=5,           # 5 independent API sessions for faster dual+ API system
+            base_delay=1.5,            # 1.5 seconds between requests per session
             rate_limit_backoff=10.0,   # Initial backoff when rate limited (longer wait)
             max_backoff=60.0           # Maximum backoff duration
         )
         
         # Concurrent processing configuration
-        self.concurrent_redemptions = 10  # Process 10 members simultaneously
+        self.concurrent_redemptions = 25  # Process 25 members simultaneously
         
         # Auto-redeem lock to prevent duplicate processing
         self._active_redemptions = set()  # Track active (guild_id, code) pairs
@@ -1290,8 +1290,8 @@ class ManageGiftCode(commands.Cog):
         giftcode = str(giftcode).strip()
         RETRY_DELAY_BASE = 2.0
         MAX_RETRY_DELAY = 30.0  # Cap retry delay at 30 seconds
-        MAX_LOGIN_RETRIES = 2  # Reduced to prevent spamming
-        MAX_REDEMPTION_RETRIES = 3  # Reduced to prevent spamming
+        MAX_LOGIN_RETRIES = 10  # Keep trying until login succeeds or permanent failure
+        MAX_REDEMPTION_RETRIES = 15  # Keep trying through CAPTCHA issues until redeemed
         
         # Standardize gift code (strip whitespace, preserve case)
         giftcode = str(giftcode).strip()

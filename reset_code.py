@@ -2,6 +2,10 @@ import sqlite3
 import os
 import sys
 from pymongo import MongoClient
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 def reset_code(code_to_reset):
     code_to_reset = code_to_reset.upper()

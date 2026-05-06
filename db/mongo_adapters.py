@@ -4,6 +4,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List, Union
 import uuid
+from pymongo import UpdateOne
 
 from .mongo_client_wrapper import get_mongo_client_sync, get_mongo_client
 
@@ -3709,6 +3710,17 @@ class RecordsAdapter:
 class GiftCodeRedemptionAdapter:
     """Adapter for tracking gift code redemptions per server"""
     COLL = 'giftcode_redemptions'
+
+    @staticmethod
+    async def ensure_indexes_async() -> bool:
+        try:
+            db = await _get_db_main_async()
+            await db[GiftCodeRedemptionAdapter.COLL].create_index([("guild_id", 1), ("code", 1)], background=True)
+            await db[GiftCodeRedemptionAdapter.COLL].create_index([("guild_id", 1)], background=True)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to ensure giftcode redemption indexes: {e}")
+            return False
     
     @staticmethod
     def track_redemption(guild_id: int, code: str, fid: str, status: str) -> bool:
@@ -3867,6 +3879,53 @@ class GiftCodeRedemptionAdapter:
         except Exception: return False
 
     @staticmethod
+    async def track_redemptions_bulk_async(guild_id: int, code: str, records: List[Dict[str, str]]) -> bool:
+        """Track many redemption attempts for one guild/code with a single MongoDB update."""
+        if not records:
+            return True
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            doc_id = f"{guild_id}:{code}"
+
+            redemptions = []
+            status_counts: Dict[str, int] = {}
+            for record in records:
+                fid = str(record.get("fid", "")).strip()
+                status = str(record.get("status", "failed") or "failed")
+                if not fid:
+                    continue
+                redemptions.append({"fid": fid, "redeemed_at": now, "status": status})
+                status_counts[status] = status_counts.get(status, 0) + 1
+
+            if not redemptions:
+                return True
+
+            inc_doc = {"stats.total_attempts": len(redemptions)}
+            for status, count in status_counts.items():
+                inc_doc[f"stats.{status}"] = count
+
+            await db[GiftCodeRedemptionAdapter.COLL].update_one(
+                {"_id": doc_id},
+                {
+                    "$push": {"redemptions": {"$each": redemptions}},
+                    "$inc": inc_doc,
+                    "$set": {
+                        "guild_id": int(guild_id),
+                        "code": str(code),
+                        "last_redeemed_at": now,
+                        "updated_at": now,
+                    },
+                    "$setOnInsert": {"created_at": now},
+                },
+                upsert=True,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to bulk track redemptions for {code} in guild {guild_id}: {e}")
+            return False
+
+    @staticmethod
     async def get_code_stats_async(guild_id: int, code: str) -> Optional[Dict[str, Any]]:
         try:
             db = await _get_db_main_async()
@@ -3998,6 +4057,21 @@ class PersistentViewsAdapter:
 
 class AutoRedeemedCodesAdapter:
     COLL = 'auto_redeemed_codes'
+
+    @staticmethod
+    async def ensure_indexes_async() -> bool:
+        try:
+            db = await _get_db_main_async()
+            await db[AutoRedeemedCodesAdapter.COLL].create_index(
+                [("guild_id", 1), ("code", 1), ("fid", 1)],
+                unique=True,
+                background=True,
+            )
+            await db[AutoRedeemedCodesAdapter.COLL].create_index([("guild_id", 1), ("code", 1)], background=True)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to ensure auto redeemed code indexes: {e}")
+            return False
     
     @staticmethod
     def mark_code_redeemed_for_member(guild_id: int, code: str, fid: str, status: str) -> bool:
@@ -4062,6 +4136,40 @@ class AutoRedeemedCodesAdapter:
             return True
         except Exception as e:
             logger.error(f'Failed to mark code (async) {code} redeemed for {fid}: {e}')
+            return False
+
+    @staticmethod
+    async def mark_codes_redeemed_for_members_bulk_async(guild_id: int, code: str, records: List[Dict[str, str]]) -> bool:
+        """Mark many members as redeemed for one guild/code using unordered bulk writes."""
+        if not records:
+            return True
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            operations = []
+            seen_fids = set()
+            for record in records:
+                fid = str(record.get("fid", "")).strip()
+                if not fid or fid in seen_fids:
+                    continue
+                seen_fids.add(fid)
+                status = str(record.get("status", "success") or "success")
+                operations.append(
+                    UpdateOne(
+                        {"guild_id": int(guild_id), "code": code, "fid": fid},
+                        {
+                            "$set": {"status": status, "updated_at": now},
+                            "$setOnInsert": {"created_at": now},
+                        },
+                        upsert=True,
+                    )
+                )
+
+            if operations:
+                await db[AutoRedeemedCodesAdapter.COLL].bulk_write(operations, ordered=False)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to bulk mark code (async) {code} redeemed for guild {guild_id}: {e}")
             return False
 
     @staticmethod

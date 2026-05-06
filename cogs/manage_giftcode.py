@@ -6,6 +6,7 @@ import sqlite3
 import asyncio
 import aiohttp
 import json
+import os
 import ssl
 import random
 import re
@@ -38,6 +39,31 @@ except Exception:
         @staticmethod
         def track_redemption(guild_id, code, fid, status):
             return False
+
+
+def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    """Read a bounded integer from env without letting bad config break startup."""
+    try:
+        value = int(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, value))
+
+
+def _env_float(name: str, default: float, minimum: float, maximum: float) -> float:
+    try:
+        value = float(os.getenv(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, value))
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() not in ("0", "false", "no", "off")
+
 
 try:
     from db_utils import get_db_connection
@@ -199,16 +225,31 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error initializing CAPTCHA solver: {e}")
             self.captcha_solver = None
         
+        # Runtime throughput knobs for the existing auto-redeem path.
+        self.concurrent_redemptions = _env_int("AUTO_REDEEM_MEMBER_CONCURRENCY", 100, 1, 100)
+        self.guild_worker_count = _env_int("AUTO_REDEEM_GUILD_WORKERS", 1, 1, 8)
+        self.guild_worker_delay = _env_float("AUTO_REDEEM_GUILD_DELAY", 0.1, 0.0, 5.0)
+        self.skip_player_login_for_redeem = _env_bool("SKIP_WOS_PLAYER_LOGIN_FOR_REDEEM", True)
+        self.wos_connection_limit = _env_int(
+            "WOS_HTTP_CONNECTION_LIMIT",
+            max(300, min(1000, self.concurrent_redemptions * self.guild_worker_count * 3)),
+            100,
+            1500,
+        )
+        self.wos_connection_limit_per_host = _env_int(
+            "WOS_HTTP_CONNECTION_LIMIT_PER_HOST",
+            max(200, min(1000, self.concurrent_redemptions * self.guild_worker_count * 2)),
+            100,
+            1500,
+        )
+
         # Session pool kept for rate-limit tracking only — no artificial delays
         self.session_pool = APISessionPool(
-            session_count=50,          # 50 slots for rate-limit bookkeeping
+            session_count=max(50, self.concurrent_redemptions),  # rate-limit bookkeeping slots
             base_delay=0.0,            # Zero artificial delay — HTTP connector handles flow
             rate_limit_backoff=10.0,   # Backoff when a rate-limit is detected
             max_backoff=60.0           # Cap backoff at 60s
         )
-        
-        # Concurrent processing configuration — 100 players simultaneously
-        self.concurrent_redemptions = 100  # 100 players at a time — max throughput
         
         # Auto-redeem lock to prevent duplicate processing
         self._active_redemptions = set()  # Track active (guild_id, code) pairs
@@ -219,7 +260,8 @@ class ManageGiftCode(commands.Cog):
         
         # Global queue for staggering auto-redeem across servers limit memory spikes
         self.auto_redeem_queue = asyncio.Queue()
-        self.current_job = None  # Track what's currently processing: (guild_id, code)
+        self.current_job = None  # Backward-compatible single active job view
+        self.current_jobs = {}   # worker_id -> (guild_id, code)
         self.processed_jobs_count = 0
         self._pending_jobs_per_code = {} # {code: count_of_guilds_left}
         self._completion_events = {}     # {code: asyncio.Event}
@@ -244,32 +286,57 @@ class ManageGiftCode(commands.Cog):
 
     async def cog_load(self):
         """Called when the cog is loaded. Initializes background tasks and sessions."""
-        # High-performance TCP connector: 300 total connections, 200 to WOS host
+        # High-performance TCP connector with keep-alive connection reuse for WOS bursts.
         # force_close=False enables HTTP keep-alive (connection reuse) for max throughput
         _connector = aiohttp.TCPConnector(
-            limit=300,
-            limit_per_host=200,
+            limit=self.wos_connection_limit,
+            limit_per_host=self.wos_connection_limit_per_host,
             ttl_dns_cache=300,
             force_close=False,
             enable_cleanup_closed=True,
             ssl=self.ssl_context,
         )
         self.session = aiohttp.ClientSession(connector=_connector, connector_owner=True)
-        self.logger.info("ManageGiftCode: High-performance aiohttp session initialized (300 connections, 200/host).")
+        self.logger.info(
+            "ManageGiftCode: High-performance aiohttp session initialized "
+            f"({self.wos_connection_limit} connections, {self.wos_connection_limit_per_host}/host)."
+        )
 
         # Start background workers
-        self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
+        self.auto_redeem_workers = [
+            asyncio.create_task(self._auto_redeem_worker_loop(worker_id=i + 1))
+            for i in range(self.guild_worker_count)
+        ]
+        self.worker_task = self.auto_redeem_workers[0] if self.auto_redeem_workers else None
+
+        index_task = asyncio.create_task(self._ensure_redeem_indexes())
+        self._bg_tasks.add(index_task)
+        index_task.add_done_callback(self._bg_tasks.discard)
         
         # Start API check task
         if not self.api_check_task.is_running():
             self.api_check_task.start()
-        self.logger.info("ManageGiftCode: Background tasks started.")
+        self.logger.info(
+            f"ManageGiftCode: Background tasks started with {self.guild_worker_count} "
+            f"guild worker(s), {self.concurrent_redemptions} member redemptions/worker, "
+            f"skip_player_login={self.skip_player_login_for_redeem}."
+        )
 
     async def cog_unload(self):
         """Called when the cog is unloaded. Performs cleanup."""
         # Stop background workers
-        if hasattr(self, 'worker_task') and self.worker_task:
+        for task in getattr(self, "auto_redeem_workers", []):
+            if task:
+                task.cancel()
+        if getattr(self, "auto_redeem_workers", None):
+            await asyncio.gather(*self.auto_redeem_workers, return_exceptions=True)
+        elif hasattr(self, 'worker_task') and self.worker_task:
             self.worker_task.cancel()
+        for task in list(getattr(self, "_bg_tasks", set())):
+            task.cancel()
+        if getattr(self, "_bg_tasks", None):
+            await asyncio.gather(*self._bg_tasks, return_exceptions=True)
+            self._bg_tasks.clear()
         self.api_check_task.cancel()
         
         # Close sessions
@@ -286,11 +353,23 @@ class ManageGiftCode(commands.Cog):
             self.logger.info("ManageGiftCode: Database connections closed.")
         except Exception as e:
             self.logger.error(f"Error closing databases in cog_unload: {e}")
+
+    async def _ensure_redeem_indexes(self):
+        """Build MongoDB indexes used by the high-throughput redemption path."""
+        if not mongo_enabled():
+            return
+        tasks_to_run = []
+        if GiftCodeRedemptionAdapter and hasattr(GiftCodeRedemptionAdapter, "ensure_indexes_async"):
+            tasks_to_run.append(GiftCodeRedemptionAdapter.ensure_indexes_async())
+        if AutoRedeemedCodesAdapter and hasattr(AutoRedeemedCodesAdapter, "ensure_indexes_async"):
+            tasks_to_run.append(AutoRedeemedCodesAdapter.ensure_indexes_async())
+        if tasks_to_run:
+            await asyncio.gather(*tasks_to_run, return_exceptions=True)
         
-    async def _auto_redeem_worker_loop(self):
+    async def _auto_redeem_worker_loop(self, worker_id: int = 1):
         """Background worker that processes auto-redeems sequentially to prevent global memory spikes."""
         await self.bot.wait_until_ready()
-        self.logger.info("👷 Auto-redeem queue worker started")
+        self.logger.info(f"👷 Auto-redeem queue worker {worker_id} started")
         
         while True:
             try:
@@ -298,31 +377,35 @@ class ManageGiftCode(commands.Cog):
                 guild_id, code, is_recheck = job
                 code_up = str(code).upper()
                 self.current_job = (guild_id, code_up)
+                self.current_jobs[worker_id] = (guild_id, code_up)
                 
-                self.logger.info(f"⚙️ [WORKER] Processing queued auto-redeem: Guild {guild_id} | Code {code_up} (Recheck: {is_recheck})")
+                self.logger.info(f"⚙️ [WORKER {worker_id}] Processing queued auto-redeem: Guild {guild_id} | Code {code_up} (Recheck: {is_recheck})")
                 
                 try:
                     # Await the actual process (runs sequentially for this worker)
                     await self.process_auto_redeem(guild_id, code, is_recheck=is_recheck)
                 except Exception as e:
-                    self.logger.error(f"❌ [WORKER] Error processing guild {guild_id} for code {code_up}: {e}")
+                    self.logger.error(f"❌ [WORKER {worker_id}] Error processing guild {guild_id} for code {code_up}: {e}")
                 finally:
-                    self.current_job = None
+                    self.current_jobs.pop(worker_id, None)
+                    self.current_job = next(iter(self.current_jobs.values()), None)
                     self.processed_jobs_count += 1
                     # Mark this task as done and update pending count for faster status reporting
                     self.auto_redeem_queue.task_done()
                     if code_up:
                         await self._decrement_pending_jobs(code_up)
                     
-                    # Minimal delay between guilds — just enough for memory GC
-                    await asyncio.sleep(0.5)
+                    # Minimal delay between guilds — configurable for VM/API breathing room
+                    if self.guild_worker_delay > 0:
+                        await asyncio.sleep(self.guild_worker_delay)
                     
             except asyncio.CancelledError:
-                self.logger.info("🛑 Auto-redeem worker stopped.")
+                self.logger.info(f"🛑 Auto-redeem worker {worker_id} stopped.")
                 break
             except Exception as e:
-                self.current_job = None
-                self.logger.error(f"❌ [WORKER] Critical error in queue loop: {e}")
+                self.current_jobs.pop(worker_id, None)
+                self.current_job = next(iter(self.current_jobs.values()), None)
+                self.logger.error(f"❌ [WORKER {worker_id}] Critical error in queue loop: {e}")
                 await asyncio.sleep(5.0)
 
     async def _safe_edit_message(self, interaction: discord.Interaction, **kwargs):
@@ -713,6 +796,13 @@ class ManageGiftCode(commands.Cog):
                 self.cursor.execute("ALTER TABLE auto_redeem_completed_guilds ADD COLUMN completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
             except sqlite3.OperationalError:
                 pass
+
+            for index_sql in (
+                "CREATE INDEX IF NOT EXISTS idx_gift_codes_processed ON gift_codes(auto_redeem_processed)",
+                "CREATE INDEX IF NOT EXISTS idx_auto_redeem_members_guild ON auto_redeem_members(guild_id)",
+                "CREATE INDEX IF NOT EXISTS idx_auto_redeem_completed_code ON auto_redeem_completed_guilds(giftcode)",
+            ):
+                self.cursor.execute(index_sql)
             
             self.giftcode_db.commit()
             self.logger.info("Gift code database tables initialized")
@@ -1289,7 +1379,7 @@ class ManageGiftCode(commands.Cog):
         """Format furnace level display using shared utility"""
         return shared_format_furnace_level(furnace_lv)
     
-    async def _redeem_for_member(self, guild_id, fid, nickname, furnace_lv, giftcode):
+    async def _redeem_for_member(self, guild_id, fid, nickname, furnace_lv, giftcode, track_result=True):
         """
         Process gift code redemption for a single member using session pool.
         Returns: (status, success, already_redeemed, failed)
@@ -1313,6 +1403,10 @@ class ManageGiftCode(commands.Cog):
             login_successful = False
             session_id = None
             login_attempt = 0
+
+            if self.skip_player_login_for_redeem:
+                session = self.session if self.session else aiohttp.ClientSession()
+                login_successful = True
             
             while not login_successful and login_attempt < MAX_LOGIN_RETRIES:
                 login_attempt += 1
@@ -1382,6 +1476,15 @@ class ManageGiftCode(commands.Cog):
                     
                     # Check for NOT LOGIN error - need to re-establish session
                     if status == "CAPTCHA_FETCH_ERROR":
+                        if self.skip_player_login_for_redeem:
+                            retry_delay = min(RETRY_DELAY_BASE * redemption_attempt, MAX_RETRY_DELAY)
+                            self.logger.warning(
+                                f"⚠️ CAPTCHA fetch failed for {nickname}; retrying without player-info login "
+                                f"in {retry_delay:.1f}s"
+                            )
+                            await asyncio.sleep(retry_delay)
+                            continue
+
                         # Could be due to session expiry, try to re-login
                         self.logger.warning(f"⚠️ CAPTCHA fetch failed for {nickname}, might be session issue, re-logging in...")
                         
@@ -1410,7 +1513,7 @@ class ManageGiftCode(commands.Cog):
                             continue
                     
                     # Check for rate limiting
-                    if status in ["RATE_LIMITED", "CAPTCHA_TOO_FREQUENT"]:
+                    if status in ["RATE_LIMITED", "CAPTCHA_TOO_FREQUENT", "TIMEOUT", "REQUEST_ERROR"]:
                         self.logger.warning(f"Rate limit detected for {nickname}, session {session_id}: {status}, attempt {redemption_attempt}")
                         if session_id is not None:
                             await self.session_pool.mark_rate_limited(session_id)
@@ -1419,6 +1522,10 @@ class ManageGiftCode(commands.Cog):
                         self.logger.info(f"⏳ Waiting {retry_delay:.1f}s before retry for {nickname}")
                         await asyncio.sleep(retry_delay)
                         continue
+
+                    if status == "FORBIDDEN":
+                        self.logger.error(f"❌ WOS rejected redeem request for {nickname}: 403 Forbidden")
+                        break
                     
                     # Check if redemption was successful
                     if status in ["SUCCESS", "SAME TYPE EXCHANGE"]:
@@ -1486,8 +1593,9 @@ class ManageGiftCode(commands.Cog):
             if not redemption_successful and final_status not in ["ALREADY_RECEIVED"]:
                 self.logger.error(f"❌ Redemption failed for {nickname} after {redemption_attempt} attempts, final status: {final_status}")
             
-            # Track redemption to MongoDB for history and to prevent duplicates on restart
-            if final_status:
+            # Track redemption to MongoDB for history and to prevent duplicates on restart.
+            # High-volume auto-redeem passes disable this and flush records in bulk.
+            if track_result and final_status:
                 try:
                     # Track in general redemption history
                     if mongo_enabled() and GiftCodeRedemptionAdapter:
@@ -1543,6 +1651,60 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Critical error redeeming for {nickname}: {e}")
             # Even on critical error, return failure
             return ("EXCEPTION", 0, 0, 1)
+
+    def _tracking_status_from_result(self, success, already_redeemed):
+        if success:
+            return "success"
+        if already_redeemed:
+            return "already_redeemed"
+        return "failed"
+
+    async def _flush_bulk_redemption_tracking(self, guild_id, giftcode, redemption_records, redeemed_records):
+        """Write high-volume redemption history in bulk after a batch finishes."""
+        if not mongo_enabled():
+            return
+
+        if redemption_records and GiftCodeRedemptionAdapter:
+            try:
+                bulk_tracker = getattr(GiftCodeRedemptionAdapter, "track_redemptions_bulk_async", None)
+                if bulk_tracker:
+                    await bulk_tracker(guild_id, giftcode, redemption_records)
+                else:
+                    await asyncio.gather(
+                        *(
+                            GiftCodeRedemptionAdapter.track_redemption_async(
+                                guild_id=guild_id,
+                                code=giftcode,
+                                fid=record["fid"],
+                                status=record["status"],
+                            )
+                            for record in redemption_records
+                        ),
+                        return_exceptions=True,
+                    )
+            except Exception as e:
+                self.logger.error(f"Error bulk-tracking redemption history for {giftcode}: {e}")
+
+        if redeemed_records and AutoRedeemedCodesAdapter:
+            try:
+                bulk_marker = getattr(AutoRedeemedCodesAdapter, "mark_codes_redeemed_for_members_bulk_async", None)
+                if bulk_marker:
+                    await bulk_marker(guild_id, giftcode, redeemed_records)
+                else:
+                    await asyncio.gather(
+                        *(
+                            AutoRedeemedCodesAdapter.mark_code_redeemed_for_member_async(
+                                guild_id=guild_id,
+                                code=giftcode,
+                                fid=record["fid"],
+                                status=record["status"],
+                            )
+                            for record in redeemed_records
+                        ),
+                        return_exceptions=True,
+                    )
+            except Exception as e:
+                self.logger.error(f"Error bulk-marking redeemed members for {giftcode}: {e}")
     
     async def process_auto_redeem(self, guild_id, giftcode, is_recheck=False):
         """
@@ -1565,7 +1727,7 @@ class ManageGiftCode(commands.Cog):
         if not is_recheck:
             try:
                 self.cursor.execute(
-                    "SELECT 1 FROM auto_redeem_completed_guilds WHERE guild_id = ? AND UPPER(giftcode) = UPPER(?)",
+                    "SELECT 1 FROM auto_redeem_completed_guilds WHERE guild_id = ? AND giftcode = ? COLLATE NOCASE",
                     (guild_id, giftcode)
                 )
                 if self.cursor.fetchone():
@@ -1765,6 +1927,8 @@ class ManageGiftCode(commands.Cog):
             already_redeemed_count = 0
             completed_count = 0
             fail_reasons = {}
+            redemption_tracking_batch = []
+            redeemed_members_batch = []
             progress_lock = asyncio.Lock()
             
             # Lock to stop processing if the code proves invalid globally
@@ -1779,7 +1943,7 @@ class ManageGiftCode(commands.Cog):
             
             retry_members = []  # Members that hit rate limits and need a second pass
             
-            async def process_member_with_semaphore(idx, fid, nickname, furnace_lv):
+            async def process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=True):
                 """Process a single member with semaphore control"""
                 nonlocal success_count, failed_count, already_redeemed_count, completed_count, code_is_invalid, last_update_time
                 
@@ -1798,7 +1962,7 @@ class ManageGiftCode(commands.Cog):
                     # Process the member with robust error handling
                     try:
                         status, success, already_redeemed, failed = await self._redeem_for_member(
-                            guild_id, fid, nickname, furnace_lv, giftcode
+                            guild_id, fid, nickname, furnace_lv, giftcode, track_result=False
                         )
                         
                         # If status is permanently invalid for everyone, abort early
@@ -1811,14 +1975,26 @@ class ManageGiftCode(commands.Cog):
                         async with progress_lock:
                             success_count += success
                             already_redeemed_count += already_redeemed
+                            if status:
+                                tracking_status = self._tracking_status_from_result(success, already_redeemed)
+                                redemption_tracking_batch.append({
+                                    "fid": str(fid),
+                                    "status": tracking_status,
+                                })
+                                if success or already_redeemed:
+                                    redeemed_members_batch.append({
+                                        "fid": str(fid),
+                                        "status": tracking_status,
+                                    })
                             if failed:
                                 # Check if this is a retryable failure (rate limit / captcha)
                                 retryable = status in (
                                     "LOGIN_FAILED", "CAPTCHA_FETCH_ERROR",
                                     "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID",
-                                    "CAPTCHA_SOLVER_NOT_AVAILABLE", "RATE_LIMITED"
+                                    "CAPTCHA_SOLVER_NOT_AVAILABLE", "RATE_LIMITED",
+                                    "CAPTCHA_TOO_FREQUENT", "TIMEOUT", "REQUEST_ERROR"
                                 )
-                                if retryable:
+                                if retryable and allow_second_pass:
                                     # Don't count as failed yet — add to second-pass queue
                                     retry_members.append((fid, nickname, furnace_lv))
                                     self.logger.info(f"🔁 Will retry {nickname} (FID: {fid}) in second pass — status: {status}")
@@ -1844,9 +2020,10 @@ class ManageGiftCode(commands.Cog):
                             last_update_time = now
                             
                             # Calculate progress percentage and create visual bar
-                            progress_percent = (completed_count / len(members)) * 100
+                            display_completed = min(completed_count, len(members))
+                            progress_percent = min(100.0, (display_completed / len(members)) * 100)
                             bar_length = 20
-                            filled_length = int(bar_length * completed_count / len(members))
+                            filled_length = min(bar_length, int(bar_length * display_completed / len(members)))
                             progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
                             
                             reasons_text = ""
@@ -1864,7 +2041,7 @@ class ManageGiftCode(commands.Cog):
                                     f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
                                     f"```\n"
                                     f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
-                                    f"📊 **Processed:** {completed_count}/{len(members)}\n\n"
+                                    f"📊 **Processed:** {display_completed}/{len(members)}\n\n"
                                     f"✅ **Success:** {success_count}\n"
                                     f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
                                     f"❌ **Failed:** {failed_count}{reasons_text}\n"
@@ -1888,7 +2065,9 @@ class ManageGiftCode(commands.Cog):
             
             # ── SECOND PASS: Retry rate-limited members after cooldown ──
             if retry_members and not code_is_invalid:
-                retry_count = len(retry_members)
+                members_for_retry = retry_members[:]
+                retry_members.clear()
+                retry_count = len(members_for_retry)
                 self.logger.info(f"🔄 Starting second pass for {retry_count} rate-limited members after 60s cooldown...")
                 
                 # Notify channel of the retry
@@ -1913,11 +2092,18 @@ class ManageGiftCode(commands.Cog):
                 
                 # Re-process all the failed members
                 retry_tasks = [
-                    process_member_with_semaphore(idx, fid, nickname, furnace_lv)
-                    for idx, (fid, nickname, furnace_lv) in enumerate(retry_members, 1)
+                    process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=False)
+                    for idx, (fid, nickname, furnace_lv) in enumerate(members_for_retry, 1)
                 ]
                 await asyncio.gather(*retry_tasks, return_exceptions=True)
                 self.logger.info(f"✅ Second pass complete for guild {guild_id}")
+
+            await self._flush_bulk_redemption_tracking(
+                guild_id,
+                giftcode,
+                redemption_tracking_batch,
+                redeemed_members_batch,
+            )
             
             # Flush any remaining retry_members still in list into failed (edge case)
             if retry_members:
@@ -2073,10 +2259,11 @@ class ManageGiftCode(commands.Cog):
             captcha_image_base64, error = await self.fetch_captcha(player_id, session)
             
             if error:
-                if error == "CAPTCHA_TOO_FREQUENT":
-                    return "CAPTCHA_TOO_FREQUENT", None, None, None
-                else:
-                    return "CAPTCHA_FETCH_ERROR", None, None, None
+                if error in {"CAPTCHA_TOO_FREQUENT", "RATE_LIMITED", "TIMEOUT", "FORBIDDEN"}:
+                    return error, None, None, None
+                if str(error).startswith("Request Error"):
+                    return "REQUEST_ERROR", None, None, None
+                return "CAPTCHA_FETCH_ERROR", None, None, None
             
             if not captcha_image_base64:
                 return "CAPTCHA_FETCH_ERROR", None, None, None
@@ -3566,11 +3753,17 @@ class ManageGiftCode(commands.Cog):
             
             # Get current job info
             current_status = "💤 Idle"
-            if self.current_job:
-                g_id, c_code = self.current_job
-                guild = self.bot.get_guild(g_id)
-                guild_name = guild.name if guild else f"ID: {g_id}"
-                current_status = f"⚙️ Processing: **{guild_name}** for code `{c_code}`"
+            active_jobs = list(getattr(self, "current_jobs", {}).items())
+            if active_jobs:
+                job_lines = []
+                for worker_id, (g_id, c_code) in active_jobs[:5]:
+                    guild = self.bot.get_guild(g_id)
+                    guild_name = guild.name if guild else f"ID: {g_id}"
+                    job_lines.append(f"Worker {worker_id}: **{guild_name}** / `{c_code}`")
+                extra_jobs = len(active_jobs) - len(job_lines)
+                if extra_jobs > 0:
+                    job_lines.append(f"...and {extra_jobs} more")
+                current_status = "⚙️ Processing:\n" + "\n".join(job_lines)
             
             embed = discord.Embed(
                 title="🚀 Auto-Redeem Global Status",

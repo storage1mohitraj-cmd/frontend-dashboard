@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Global Chat - Whiteout Survival</title>
+  <meta name="description" content="Whiteout Survival global community chat with translation, GIFs, voice messages, replies, reactions, and reports.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+
+<body class="chat-room-body">
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <span class="brand-mark" aria-hidden="true">
+          <img src="assets/brand-logo.gif" alt="">
+        </span>
+        <span>Whiteout Survival</span>
+      </a>
+
+      <nav class="primary-nav nav-galaxy" aria-label="Primary navigation">
+        <a href="features.html">Features</a>
+        <a href="commands.html">Commands</a>
+        <a class="active" href="chat.html">Chat</a>
+        <a href="index.html#preview">Preview</a>
+      </nav>
+
+      <div class="header-actions">
+        <a class="ghost-link dashboard-cta nav-galaxy" href="login.html" data-dashboard-link>Dashboard</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="chat-room-page" data-chat-room>
+    <section class="chat-room-shell">
+      <aside class="chat-room-side">
+        <div class="chat-room-brand">
+          <span class="brand-mark" aria-hidden="true"><img src="assets/brand-logo.gif" alt=""></span>
+          <div>
+            <h1>Global Chat</h1>
+            <p><b data-room-online>0</b> online</p>
+          </div>
+        </div>
+
+        <div class="global-chat-login room-login" data-room-login>
+          <input type="text" maxlength="32" placeholder="Custom player name" autocomplete="nickname" data-room-name>
+          <button type="button" data-room-guest>Guest login</button>
+          <a href="login.html" data-room-discord>Discord</a>
+        </div>
+
+        <div class="chat-room-user">
+          <span data-room-identity>Guest access</span>
+          <strong data-room-status>Loading room...</strong>
+        </div>
+      </aside>
+
+      <section class="chat-room-main">
+        <div class="chat-room-topbar">
+          <div>
+            <strong>Community Room</strong>
+            <span>UTC and local time are shown on every message</span>
+          </div>
+          <button class="chat-room-refresh" type="button" data-room-refresh>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+              <path d="M3 21v-5h5"></path>
+              <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+              <path d="M16 8h5V3"></path>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <div class="chat-loading" data-room-loading>
+          <span></span><span></span><span></span>
+        </div>
+
+        <div class="chat-room-messages" data-room-messages></div>
+
+        <div class="room-reply-bar" data-room-reply hidden>
+          <div>
+            <span>Replying to</span>
+            <strong data-room-reply-name></strong>
+            <p data-room-reply-content></p>
+          </div>
+          <button type="button" data-room-reply-clear aria-label="Clear reply" title="Clear reply">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M18 6 6 18"></path>
+              <path d="m6 6 12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="chat-attachments room-attachments" data-room-attachments hidden></div>
+
+        <form class="global-chat-form room-composer" data-room-form>
+          <div class="chat-input-wrap">
+            <textarea rows="1" maxlength="1500" placeholder="Message global chat" data-room-input></textarea>
+            <div class="chat-emoji-panel" data-room-emoji-panel hidden></div>
+            <div class="tenor-panel" data-room-tenor-panel hidden>
+              <div class="tenor-search">
+                <input type="search" placeholder="Search Tenor GIFs" data-room-tenor-search>
+                <button type="button" data-room-tenor-go>Search</button>
+              </div>
+              <div class="tenor-results" data-room-tenor-results></div>
+            </div>
+          </div>
+          <div class="chat-form-actions">
+            <button class="chat-icon-button" type="button" aria-label="Add emoji" title="Emoji" data-room-emoji>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                <path d="M9 9h.01"></path>
+                <path d="M15 9h.01"></path>
+              </svg>
+            </button>
+            <button class="chat-icon-button" type="button" aria-label="Search GIFs" title="GIFs" data-room-tenor>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+                <path d="M8 9h3"></path>
+                <path d="M8 15V9"></path>
+                <path d="M13 9v6"></path>
+                <path d="M16 9h3"></path>
+                <path d="M16 12h2"></path>
+                <path d="M16 15h3"></path>
+              </svg>
+            </button>
+            <button class="chat-icon-button" type="button" aria-label="Record voice" title="Voice" data-room-voice>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <path d="M12 19v3"></path>
+              </svg>
+            </button>
+            <label class="chat-icon-button" aria-label="Attach file" title="Attach file">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 1 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+              </svg>
+              <input type="file" multiple data-room-file>
+            </label>
+            <button class="chat-send-button" type="submit" aria-label="Send message" title="Send">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="m22 2-7 20-4-9-9-4Z"></path>
+                <path d="M22 2 11 13"></path>
+              </svg>
+            </button>
+          </div>
+        </form>
+      </section>
+    </section>
+  </main>
+
+  <script src="assets/site-data.js"></script>
+  <script src="assets/site.js"></script>
+  <script src="assets/chat-room.js"></script>
+</body>
+
+</html>

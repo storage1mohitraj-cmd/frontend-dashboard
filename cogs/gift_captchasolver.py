@@ -8,6 +8,7 @@ import time
 import logging
 import logging.handlers
 import json
+import asyncio
 
 try:
     import onnxruntime as ort
@@ -203,17 +204,22 @@ class GiftCaptchaSolver:
             EXPECTED_CAPTCHA_LENGTH = 4
             VALID_CHARACTERS = set(self.model_metadata['chars'])
 
-            # Preprocess image
-            input_data = self._preprocess_image(image_bytes)
+            def _blocking_ops():
+                data = self._preprocess_image(image_bytes)
+                if data is None:
+                    return None, None
+                name = self.onnx_session.get_inputs()[0].name
+                out = self.onnx_session.run(None, {name: data})
+                return data, out
+
+            loop = asyncio.get_running_loop()
+            input_data, outputs = await loop.run_in_executor(None, _blocking_ops)
+
             if input_data is None:
                 self.stats["failures"] += 1
                 self.run_stats["failures"] += 1
                 self.logger.error(f"[Solver] FID {fid}, Attempt {attempt+1}: Failed to preprocess image")
                 return None, False, "ONNX", 0.0, None
-
-            # Run inference
-            input_name = self.onnx_session.get_inputs()[0].name
-            outputs = self.onnx_session.run(None, {input_name: input_data})
 
             # Decode predictions
             idx_to_char = self.model_metadata['idx_to_char']

@@ -161,6 +161,8 @@
     const chat = {
       panel: chatRoot.querySelector("[data-chat-panel]"),
       toggle: chatRoot.querySelector("[data-chat-toggle]"),
+      unread: chatRoot.querySelector("[data-chat-unread]"),
+      online: chatRoot.querySelector("[data-chat-online]"),
       close: chatRoot.querySelector("[data-chat-close]"),
       login: chatRoot.querySelector("[data-chat-login]"),
       name: chatRoot.querySelector("[data-chat-name]"),
@@ -180,13 +182,17 @@
     const DISCORD_CLIENT_ID = "1399025185046134866";
     const STORAGE_KEYS = {
       guestId: "wos_global_chat_guest_id",
-      guestName: "wos_global_chat_guest_name"
+      guestName: "wos_global_chat_guest_name",
+      lastSeen: "wos_global_chat_last_seen_at"
     };
     const emojis = ["😀", "😂", "🔥", "❄️", "🎁", "⚔️", "🛡️", "🏆", "💎", "✅", "👀", "🤝", "🙏", "🚀", "💬", "❤️"];
     let pendingAttachments = [];
     let currentUser = null;
     let pollTimer = null;
+    let presenceTimer = null;
     let isLoadingMessages = false;
+    let latestMessageAt = null;
+    let firstMessageSync = true;
 
     const setStatus = (message, isError = false) => {
       chat.status.textContent = message;
@@ -215,6 +221,23 @@
       const cleaned = name.trim().slice(0, 32);
       if (cleaned) localStorage.setItem(STORAGE_KEYS.guestName, cleaned);
       return cleaned;
+    };
+
+    const setUnread = (count) => {
+      if (!chat.unread) return;
+      if (count > 0) {
+        chat.unread.hidden = false;
+        chat.unread.textContent = count > 99 ? "99+" : String(count);
+      } else {
+        chat.unread.hidden = true;
+        chat.unread.textContent = "0";
+      }
+    };
+
+    const markSeen = () => {
+      if (!latestMessageAt) return;
+      localStorage.setItem(STORAGE_KEYS.lastSeen, latestMessageAt);
+      setUnread(0);
     };
 
     const buildDiscordAuthUrl = () => {
@@ -274,6 +297,11 @@
       return type.startsWith("image/") || /\.(png|jpe?g|gif|webp|apng)$/i.test(attachment.url || "");
     };
 
+    const isAudioAttachment = (attachment) => {
+      const type = attachment.type || "";
+      return type.startsWith("audio/") || /\.(webm|ogg|mp3|wav|m4a|aac)$/i.test(attachment.url || "");
+    };
+
     const renderMessage = (message) => {
       const article = document.createElement("article");
       article.className = "chat-message";
@@ -309,11 +337,34 @@
       top.append(name, time);
       bubble.appendChild(top);
 
+      if (message.reply_to) {
+        const reply = document.createElement("div");
+        reply.className = "chat-reply-context";
+        const replyName = document.createElement("strong");
+        replyName.textContent = message.reply_to.author_name || "Player";
+        const replyText = document.createElement("span");
+        replyText.textContent = message.reply_to.content || "Attachment";
+        reply.append(replyName, replyText);
+        bubble.appendChild(reply);
+      }
+
       if (message.content) {
         const content = document.createElement("p");
         content.className = "chat-content";
         content.textContent = message.content;
         bubble.appendChild(content);
+      }
+
+      if (Array.isArray(message.reactions) && message.reactions.length) {
+        const reactions = document.createElement("div");
+        reactions.className = "chat-reactions";
+        message.reactions.forEach((reaction) => {
+          const pill = document.createElement("span");
+          pill.className = "chat-reaction-pill";
+          pill.textContent = `${reaction.emoji} ${reaction.count}`;
+          reactions.appendChild(pill);
+        });
+        bubble.appendChild(reactions);
       }
 
       if (Array.isArray(message.attachments) && message.attachments.length) {
@@ -326,10 +377,15 @@
             link.target = "_blank";
             link.rel = "noopener noreferrer";
             const image = document.createElement("img");
-            image.src = attachment.url;
+            image.src = attachment.preview_url || attachment.url;
             image.alt = attachment.name || "Chat attachment";
             link.appendChild(image);
             list.appendChild(link);
+          } else if (isAudioAttachment(attachment)) {
+            const audio = document.createElement("audio");
+            audio.controls = true;
+            audio.src = attachment.url;
+            list.appendChild(audio);
           } else {
             const link = document.createElement("a");
             link.className = "chat-file-link";
@@ -373,12 +429,47 @@
         const response = await fetch("/api/chat/messages?limit=80", { headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error("Chat unavailable");
         const payload = await response.json();
-        renderMessages(payload.messages || []);
+        const messages = payload.messages || [];
+        renderMessages(messages);
+        if (chat.online) chat.online.textContent = String(payload.online_count || 0);
+        latestMessageAt = messages.length ? messages[messages.length - 1].created_at : latestMessageAt;
+        const lastSeen = localStorage.getItem(STORAGE_KEYS.lastSeen);
+        if (firstMessageSync && !lastSeen && latestMessageAt) {
+          localStorage.setItem(STORAGE_KEYS.lastSeen, latestMessageAt);
+        }
+        firstMessageSync = false;
+        if (chat.panel.hidden) {
+          const seenAt = localStorage.getItem(STORAGE_KEYS.lastSeen) || latestMessageAt;
+          const unseen = messages.filter((message) => message.created_at && message.created_at > seenAt).length;
+          setUnread(unseen);
+        } else {
+          markSeen();
+        }
         setStatus((payload.messages || []).length ? "Live global room" : "No messages yet");
       } catch (error) {
         setStatus("Global chat is offline right now", true);
       } finally {
         isLoadingMessages = false;
+      }
+    };
+
+    const sendPresence = async () => {
+      try {
+        const body = {
+          display_name: getGuestName() || chat.name.value,
+          guest_id: getGuestId(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+        };
+        const response = await fetch("/api/chat/presence", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify(body)
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (chat.online) chat.online.textContent = String(data.online_count || 0);
+      } catch (error) {
+        // Presence should never block chat.
       }
     };
 
@@ -524,28 +615,25 @@
     chat.name.value = getGuestName();
     updateIdentityView();
     resolveDiscordIdentity();
+    refreshMessages();
+    sendPresence();
+    pollTimer = window.setInterval(refreshMessages, 5000);
+    presenceTimer = window.setInterval(sendPresence, 25000);
 
     chat.toggle.addEventListener("click", () => {
       const opening = chat.panel.hidden;
       chat.panel.hidden = !opening;
       chat.toggle.setAttribute("aria-expanded", String(opening));
       if (opening) {
-        refreshMessages();
-        pollTimer = window.setInterval(refreshMessages, 5000);
+        markSeen();
         if (!currentUser && !getGuestName()) chat.name.focus();
-      } else if (pollTimer) {
-        window.clearInterval(pollTimer);
-        pollTimer = null;
       }
     });
 
     chat.close.addEventListener("click", () => {
       chat.panel.hidden = true;
       chat.toggle.setAttribute("aria-expanded", "false");
-      if (pollTimer) {
-        window.clearInterval(pollTimer);
-        pollTimer = null;
-      }
+      markSeen();
     });
 
     chat.guest.addEventListener("click", () => {
@@ -558,6 +646,7 @@
       currentUser = null;
       updateIdentityView();
       setStatus("Guest login ready");
+      sendPresence();
       chat.input.focus();
     });
 

@@ -3,7 +3,8 @@ import logging
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+import asyncio
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,20 +23,30 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/chat", tags=["Global Chat"])
 
 CHAT_COLLECTION = "global_chat_messages"
+PRESENCE_COLLECTION = "global_chat_presence"
+REPORTS_COLLECTION = "global_chat_reports"
 CHAT_STORE = Path("data/global_chat_messages.json")
+PRESENCE_STORE = Path("data/global_chat_presence.json")
+REPORTS_STORE = Path("data/global_chat_reports.json")
 CHAT_UPLOAD_DIR = Path("data/uploads/chat")
 MAX_MESSAGE_LENGTH = 1500
 MAX_NAME_LENGTH = 32
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 ALLOWED_UPLOAD_EXTENSIONS = {
+    ".aac",
     ".apng",
     ".csv",
     ".gif",
     ".jpeg",
     ".jpg",
+    ".m4a",
+    ".mp3",
+    ".ogg",
     ".pdf",
     ".png",
     ".txt",
+    ".wav",
+    ".webm",
     ".webp",
     ".zip",
 }
@@ -54,11 +65,31 @@ class ChatMessageCreate(BaseModel):
     guest_id: Optional[str] = Field(default=None, max_length=80)
     timezone: Optional[str] = Field(default=None, max_length=80)
     client_time: Optional[str] = Field(default=None, max_length=80)
+    reply_to_id: Optional[str] = Field(default=None, max_length=80)
     attachments: List[ChatAttachment] = Field(default_factory=list)
 
 
 class TranslateRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=1200)
+
+
+class ReactionRequest(BaseModel):
+    emoji: str = Field(..., min_length=1, max_length=12)
+    display_name: Optional[str] = Field(default=None, max_length=MAX_NAME_LENGTH)
+    guest_id: Optional[str] = Field(default=None, max_length=80)
+
+
+class ReportRequest(BaseModel):
+    reason: str = Field(default="Needs review", max_length=120)
+    details: Optional[str] = Field(default=None, max_length=500)
+    display_name: Optional[str] = Field(default=None, max_length=MAX_NAME_LENGTH)
+    guest_id: Optional[str] = Field(default=None, max_length=80)
+
+
+class PresenceRequest(BaseModel):
+    display_name: Optional[str] = Field(default=None, max_length=MAX_NAME_LENGTH)
+    guest_id: Optional[str] = Field(default=None, max_length=80)
+    timezone: Optional[str] = Field(default=None, max_length=80)
 
 
 def _utc_now_iso() -> str:
@@ -75,12 +106,19 @@ def _clean_name(value: Optional[str], fallback: str = "Guest Player") -> str:
     return cleaned or fallback
 
 
+def _is_allowed_attachment_url(url: str) -> bool:
+    return url.startswith("/api/static/chat/") or url.startswith("https://media.tenor.com/")
+
+
 def _public_message(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "id": str(doc.get("_id") or doc.get("id") or ""),
         "content": doc.get("content", ""),
         "author": doc.get("author", {}),
         "attachments": doc.get("attachments", []),
+        "reply_to": doc.get("reply_to"),
+        "reactions": _reaction_summary(doc.get("reactions", [])),
+        "report_count": int(doc.get("report_count", 0) or 0),
         "created_at": doc.get("created_at"),
         "timezone": doc.get("timezone"),
         "client_time": doc.get("client_time"),
@@ -88,30 +126,244 @@ def _public_message(doc: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-async def _get_collection():
+async def _get_collection(name: str = CHAT_COLLECTION):
     if not mongo_enabled() or _get_db_main_async is None:
         return None
     try:
         db = await _get_db_main_async()
-        return db[CHAT_COLLECTION]
+        return db[name]
     except Exception as exc:
         logger.warning("Global chat MongoDB unavailable, using JSON fallback: %s", exc)
         return None
 
 
-def _read_fallback_messages() -> List[Dict[str, Any]]:
-    if not CHAT_STORE.exists():
-        return []
+def _read_json_store(path: Path, default):
+    if not path.exists():
+        return default
     try:
-        return json.loads(CHAT_STORE.read_text(encoding="utf-8"))
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
-        logger.error("Failed to read global chat fallback store: %s", exc)
-        return []
+        logger.error("Failed to read %s: %s", path, exc)
+        return default
+
+
+def _write_json_store(path: Path, data) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _read_fallback_messages() -> List[Dict[str, Any]]:
+    return _read_json_store(CHAT_STORE, [])
 
 
 def _write_fallback_messages(messages: List[Dict[str, Any]]) -> None:
-    CHAT_STORE.parent.mkdir(parents=True, exist_ok=True)
-    CHAT_STORE.write_text(json.dumps(messages[-500:], ensure_ascii=False, indent=2), encoding="utf-8")
+    _write_json_store(CHAT_STORE, messages[-500:])
+
+
+def _read_fallback_presence() -> Dict[str, Dict[str, Any]]:
+    return _read_json_store(PRESENCE_STORE, {})
+
+
+def _write_fallback_presence(presence: Dict[str, Dict[str, Any]]) -> None:
+    _write_json_store(PRESENCE_STORE, presence)
+
+
+def _read_fallback_reports() -> List[Dict[str, Any]]:
+    return _read_json_store(REPORTS_STORE, [])
+
+
+def _write_fallback_reports(reports: List[Dict[str, Any]]) -> None:
+    _write_json_store(REPORTS_STORE, reports[-1000:])
+
+
+def _presence_cutoff_iso() -> str:
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=75)
+    return cutoff.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _actor_key(author: Dict[str, Any]) -> str:
+    return f"{author.get('kind', 'guest')}:{author.get('id') or author.get('name') or 'unknown'}"
+
+
+def _reaction_summary(reactions: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    summary = []
+    for item in reactions or []:
+        users = item.get("users", [])
+        if not isinstance(users, list):
+            users = []
+        summary.append({"emoji": item.get("emoji", ""), "count": len(users)})
+    return [item for item in summary if item["emoji"] and item["count"] > 0]
+
+
+async def _find_message(message_id: str) -> Optional[Dict[str, Any]]:
+    collection = await _get_collection()
+    if collection is not None:
+        return await collection.find_one({"_id": str(message_id)})
+
+    for message in _read_fallback_messages():
+        if str(message.get("_id") or message.get("id")) == str(message_id):
+            return message
+    return None
+
+
+def _reply_snapshot(message: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not message:
+        return None
+    author = message.get("author") or {}
+    content = _clean_text(message.get("content", ""), 160)
+    return {
+        "id": str(message.get("_id") or message.get("id")),
+        "author_name": author.get("name", "Player"),
+        "content": content,
+    }
+
+
+async def _resolve_chat_actor(request: Request, display_name: Optional[str], guest_id: Optional[str]) -> Dict[str, Any]:
+    auth_header = request.headers.get("Authorization")
+    discord_user = await _resolve_discord_user(auth_header)
+    if discord_user:
+        return discord_user
+
+    safe_guest_id = _clean_text(guest_id or "", 80) or f"guest-{uuid.uuid4().hex[:12]}"
+    return {
+        "id": safe_guest_id,
+        "name": _clean_name(display_name),
+        "username": _clean_name(display_name),
+        "avatar_url": None,
+        "kind": "guest",
+    }
+
+
+async def _online_count() -> int:
+    cutoff = _presence_cutoff_iso()
+    collection = await _get_collection(PRESENCE_COLLECTION)
+    if collection is not None:
+        return await collection.count_documents({"last_seen": {"$gte": cutoff}})
+
+    presence = _read_fallback_presence()
+    return sum(1 for item in presence.values() if item.get("last_seen", "") >= cutoff)
+
+
+def _coerce_int(value: int, fallback: int, min_value: int, max_value: int) -> int:
+    try:
+        number = int(value)
+    except Exception:
+        number = fallback
+    return min(max(number, min_value), max_value)
+
+
+def _tenor_image_from_result(item: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    formats = item.get("media_formats") or {}
+    gif = formats.get("gif") or formats.get("mediumgif") or formats.get("tinygif") or {}
+    preview = formats.get("tinygif") or formats.get("nanogif") or gif
+    url = gif.get("url")
+    preview_url = preview.get("url")
+    if not url:
+        return None
+    return {
+        "id": item.get("id"),
+        "title": item.get("content_description") or "Tenor GIF",
+        "url": url,
+        "preview_url": preview_url or url,
+    }
+
+
+async def _translate_with_deepl_sdk(api_key: str, text: str) -> Optional[Dict[str, str]]:
+    try:
+        import deepl
+    except Exception:
+        return None
+
+    def run_translation():
+        translator = deepl.Translator(api_key)
+        result = translator.translate_text(text, target_lang="EN-US")
+        return {
+            "translated_text": result.text,
+            "detected_source_lang": getattr(result, "detected_source_lang", None),
+            "provider": "deepl-sdk",
+        }
+
+    try:
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, run_translation)
+    except Exception as exc:
+        logger.warning("DeepL SDK translation failed: %s", exc)
+        return None
+
+
+async def _translate_with_deepl_http(api_key: str, text: str) -> Optional[Dict[str, str]]:
+    configured_endpoint = os.getenv("DEEPL_API_URL")
+    endpoints = [configured_endpoint] if configured_endpoint else [
+        "https://api-free.deepl.com/v2/translate",
+        "https://api.deepl.com/v2/translate",
+    ]
+    async with httpx.AsyncClient(timeout=12) as client:
+        for endpoint in [item for item in endpoints if item]:
+            try:
+                response = await client.post(
+                    endpoint,
+                    data={
+                        "auth_key": api_key,
+                        "text": text,
+                        "target_lang": "EN-US",
+                    },
+                )
+                if response.status_code >= 400:
+                    logger.warning("DeepL HTTP translation failed at %s: %s %s", endpoint, response.status_code, response.text[:160])
+                    continue
+                data = response.json()
+                item = (data.get("translations") or [{}])[0]
+                return {
+                    "translated_text": item.get("text", text),
+                    "detected_source_lang": item.get("detected_source_language"),
+                    "provider": "deepl-http",
+                }
+            except Exception as exc:
+                logger.warning("DeepL HTTP translation error at %s: %s", endpoint, exc)
+    return None
+
+
+async def _translate_with_free_fallback(text: str) -> Optional[Dict[str, str]]:
+    try:
+        async with httpx.AsyncClient(timeout=12) as client:
+            response = await client.get(
+                "https://api.mymemory.translated.net/get",
+                params={"q": text, "langpair": "auto|en"},
+            )
+        if response.status_code >= 400:
+            return None
+        data = response.json()
+        translated = (data.get("responseData") or {}).get("translatedText")
+        if not translated:
+            return None
+        return {
+            "translated_text": translated,
+            "detected_source_lang": None,
+            "provider": "mymemory",
+        }
+    except Exception as exc:
+        logger.warning("Free translation fallback failed: %s", exc)
+        return None
+
+
+async def _update_message_doc(message_id: str, updater):
+    collection = await _get_collection()
+    if collection is not None:
+        doc = await collection.find_one({"_id": str(message_id)})
+        if not doc:
+            return None
+        updated = updater(doc)
+        await collection.replace_one({"_id": str(message_id)}, updated)
+        return updated
+
+    messages = _read_fallback_messages()
+    for index, doc in enumerate(messages):
+        if str(doc.get("_id") or doc.get("id")) == str(message_id):
+            updated = updater(doc)
+            messages[index] = updated
+            _write_fallback_messages(messages)
+            return updated
+    return None
 
 
 async def _resolve_discord_user(auth_header: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -150,10 +402,10 @@ async def list_messages(limit: int = 80):
         cursor = collection.find({}).sort("created_at", -1).limit(safe_limit)
         docs = await cursor.to_list(length=safe_limit)
         docs.reverse()
-        return {"messages": [_public_message(doc) for doc in docs]}
+        return {"messages": [_public_message(doc) for doc in docs], "online_count": await _online_count()}
 
     messages = _read_fallback_messages()[-safe_limit:]
-    return {"messages": [_public_message(doc) for doc in messages]}
+    return {"messages": [_public_message(doc) for doc in messages], "online_count": await _online_count()}
 
 
 @router.post("/messages", status_code=201)
@@ -162,32 +414,23 @@ async def create_message(payload: ChatMessageCreate, request: Request):
     attachments = [
         item.dict()
         for item in payload.attachments[:4]
-        if item.url.startswith("/api/static/chat/")
+        if _is_allowed_attachment_url(item.url)
     ]
     if not content and not attachments:
         raise HTTPException(status_code=400, detail="Message text or a file is required.")
 
-    auth_header = request.headers.get("Authorization")
-    discord_user = await _resolve_discord_user(auth_header)
-    if discord_user:
-        author = discord_user
-        source = "discord"
-    else:
-        guest_id = _clean_text(payload.guest_id or "", 80) or f"guest-{uuid.uuid4().hex[:12]}"
-        author = {
-            "id": guest_id,
-            "name": _clean_name(payload.display_name),
-            "username": _clean_name(payload.display_name),
-            "avatar_url": None,
-            "kind": "guest",
-        }
-        source = "guest"
+    author = await _resolve_chat_actor(request, payload.display_name, payload.guest_id)
+    source = author.get("kind", "guest")
+    reply_to = _reply_snapshot(await _find_message(payload.reply_to_id)) if payload.reply_to_id else None
 
     doc = {
         "_id": uuid.uuid4().hex,
         "content": content,
         "author": author,
         "attachments": attachments,
+        "reply_to": reply_to,
+        "reactions": [],
+        "report_count": 0,
         "timezone": _clean_text(payload.timezone or "", 80),
         "client_time": _clean_text(payload.client_time or "", 80),
         "created_at": _utc_now_iso(),
@@ -211,6 +454,142 @@ async def create_message(payload: ChatMessageCreate, request: Request):
         _write_fallback_messages(messages)
 
     return {"message": _public_message(doc)}
+
+
+@router.post("/presence")
+async def update_presence(payload: PresenceRequest, request: Request):
+    author = await _resolve_chat_actor(request, payload.display_name, payload.guest_id)
+    key = _actor_key(author)
+    now = _utc_now_iso()
+    doc = {
+        "_id": key,
+        "author": author,
+        "timezone": _clean_text(payload.timezone or "", 80),
+        "last_seen": now,
+        "updated_at": now,
+    }
+
+    collection = await _get_collection(PRESENCE_COLLECTION)
+    if collection is not None:
+        await collection.update_one({"_id": key}, {"$set": doc}, upsert=True)
+    else:
+        presence = _read_fallback_presence()
+        cutoff = _presence_cutoff_iso()
+        presence = {item_key: item for item_key, item in presence.items() if item.get("last_seen", "") >= cutoff}
+        presence[key] = doc
+        _write_fallback_presence(presence)
+
+    return {"online_count": await _online_count(), "you": author}
+
+
+@router.get("/presence")
+async def get_presence():
+    return {"online_count": await _online_count()}
+
+
+@router.post("/messages/{message_id}/react")
+async def react_to_message(message_id: str, payload: ReactionRequest, request: Request):
+    emoji = _clean_text(payload.emoji, 12)
+    if not emoji:
+        raise HTTPException(status_code=400, detail="Emoji is required.")
+
+    author = await _resolve_chat_actor(request, payload.display_name, payload.guest_id)
+    actor = _actor_key(author)
+
+    def updater(doc: Dict[str, Any]) -> Dict[str, Any]:
+        reactions = doc.get("reactions") or []
+        match = None
+        for item in reactions:
+            if item.get("emoji") == emoji:
+                match = item
+                break
+        if match is None:
+            match = {"emoji": emoji, "users": []}
+            reactions.append(match)
+        users = match.get("users")
+        if not isinstance(users, list):
+            users = []
+        if actor in users:
+            users = [item for item in users if item != actor]
+        else:
+            users.append(actor)
+        match["users"] = users
+        doc["reactions"] = [item for item in reactions if item.get("users")]
+        doc["updated_at"] = _utc_now_iso()
+        return doc
+
+    updated = await _update_message_doc(message_id, updater)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Message not found.")
+    return {"message": _public_message(updated), "reactions": _reaction_summary(updated.get("reactions", []))}
+
+
+@router.post("/messages/{message_id}/report")
+async def report_message(message_id: str, payload: ReportRequest, request: Request):
+    message = await _find_message(message_id)
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found.")
+
+    author = await _resolve_chat_actor(request, payload.display_name, payload.guest_id)
+    now = _utc_now_iso()
+    report = {
+        "_id": uuid.uuid4().hex,
+        "message_id": str(message_id),
+        "reporter": author,
+        "reason": _clean_text(payload.reason, 120),
+        "details": _clean_text(payload.details or "", 500),
+        "created_at": now,
+    }
+
+    reports_collection = await _get_collection(REPORTS_COLLECTION)
+    if reports_collection is not None:
+        await reports_collection.insert_one(report)
+    else:
+        reports = _read_fallback_reports()
+        reports.append(report)
+        _write_fallback_reports(reports)
+
+    def updater(doc: Dict[str, Any]) -> Dict[str, Any]:
+        doc["report_count"] = int(doc.get("report_count", 0) or 0) + 1
+        doc["updated_at"] = now
+        return doc
+
+    await _update_message_doc(message_id, updater)
+    return {"status": "ok", "message": "Report sent for review."}
+
+
+@router.get("/tenor")
+async def search_tenor(q: str = "whiteout survival", limit: int = 12):
+    api_key = os.getenv("TENOR_API_KEY") or os.getenv("GOOGLE_TENOR_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Tenor GIF search is not configured.")
+
+    safe_limit = _coerce_int(limit, 12, 1, 24)
+    query = _clean_text(q or "whiteout survival", 80) or "whiteout survival"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                "https://tenor.googleapis.com/v2/search",
+                params={
+                    "key": api_key,
+                    "client_key": "wos-global-chat",
+                    "q": query,
+                    "limit": safe_limit,
+                    "media_filter": "gif,tinygif,nanogif",
+                    "contentfilter": "medium",
+                },
+            )
+        if response.status_code >= 400:
+            logger.warning("Tenor search failed: %s %s", response.status_code, response.text[:160])
+            raise HTTPException(status_code=502, detail="Tenor search failed.")
+        data = response.json()
+        gifs = [_tenor_image_from_result(item) for item in data.get("results", [])]
+        return {"results": [item for item in gifs if item]}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Tenor search error: %s", exc)
+        raise HTTPException(status_code=502, detail="GIF search failed.")
 
 
 @router.post("/upload")
@@ -245,34 +624,16 @@ async def upload_file(file: UploadFile = File(...)):
 @router.post("/translate")
 async def translate_to_english(payload: TranslateRequest):
     api_key = os.getenv("DEEPL_API_KEY")
-    if not api_key:
-        raise HTTPException(status_code=503, detail="Translation is not configured.")
+    if api_key:
+        deepl_sdk = await _translate_with_deepl_sdk(api_key, payload.text)
+        if deepl_sdk:
+            return deepl_sdk
+        deepl_http = await _translate_with_deepl_http(api_key, payload.text)
+        if deepl_http:
+            return deepl_http
 
-    endpoint = os.getenv("DEEPL_API_URL")
-    if not endpoint:
-        endpoint = "https://api-free.deepl.com/v2/translate" if api_key.endswith(":fx") else "https://api.deepl.com/v2/translate"
+    fallback = await _translate_with_free_fallback(payload.text)
+    if fallback:
+        return fallback
 
-    try:
-        async with httpx.AsyncClient(timeout=12) as client:
-            response = await client.post(
-                endpoint,
-                data={
-                    "auth_key": api_key,
-                    "text": payload.text,
-                    "target_lang": "EN-US",
-                },
-            )
-        if response.status_code >= 400:
-            logger.warning("DeepL translation failed: %s %s", response.status_code, response.text[:200])
-            raise HTTPException(status_code=502, detail="Translation provider failed.")
-        data = response.json()
-        item = (data.get("translations") or [{}])[0]
-        return {
-            "translated_text": item.get("text", payload.text),
-            "detected_source_lang": item.get("detected_source_language"),
-        }
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.error("Global chat translation error: %s", exc)
-        raise HTTPException(status_code=502, detail="Translation failed.")
+    raise HTTPException(status_code=502, detail="Translation failed.")

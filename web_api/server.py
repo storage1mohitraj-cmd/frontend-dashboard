@@ -172,6 +172,13 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to load alliance monitor router: {e}")
 
+try:
+    from web_api.routers.chat import router as chat_router
+    app.include_router(chat_router)
+    logger.info("✅ Global Chat router loaded")
+except Exception as e:
+    logger.error(f"❌ Failed to load global chat router: {e}")
+
 os.makedirs("data/uploads", exist_ok=True)
 app.mount("/api/static", StaticFiles(directory="data/uploads"), name="static")
 

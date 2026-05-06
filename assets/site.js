@@ -155,4 +155,441 @@
     renderCategories();
     renderCommands();
   }
+
+  const chatRoot = document.querySelector("[data-global-chat]");
+  if (chatRoot) {
+    const chat = {
+      panel: chatRoot.querySelector("[data-chat-panel]"),
+      toggle: chatRoot.querySelector("[data-chat-toggle]"),
+      close: chatRoot.querySelector("[data-chat-close]"),
+      login: chatRoot.querySelector("[data-chat-login]"),
+      name: chatRoot.querySelector("[data-chat-name]"),
+      guest: chatRoot.querySelector("[data-chat-guest]"),
+      discord: chatRoot.querySelector("[data-chat-discord]"),
+      identity: chatRoot.querySelector("[data-chat-identity]"),
+      status: chatRoot.querySelector("[data-chat-status]"),
+      messages: chatRoot.querySelector("[data-chat-messages]"),
+      form: chatRoot.querySelector("[data-chat-form]"),
+      input: chatRoot.querySelector("[data-chat-input]"),
+      file: chatRoot.querySelector("[data-chat-file]"),
+      attachments: chatRoot.querySelector("[data-chat-attachments]"),
+      emoji: chatRoot.querySelector("[data-chat-emoji]"),
+      emojiPanel: chatRoot.querySelector("[data-chat-emoji-panel]")
+    };
+
+    const DISCORD_CLIENT_ID = "1399025185046134866";
+    const STORAGE_KEYS = {
+      guestId: "wos_global_chat_guest_id",
+      guestName: "wos_global_chat_guest_name"
+    };
+    const emojis = ["😀", "😂", "🔥", "❄️", "🎁", "⚔️", "🛡️", "🏆", "💎", "✅", "👀", "🤝", "🙏", "🚀", "💬", "❤️"];
+    let pendingAttachments = [];
+    let currentUser = null;
+    let pollTimer = null;
+    let isLoadingMessages = false;
+
+    const setStatus = (message, isError = false) => {
+      chat.status.textContent = message;
+      chat.status.classList.toggle("is-error", isError);
+    };
+
+    const getToken = () => localStorage.getItem("discord_access_token");
+
+    const authHeaders = () => {
+      const token = getToken();
+      return token ? { Authorization: `Bearer ${token}` } : {};
+    };
+
+    const getGuestId = () => {
+      let guestId = localStorage.getItem(STORAGE_KEYS.guestId);
+      if (!guestId) {
+        guestId = `guest-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+        localStorage.setItem(STORAGE_KEYS.guestId, guestId);
+      }
+      return guestId;
+    };
+
+    const getGuestName = () => localStorage.getItem(STORAGE_KEYS.guestName) || "";
+
+    const setGuestName = (name) => {
+      const cleaned = name.trim().slice(0, 32);
+      if (cleaned) localStorage.setItem(STORAGE_KEYS.guestName, cleaned);
+      return cleaned;
+    };
+
+    const buildDiscordAuthUrl = () => {
+      const base = "https://discord.com/api/oauth2/authorize";
+      const redirect = `${window.location.origin}/oauth-callback.html`;
+      const scope = encodeURIComponent("identify guilds");
+      return `${base}?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=code&scope=${scope}&prompt=consent`;
+    };
+
+    const updateIdentityView = () => {
+      const guestName = getGuestName();
+      if (currentUser) {
+        chat.identity.textContent = `Discord: ${currentUser.global_name || currentUser.username}`;
+        chat.login.classList.add("is-hidden");
+        return;
+      }
+      if (guestName) {
+        chat.identity.textContent = `Guest: ${guestName}`;
+        chat.login.classList.add("is-hidden");
+        return;
+      }
+      chat.identity.textContent = "Guest access";
+      chat.login.classList.remove("is-hidden");
+    };
+
+    const resolveDiscordIdentity = async () => {
+      if (!getToken()) {
+        updateIdentityView();
+        return;
+      }
+      try {
+        const response = await fetch("/api/auth/me", { headers: authHeaders() });
+        if (!response.ok) throw new Error("Discord login expired");
+        currentUser = await response.json();
+      } catch (error) {
+        currentUser = null;
+      } finally {
+        updateIdentityView();
+      }
+    };
+
+    const initials = (name) => {
+      const parts = String(name || "Guest").trim().split(/\s+/).slice(0, 2);
+      return parts.map((part) => part[0] || "").join("").toUpperCase() || "G";
+    };
+
+    const formatTime = (iso) => {
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) return "now";
+      const local = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      const utc = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" });
+      return `${local} local / ${utc} UTC`;
+    };
+
+    const isImageAttachment = (attachment) => {
+      const type = attachment.type || "";
+      return type.startsWith("image/") || /\.(png|jpe?g|gif|webp|apng)$/i.test(attachment.url || "");
+    };
+
+    const renderMessage = (message) => {
+      const article = document.createElement("article");
+      article.className = "chat-message";
+
+      const avatar = document.createElement("div");
+      avatar.className = "chat-avatar";
+      const author = message.author || {};
+      if (author.avatar_url) {
+        const image = document.createElement("img");
+        image.src = author.avatar_url;
+        image.alt = "";
+        avatar.appendChild(image);
+      } else {
+        avatar.textContent = initials(author.name);
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble";
+
+      const top = document.createElement("div");
+      top.className = "chat-bubble-top";
+
+      const name = document.createElement("div");
+      name.className = "chat-author";
+      name.textContent = author.name || "Guest Player";
+
+      const time = document.createElement("time");
+      time.className = "chat-meta";
+      time.dateTime = message.created_at || "";
+      time.textContent = formatTime(message.created_at);
+      time.title = `${new Date(message.created_at).toUTCString()} | Sender zone: ${message.timezone || "unknown"}`;
+
+      top.append(name, time);
+      bubble.appendChild(top);
+
+      if (message.content) {
+        const content = document.createElement("p");
+        content.className = "chat-content";
+        content.textContent = message.content;
+        bubble.appendChild(content);
+      }
+
+      if (Array.isArray(message.attachments) && message.attachments.length) {
+        const list = document.createElement("div");
+        list.className = "chat-message-attachments";
+        message.attachments.forEach((attachment) => {
+          if (isImageAttachment(attachment)) {
+            const link = document.createElement("a");
+            link.href = attachment.url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            const image = document.createElement("img");
+            image.src = attachment.url;
+            image.alt = attachment.name || "Chat attachment";
+            link.appendChild(image);
+            list.appendChild(link);
+          } else {
+            const link = document.createElement("a");
+            link.className = "chat-file-link";
+            link.href = attachment.url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            link.textContent = attachment.name || "Download file";
+            list.appendChild(link);
+          }
+        });
+        bubble.appendChild(list);
+      }
+
+      if (message.content) {
+        const actions = document.createElement("div");
+        actions.className = "chat-message-actions";
+        const translate = document.createElement("button");
+        translate.className = "chat-translate-button";
+        translate.type = "button";
+        translate.title = "Translate to English";
+        translate.textContent = "EN";
+        translate.addEventListener("click", () => translateMessage(message, bubble, translate));
+        actions.appendChild(translate);
+        bubble.appendChild(actions);
+      }
+
+      article.append(avatar, bubble);
+      return article;
+    };
+
+    const renderMessages = (messages) => {
+      chat.messages.replaceChildren();
+      messages.forEach((message) => chat.messages.appendChild(renderMessage(message)));
+      chat.messages.scrollTop = chat.messages.scrollHeight;
+    };
+
+    const refreshMessages = async () => {
+      if (isLoadingMessages) return;
+      isLoadingMessages = true;
+      try {
+        const response = await fetch("/api/chat/messages?limit=80", { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error("Chat unavailable");
+        const payload = await response.json();
+        renderMessages(payload.messages || []);
+        setStatus((payload.messages || []).length ? "Live global room" : "No messages yet");
+      } catch (error) {
+        setStatus("Global chat is offline right now", true);
+      } finally {
+        isLoadingMessages = false;
+      }
+    };
+
+    const translateMessage = async (message, bubble, button) => {
+      const existing = bubble.querySelector(".chat-translation");
+      if (existing) {
+        existing.remove();
+        button.textContent = "EN";
+        return;
+      }
+
+      button.textContent = "...";
+      button.disabled = true;
+      try {
+        const response = await fetch("/api/chat/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify({ text: message.content })
+        });
+        if (!response.ok) throw new Error("Translation unavailable");
+        const data = await response.json();
+        const translated = document.createElement("div");
+        translated.className = "chat-translation";
+        translated.textContent = data.translated_text || message.content;
+        bubble.appendChild(translated);
+        button.textContent = "Hide";
+      } catch (error) {
+        setStatus("Translation is unavailable", true);
+        button.textContent = "EN";
+      } finally {
+        button.disabled = false;
+      }
+    };
+
+    const renderPendingAttachments = () => {
+      chat.attachments.hidden = pendingAttachments.length === 0;
+      chat.attachments.replaceChildren();
+      pendingAttachments.forEach((attachment, index) => {
+        const chip = document.createElement("div");
+        chip.className = "chat-attachment-chip";
+        const label = document.createElement("span");
+        label.textContent = attachment.name || "file";
+        const remove = document.createElement("button");
+        remove.className = "chat-attachment-remove";
+        remove.type = "button";
+        remove.textContent = "x";
+        remove.title = "Remove file";
+        remove.addEventListener("click", () => {
+          pendingAttachments.splice(index, 1);
+          renderPendingAttachments();
+        });
+        chip.append(label, remove);
+        chat.attachments.appendChild(chip);
+      });
+    };
+
+    const uploadFiles = async (files) => {
+      const remainingSlots = Math.max(0, 4 - pendingAttachments.length);
+      const selected = Array.from(files).slice(0, remainingSlots);
+      for (const file of selected) {
+        if (file.size > 8 * 1024 * 1024) {
+          setStatus(`${file.name} is larger than 8 MB`, true);
+          continue;
+        }
+        const formData = new FormData();
+        formData.append("file", file);
+        setStatus(`Uploading ${file.name}...`);
+        try {
+          const response = await fetch("/api/chat/upload", {
+            method: "POST",
+            headers: authHeaders(),
+            body: formData
+          });
+          if (!response.ok) throw new Error("Upload failed");
+          const data = await response.json();
+          pendingAttachments.push(data.attachment);
+          renderPendingAttachments();
+          setStatus("File ready to send");
+        } catch (error) {
+          setStatus(`Could not upload ${file.name}`, true);
+        }
+      }
+      chat.file.value = "";
+    };
+
+    const sendMessage = async () => {
+      const content = chat.input.value.trim();
+      const guestName = getGuestName() || setGuestName(chat.name.value);
+      if (!currentUser && !guestName) {
+        chat.login.classList.remove("is-hidden");
+        chat.name.focus();
+        setStatus("Add a player name or login with Discord", true);
+        return;
+      }
+      if (!content && !pendingAttachments.length) return;
+
+      const body = {
+        content,
+        display_name: guestName,
+        guest_id: getGuestId(),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        client_time: new Date().toISOString(),
+        attachments: pendingAttachments
+      };
+
+      try {
+        const response = await fetch("/api/chat/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error("Message failed");
+        chat.input.value = "";
+        chat.input.style.height = "";
+        pendingAttachments = [];
+        renderPendingAttachments();
+        updateIdentityView();
+        await refreshMessages();
+      } catch (error) {
+        setStatus("Message was not sent", true);
+      }
+    };
+
+    const insertEmoji = (emoji) => {
+      const start = chat.input.selectionStart || chat.input.value.length;
+      const end = chat.input.selectionEnd || chat.input.value.length;
+      chat.input.value = `${chat.input.value.slice(0, start)}${emoji}${chat.input.value.slice(end)}`;
+      chat.input.focus();
+      chat.input.selectionStart = chat.input.selectionEnd = start + emoji.length;
+      chat.input.dispatchEvent(new Event("input"));
+    };
+
+    emojis.forEach((emoji) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = emoji;
+      button.title = emoji;
+      button.addEventListener("click", () => insertEmoji(emoji));
+      chat.emojiPanel.appendChild(button);
+    });
+
+    chat.discord.href = buildDiscordAuthUrl();
+    chat.name.value = getGuestName();
+    updateIdentityView();
+    resolveDiscordIdentity();
+
+    chat.toggle.addEventListener("click", () => {
+      const opening = chat.panel.hidden;
+      chat.panel.hidden = !opening;
+      chat.toggle.setAttribute("aria-expanded", String(opening));
+      if (opening) {
+        refreshMessages();
+        pollTimer = window.setInterval(refreshMessages, 5000);
+        if (!currentUser && !getGuestName()) chat.name.focus();
+      } else if (pollTimer) {
+        window.clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    });
+
+    chat.close.addEventListener("click", () => {
+      chat.panel.hidden = true;
+      chat.toggle.setAttribute("aria-expanded", "false");
+      if (pollTimer) {
+        window.clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    });
+
+    chat.guest.addEventListener("click", () => {
+      const name = setGuestName(chat.name.value);
+      if (!name) {
+        setStatus("Enter a player name first", true);
+        chat.name.focus();
+        return;
+      }
+      currentUser = null;
+      updateIdentityView();
+      setStatus("Guest login ready");
+      chat.input.focus();
+    });
+
+    chat.form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendMessage();
+    });
+
+    chat.file.addEventListener("change", (event) => {
+      uploadFiles(event.target.files || []);
+    });
+
+    chat.emoji.addEventListener("click", () => {
+      chat.emojiPanel.hidden = !chat.emojiPanel.hidden;
+    });
+
+    chat.input.addEventListener("input", () => {
+      chat.input.style.height = "auto";
+      chat.input.style.height = `${Math.min(chat.input.scrollHeight, 112)}px`;
+    });
+
+    chat.input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+
+    document.addEventListener("click", (event) => {
+      if (!chat.emojiPanel.hidden && !chat.emojiPanel.contains(event.target) && !chat.emoji.contains(event.target)) {
+        chat.emojiPanel.hidden = true;
+      }
+    });
+  }
 })();

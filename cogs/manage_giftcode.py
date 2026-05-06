@@ -201,14 +201,14 @@ class ManageGiftCode(commands.Cog):
         
         # Initialize API session pool for concurrent processing
         self.session_pool = APISessionPool(
-            session_count=3,           # 3 independent API sessions
-            base_delay=2.5,            # 2.5 seconds between requests per session
+            session_count=10,          # 10 independent API sessions for large-scale throughput
+            base_delay=1.0,            # 1.0 second between requests per session (10 sessions = 10 req/s max)
             rate_limit_backoff=15.0,   # Initial backoff when rate limited
             max_backoff=120.0          # Maximum backoff duration
         )
         
         # Concurrent processing configuration
-        self.concurrent_redemptions = 5  # 5 members at a time to avoid rate limits
+        self.concurrent_redemptions = 20  # 20 players at a time for large-scale redemption
         
         # Auto-redeem lock to prevent duplicate processing
         self._active_redemptions = set()  # Track active (guild_id, code) pairs
@@ -305,7 +305,7 @@ class ManageGiftCode(commands.Cog):
                         await self._decrement_pending_jobs(code_up)
                     
                     # Small delay between guilds to let memory/network settle
-                    await asyncio.sleep(2.0)
+                    await asyncio.sleep(1.0)
                     
             except asyncio.CancelledError:
                 self.logger.info("🛑 Auto-redeem worker stopped.")

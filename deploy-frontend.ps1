@@ -19,10 +19,14 @@ git commit -m "feat(frontend): $CommitMessage"
 Write-Host "📤 Pushing to main bot repo (origin)..." -ForegroundColor Yellow
 git push origin main
 
-# 4. Push to Dedicated Frontend Repo
+# 4. Push to Dedicated Frontend Repo (FAST)
 Write-Host "📤 Pushing to dedicated frontend repo (magnus-1234/frontend-dashboard)..." -ForegroundColor Yellow
-# Using subtree push to keep histories clean and specific
-git subtree push --prefix frontend-dashboard frontend-dashboard main
+# Using direct push from nested repo for speed
+cd "f:\Whiteout Survival Bot\frontend-dashboard"
+git add -A
+git commit -m "feat: $CommitMessage"
+git push origin main
+cd "f:\Whiteout Survival Bot"
 
 # 5. Deploy to Oracle VM (Backend/API Sync)
 Write-Host "🔄 Syncing with Oracle VM..." -ForegroundColor Yellow

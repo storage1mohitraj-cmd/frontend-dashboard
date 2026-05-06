@@ -199,16 +199,16 @@ class ManageGiftCode(commands.Cog):
             self.logger.exception(f"Error initializing CAPTCHA solver: {e}")
             self.captcha_solver = None
         
-        # Initialize API session pool for concurrent processing
+        # Session pool kept for rate-limit tracking only — no artificial delays
         self.session_pool = APISessionPool(
-            session_count=10,          # 10 independent API sessions for large-scale throughput
-            base_delay=1.0,            # 1.0 second between requests per session (10 sessions = 10 req/s max)
-            rate_limit_backoff=15.0,   # Initial backoff when rate limited
-            max_backoff=120.0          # Maximum backoff duration
+            session_count=50,          # 50 slots for rate-limit bookkeeping
+            base_delay=0.0,            # Zero artificial delay — HTTP connector handles flow
+            rate_limit_backoff=10.0,   # Backoff when a rate-limit is detected
+            max_backoff=60.0           # Cap backoff at 60s
         )
         
-        # Concurrent processing configuration
-        self.concurrent_redemptions = 20  # 20 players at a time for large-scale redemption
+        # Concurrent processing configuration — 100 players simultaneously
+        self.concurrent_redemptions = 100  # 100 players at a time — max throughput
         
         # Auto-redeem lock to prevent duplicate processing
         self._active_redemptions = set()  # Track active (guild_id, code) pairs
@@ -244,8 +244,18 @@ class ManageGiftCode(commands.Cog):
 
     async def cog_load(self):
         """Called when the cog is loaded. Initializes background tasks and sessions."""
-        self.session = aiohttp.ClientSession()
-        self.logger.info("ManageGiftCode: Shared aiohttp session initialized.")
+        # High-performance TCP connector: 300 total connections, 200 to WOS host
+        # force_close=False enables HTTP keep-alive (connection reuse) for max throughput
+        _connector = aiohttp.TCPConnector(
+            limit=300,
+            limit_per_host=200,
+            ttl_dns_cache=300,
+            force_close=False,
+            enable_cleanup_closed=True,
+            ssl=self.ssl_context,
+        )
+        self.session = aiohttp.ClientSession(connector=_connector, connector_owner=True)
+        self.logger.info("ManageGiftCode: High-performance aiohttp session initialized (300 connections, 200/host).")
 
         # Start background workers
         self.worker_task = asyncio.create_task(self._auto_redeem_worker_loop())
@@ -304,8 +314,8 @@ class ManageGiftCode(commands.Cog):
                     if code_up:
                         await self._decrement_pending_jobs(code_up)
                     
-                    # Small delay between guilds to let memory/network settle
-                    await asyncio.sleep(1.0)
+                    # Minimal delay between guilds — just enough for memory GC
+                    await asyncio.sleep(0.5)
                     
             except asyncio.CancelledError:
                 self.logger.info("🛑 Auto-redeem worker stopped.")
@@ -1307,8 +1317,8 @@ class ManageGiftCode(commands.Cog):
             while not login_successful and login_attempt < MAX_LOGIN_RETRIES:
                 login_attempt += 1
                 try:
-                    # Get available session from pool
-                    session_id = await self.session_pool.get_available_session()
+                    # No pool gate — TCP connector handles concurrency; rate-limit tracked reactively
+                    session_id = None
                     
                     # Get player session
                     session, response, player_info = await self.get_stove_info_wos(player_id=fid)
@@ -1363,8 +1373,8 @@ class ManageGiftCode(commands.Cog):
             while not redemption_successful and redemption_attempt < MAX_REDEMPTION_RETRIES:
                 redemption_attempt += 1
                 try:
-                    # Get available session from pool
-                    session_id = await self.session_pool.get_available_session()
+                    # No pool gate — fire immediately; rate-limit handled reactively below
+                    session_id = None
                     
                     # Attempt gift code redemption with CAPTCHA
                     status, img, code, method = await self.attempt_gift_code_with_api(fid, giftcode, session)

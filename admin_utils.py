@@ -145,7 +145,7 @@ def grant_admin_if_discord_admin(user_id, interaction):
     # Check Discord permissions
     if interaction.guild and (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
         # Grant admin rights
-        return upsert_admin(user_id, 1)
+        return upsert_admin(user_id, 0)
     
     return False
 

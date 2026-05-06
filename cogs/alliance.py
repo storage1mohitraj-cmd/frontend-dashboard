@@ -744,7 +744,7 @@ class Alliance(commands.Cog):
                 # User is not in database - check if they have Discord admin permissions
                 if interaction.guild and (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
                     # Grant admin rights automatically
-                    self._upsert_admin(user_id, 1)
+                    self._upsert_admin(user_id, 0)
                     admin = self._get_admin(user_id)
                 else:
                     await interaction.followup.send(
@@ -959,8 +959,8 @@ class Alliance(commands.Cog):
             if not is_admin:
                 if interaction.guild and (interaction.user.guild_permissions.administrator or interaction.guild.owner_id == interaction.user.id):
                     # Grant admin rights in the DB using helper method
-                    self._upsert_admin(user_id, 1)
-                    is_initial = 1
+                    self._upsert_admin(user_id, 0)
+                    is_initial = 0
                     # Refresh admin status after insertion
                     admin = self._get_admin(user_id)
                     is_admin = admin is not None

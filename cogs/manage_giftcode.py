@@ -1415,6 +1415,11 @@ class ManageGiftCode(commands.Cog):
                 login_successful = True
             
             while not login_successful and login_attempt < MAX_LOGIN_RETRIES:
+                # Abort if a global stop signal was triggered (e.g. CDK_NOT_FOUND)
+                if self.stop_signals.get(guild_id):
+                    self.logger.info(f"🛑 Aborting login for {nickname} — global stop signal received")
+                    return ("ABORTED", 0, 0, 1)
+                
                 login_attempt += 1
                 try:
                     # No pool gate — TCP connector handles concurrency; rate-limit tracked reactively
@@ -1471,6 +1476,11 @@ class ManageGiftCode(commands.Cog):
             redemption_attempt = 0
             
             while not redemption_successful and redemption_attempt < MAX_REDEMPTION_RETRIES:
+                # Abort if a global stop signal was triggered (e.g. CDK_NOT_FOUND)
+                if self.stop_signals.get(guild_id):
+                    self.logger.info(f"🛑 Aborting redemption for {nickname} — global stop signal received")
+                    return ("ABORTED", 0, 0, 1)
+
                 redemption_attempt += 1
                 try:
                     # No pool gate — fire immediately; rate-limit handled reactively below
@@ -1932,65 +1942,72 @@ class ManageGiftCode(commands.Cog):
                 if self.stop_signals.get(guild_id) or code_is_invalid:
                     async with progress_lock:
                         completed_count += 1
-                    return
-                
-                async with semaphore:
-                    # Double check after acquiring semaphore - silently skip without counting as failed
-                    if self.stop_signals.get(guild_id) or code_is_invalid:
-                        async with progress_lock:
-                            completed_count += 1
-                        return
-                    # Process the member with robust error handling
-                    try:
-                        status, success, already_redeemed, failed = await self._redeem_for_member(
-                            guild_id, fid, nickname, furnace_lv, giftcode, track_result=False
-                        )
-                        
-                        # If status is permanently invalid for everyone, abort early
-                        if status in ["INVALID_CODE", "EXPIRED", "TIME_ERROR", "USAGE_LIMIT", "CDK_NOT_FOUND"]:
-                            if not code_is_invalid:
-                                self.logger.warning(f"🚫 Code {giftcode} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
-                                code_is_invalid = True
-                        
-                        # Update counters
-                        async with progress_lock:
-                            success_count += success
-                            already_redeemed_count += already_redeemed
-                            if status:
-                                tracking_status = self._tracking_status_from_result(success, already_redeemed)
-                                redemption_tracking_batch.append({
-                                    "fid": str(fid),
-                                    "status": tracking_status,
-                                })
-                                if success or already_redeemed:
-                                    redeemed_members_batch.append({
-                                        "fid": str(fid),
-                                        "status": tracking_status,
-                                    })
-                            if failed:
-                                # Check if this is a retryable failure (rate limit / captcha)
-                                retryable = status in (
-                                    "LOGIN_FAILED", "CAPTCHA_FETCH_ERROR",
-                                    "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID",
-                                    "CAPTCHA_SOLVER_NOT_AVAILABLE", "RATE_LIMITED",
-                                    "CAPTCHA_TOO_FREQUENT", "TIMEOUT", "REQUEST_ERROR"
+                    # Jump directly to the UI update block to ensure progress bar reaches 100%
+                    pass
+                else:
+                    async with semaphore:
+                        # Double check after acquiring semaphore - silently skip without counting as failed
+                        if self.stop_signals.get(guild_id) or code_is_invalid:
+                            async with progress_lock:
+                                completed_count += 1
+                            pass
+                        else:
+                            # Process the member with robust error handling
+                            try:
+                                status, success, already_redeemed, failed = await self._redeem_for_member(
+                                    guild_id, fid, nickname, furnace_lv, giftcode, track_result=False
                                 )
-                                if retryable and allow_second_pass:
-                                    # Don't count as failed yet — add to second-pass queue
-                                    retry_members.append((fid, nickname, furnace_lv))
-                                    self.logger.info(f"🔁 Will retry {nickname} (FID: {fid}) in second pass — status: {status}")
-                                else:
-                                    failed_count += failed
-                                    # Add status reason mapping
-                                    reason_key = str(status) if status else "UNKNOWN"
-                                    fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
-                            completed_count += 1
-                    except Exception as member_err:
-                        self.logger.error(f"❌ Error processing member {nickname} (FID: {fid}): {member_err}")
-                        async with progress_lock:
-                            failed_count += 1
-                            completed_count += 1
-                            fail_reasons["EXCEPTION"] = fail_reasons.get("EXCEPTION", 0) + 1
+                                
+                                # If status is permanently invalid for everyone, abort early
+                                if status in ["INVALID_CODE", "EXPIRED", "TIME_ERROR", "USAGE_LIMIT", "CDK_NOT_FOUND"]:
+                                    if not code_is_invalid:
+                                        self.logger.warning(f"🚫 Code {giftcode} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
+                                        code_is_invalid = True
+                                        self.stop_signals[guild_id] = True  # Signal all running tasks to abort
+                                
+                                # Update counters
+                                async with progress_lock:
+                                    # Don't track ABORTED as failed if code is globally invalid
+                                    if status == "ABORTED" and code_is_invalid:
+                                        failed = 0
+                                        
+                                    success_count += success
+                                    already_redeemed_count += already_redeemed
+                                    if status:
+                                        tracking_status = self._tracking_status_from_result(success, already_redeemed)
+                                        redemption_tracking_batch.append({
+                                            "fid": str(fid),
+                                            "status": tracking_status,
+                                        })
+                                        if success or already_redeemed:
+                                            redeemed_members_batch.append({
+                                                "fid": str(fid),
+                                                "status": tracking_status,
+                                            })
+                                    if failed:
+                                        # Check if this is a retryable failure (rate limit / captcha)
+                                        retryable = status in (
+                                            "LOGIN_FAILED", "CAPTCHA_FETCH_ERROR",
+                                            "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID",
+                                            "CAPTCHA_SOLVER_NOT_AVAILABLE", "RATE_LIMITED",
+                                            "CAPTCHA_TOO_FREQUENT", "TIMEOUT", "REQUEST_ERROR"
+                                        )
+                                        if retryable and allow_second_pass:
+                                            # Don't count as failed yet — add to second-pass queue
+                                            retry_members.append((fid, nickname, furnace_lv))
+                                            self.logger.info(f"🔁 Will retry {nickname} (FID: {fid}) in second pass — status: {status}")
+                                        else:
+                                            failed_count += failed
+                                            # Add status reason mapping
+                                            reason_key = str(status) if status else "UNKNOWN"
+                                            fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
+                                    completed_count += 1
+                            except Exception as member_err:
+                                self.logger.error(f"❌ Error processing member {nickname} (FID: {fid}): {member_err}")
+                                async with progress_lock:
+                                    failed_count += 1
+                                    completed_count += 1
+                                    fail_reasons["EXCEPTION"] = fail_reasons.get("EXCEPTION", 0) + 1
                         
                     # Update progress message with throttling
                     try:

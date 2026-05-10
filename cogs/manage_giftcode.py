@@ -226,7 +226,7 @@ class ManageGiftCode(commands.Cog):
             self.captcha_solver = None
         
         # Runtime throughput knobs for the existing auto-redeem path.
-        self.concurrent_redemptions = _env_int("AUTO_REDEEM_MEMBER_CONCURRENCY", 2, 1, 500)
+        self.concurrent_redemptions = _env_int("AUTO_REDEEM_MEMBER_CONCURRENCY", 5, 1, 500)
         self.guild_worker_count = _env_int("AUTO_REDEEM_GUILD_WORKERS", 1, 1, 8)
         self.guild_worker_delay = _env_float("AUTO_REDEEM_GUILD_DELAY", 0.1, 0.0, 5.0)
         self.skip_player_login_for_redeem = _env_bool("SKIP_WOS_PLAYER_LOGIN_FOR_REDEEM", True)
@@ -1946,6 +1946,7 @@ class ManageGiftCode(commands.Cog):
             semaphore = asyncio.Semaphore(self.concurrent_redemptions)
             
             # --- Background UI Updater Task ---
+            UPDATE_INTERVAL = 3.5
             async def ui_updater():
                 try:
                     while completed_count < len(members) and not code_is_invalid:

@@ -794,6 +794,8 @@ class Alliance(commands.Cog):
                     "   ▸ Bulk limit management\n\n"
                     "🛑 **Stop Auto-Redeem**\n"
                     "   ▸ Stop all active auto redeem processes in this server\n\n"
+                    "🚀 **Manual Trigger & Status**\n"
+                    "   ▸ Force trigger code redemption globally\n\n"
                     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 ),
                 color=0x7B2CBF
@@ -890,6 +892,13 @@ class Alliance(commands.Cog):
                 emoji="🛑",
                 style=discord.ButtonStyle.danger,
                 custom_id=f"stop_auto_redeem:{user_id}",
+                row=4
+            ))
+            view.add_item(discord.ui.Button(
+                label="Manual Trigger",
+                emoji="🚀",
+                style=discord.ButtonStyle.primary,
+                custom_id=f"auto_redeem_trigger_menu:{user_id}",
                 row=4
             ))
             view.add_item(discord.ui.Button(

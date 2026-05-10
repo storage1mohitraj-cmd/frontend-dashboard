@@ -4908,13 +4908,7 @@ class ManageGiftCode(commands.Cog):
                 custom_id="giftcode_configure_auto_redeem",
                 row=1
             ))
-            view.add_item(discord.ui.Button(
-                label="Manual Trigger & Status",
-                emoji="🚀",
-                style=discord.ButtonStyle.primary,
-                custom_id="auto_redeem_trigger_menu",
-                row=1
-            ))
+
             view.add_item(discord.ui.Button(
                 label="◀ Back",
                 emoji="🏠",
@@ -4927,7 +4921,7 @@ class ManageGiftCode(commands.Cog):
             return
 
         # Handle manual trigger menu
-        if custom_id == "auto_redeem_trigger_menu":
+        if custom_id and custom_id.startswith("auto_redeem_trigger_menu"):
             if not await self.check_admin_permission(interaction.user.id):
                 await interaction.response.send_message(
                     "❌ Only administrators can trigger auto-redeem.",

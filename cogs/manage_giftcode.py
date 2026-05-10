@@ -578,8 +578,24 @@ class ManageGiftCode(commands.Cog):
                 return
 
             # If no FID is provided, run the full auto-redeem process for the guild
-            await status_msg.edit(content=f"✅ Configuration verified. Launching full auto-redeem test in <#{channel_id}> with code: `{code}`...")
+            await status_msg.edit(
+                content=(
+                    f"✅ Configuration verified. Launching full auto-redeem test for `{code}`\n"
+                    f"📊 **Watch progress in:** <#{channel_id}>\n"
+                    f"⏳ This message will update when complete..."
+                )
+            )
             await self.process_auto_redeem(ctx.guild.id, code, is_recheck=True)
+            # Update command-channel message once done so user knows it finished
+            try:
+                await status_msg.edit(
+                    content=(
+                        f"✅ **Auto-redeem test complete!** Code: `{code}`\n"
+                        f"📊 Results posted in <#{channel_id}>"
+                    )
+                )
+            except Exception:
+                pass
             return
 
         # Validate and clean FID input
@@ -1930,7 +1946,7 @@ class ManageGiftCode(commands.Cog):
             
             # Throttled progress update state
             last_update_time = 0
-            UPDATE_INTERVAL = 5.0 # Update Discord every 5 seconds max
+            UPDATE_INTERVAL = 3.0  # Update Discord every 3 seconds max
             
             retry_members = []  # Members that hit rate limits and need a second pass
             
@@ -1938,19 +1954,16 @@ class ManageGiftCode(commands.Cog):
                 """Process a single member with semaphore control"""
                 nonlocal success_count, failed_count, already_redeemed_count, completed_count, code_is_invalid, last_update_time
                 
-                # Check for stop signal - silently skip without counting as failed
+                # Check for stop signal before acquiring semaphore
                 if self.stop_signals.get(guild_id) or code_is_invalid:
                     async with progress_lock:
                         completed_count += 1
-                    # Jump directly to the UI update block to ensure progress bar reaches 100%
-                    pass
                 else:
                     async with semaphore:
-                        # Double check after acquiring semaphore - silently skip without counting as failed
+                        # Double check after acquiring semaphore
                         if self.stop_signals.get(guild_id) or code_is_invalid:
                             async with progress_lock:
                                 completed_count += 1
-                            pass
                         else:
                             # Process the member with robust error handling
                             try:
@@ -2008,49 +2021,52 @@ class ManageGiftCode(commands.Cog):
                                     failed_count += 1
                                     completed_count += 1
                                     fail_reasons["EXCEPTION"] = fail_reasons.get("EXCEPTION", 0) + 1
+                
+                # ── Progress update (runs for ALL cases: processed, aborted, stopped) ──
+                # Read shared state safely under lock to avoid race conditions
+                try:
+                    now = time.time()
+                    async with progress_lock:
+                        current_completed = completed_count
+                    is_last = (current_completed >= len(members))
+                    
+                    if is_last or (now - last_update_time >= UPDATE_INTERVAL):
+                        last_update_time = now
                         
-                    # Update progress message with throttling
-                    try:
-                        now = time.time()
-                        is_last = (completed_count == len(members))
+                        # Calculate progress percentage and create visual bar
+                        display_completed = min(current_completed, len(members))
+                        progress_percent = min(100.0, (display_completed / len(members)) * 100)
+                        bar_length = 20
+                        filled_length = min(bar_length, int(bar_length * display_completed / len(members)))
+                        progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
                         
-                        if is_last or (now - last_update_time >= UPDATE_INTERVAL):
-                            last_update_time = now
-                            
-                            # Calculate progress percentage and create visual bar
-                            display_completed = min(completed_count, len(members))
-                            progress_percent = min(100.0, (display_completed / len(members)) * 100)
-                            bar_length = 20
-                            filled_length = min(bar_length, int(bar_length * display_completed / len(members)))
-                            progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
-                            
-                            reasons_text = ""
-                            if fail_reasons:
-                                reasons_list = [f"  └ {r}: {c}" for r, c in fail_reasons.items()]
-                                reasons_text = "\n" + "\n".join(reasons_list)
-                            
-                            guild_name = channel.guild.name if channel and channel.guild else "Unknown Server"
-                            progress_embed = discord.Embed(
-                                title="🎁 Auto-Redeem In Progress",
-                                description=(
-                                    f"```ansi\n"
-                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                    f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
-                                    f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
-                                    f"```\n"
-                                    f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
-                                    f"📊 **Processed:** {display_completed}/{len(members)}\n\n"
-                                    f"✅ **Success:** {success_count}\n"
-                                    f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
-                                    f"❌ **Failed:** {failed_count}{reasons_text}\n"
-                                    f"🏰 **Server:** {guild_name}\n"
-                                ),
-                                color=0x5865F2
-                            )
-                            if animation_message:
-                                await animation_message.edit(embed=progress_embed)
-                    except Exception as e:
-                        self.logger.warning(f"Failed to update progress message: {e}")
+                        reasons_text = ""
+                        if fail_reasons:
+                            reasons_list = [f"  └ {r}: {c}" for r, c in fail_reasons.items()]
+                            reasons_text = "\n" + "\n".join(reasons_list)
+                        
+                        guild_name = channel.guild.name if channel and channel.guild else "Unknown Server"
+                        progress_embed = discord.Embed(
+                            title="🎁 Auto-Redeem In Progress",
+                            description=(
+                                f"```ansi\n"
+                                f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                f"\u001b[1;37mGift Code: {giftcode}\u001b[0m\n"
+                                f"\u001b[2;36m━━━━━━━━━━━━━━━━━━━━━━\u001b[0m\n"
+                                f"```\n"
+                                f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
+                                f"📊 **Processed:** {display_completed}/{len(members)}\n\n"
+                                f"✅ **Success:** {success_count}\n"
+                                f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
+                                f"❌ **Failed:** {failed_count}{reasons_text}\n"
+                                f"🏰 **Server:** {guild_name}\n"
+                            ),
+                            color=0x5865F2
+                        )
+                        if animation_message:
+                            await animation_message.edit(embed=progress_embed)
+                except Exception as e:
+                    self.logger.warning(f"Failed to update progress message: {e}")
             
             # Create tasks for all members
             tasks = [

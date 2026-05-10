@@ -226,10 +226,10 @@ class ManageGiftCode(commands.Cog):
             self.captcha_solver = None
         
         # Runtime throughput knobs for the existing auto-redeem path.
-        self.concurrent_redemptions = _env_int("AUTO_REDEEM_MEMBER_CONCURRENCY", 5, 1, 500)
+        self.concurrent_redemptions = _env_int("AUTO_REDEEM_MEMBER_CONCURRENCY", 2, 1, 500)
         self.guild_worker_count = _env_int("AUTO_REDEEM_GUILD_WORKERS", 1, 1, 8)
         self.guild_worker_delay = _env_float("AUTO_REDEEM_GUILD_DELAY", 0.1, 0.0, 5.0)
-        self.skip_player_login_for_redeem = _env_bool("SKIP_WOS_PLAYER_LOGIN_FOR_REDEEM", True)
+        self.skip_player_login_for_redeem = _env_bool("SKIP_WOS_PLAYER_LOGIN_FOR_REDEEM", False)
         self.wos_connection_limit = _env_int(
             "WOS_HTTP_CONNECTION_LIMIT",
             max(300, min(1000, self.concurrent_redemptions * self.guild_worker_count * 3)),
@@ -1486,6 +1486,10 @@ class ManageGiftCode(commands.Cog):
                 self.logger.error(f"❌ Login failed for {nickname} after {MAX_LOGIN_RETRIES} attempts")
                 return ("LOGIN_FAILED", 0, 0, 1)
             
+            # Brief pause after login so the API's session is fully registered before captcha
+            # This avoids immediate NOT_LOGIN on the captcha endpoint
+            await asyncio.sleep(1.5)
+
             # Phase 2: Gift code redemption with limited retries
             redemption_successful = False
             final_status = None

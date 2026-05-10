@@ -792,6 +792,8 @@ class Alliance(commands.Cog):
                     "🛡️ **Control Panel**\n"
                     "   ▸ Bird's-eye view across all servers\n"
                     "   ▸ Bulk limit management\n\n"
+                    "🛑 **Stop Auto-Redeem**\n"
+                    "   ▸ Stop all active auto redeem processes in this server\n\n"
                     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 ),
                 color=0x7B2CBF
@@ -881,6 +883,13 @@ class Alliance(commands.Cog):
                 emoji="🔒",
                 style=discord.ButtonStyle.danger,
                 custom_id=f"lock_bot:{user_id}",
+                row=4
+            ))
+            view.add_item(discord.ui.Button(
+                label="Stop Auto-Redeem",
+                emoji="🛑",
+                style=discord.ButtonStyle.danger,
+                custom_id=f"stop_auto_redeem:{user_id}",
                 row=4
             ))
             view.add_item(discord.ui.Button(
@@ -1345,6 +1354,37 @@ class Alliance(commands.Cog):
                                 "An error occurred while loading Gift Operations.",
                                 ephemeral=True
                             )
+
+                elif custom_id == "stop_auto_redeem":
+                    manage_cog = interaction.client.get_cog("ManageGiftCode")
+                    if manage_cog:
+                        guild_id = interaction.guild_id
+                        if guild_id:
+                            # Set stop signal
+                            manage_cog.stop_signals[guild_id] = True
+                            
+                            # Log and try to save to DB so it doesn't auto-restart
+                            manage_cog.logger.info(f"Stop signal sent for guild {guild_id} by {interaction.user} via /settings button.")
+                            try:
+                                from db.mongo_adapters import mongo_enabled, AutoRedeemSettingsAdapter
+                                if mongo_enabled() and AutoRedeemSettingsAdapter:
+                                    AutoRedeemSettingsAdapter.set_enabled(guild_id, False, interaction.user.id)
+                            except Exception:
+                                pass
+                            try:
+                                manage_cog.cursor.execute("UPDATE auto_redeem_settings SET enabled = 0 WHERE guild_id = ?", (guild_id,))
+                                manage_cog.giftcode_db.commit()
+                            except Exception:
+                                pass
+                                
+                            await interaction.response.send_message(
+                                "🛑 **Auto-Redeem Stopped**\n\nSignal sent to stop redemption processes. They should halt shortly.", 
+                                ephemeral=True
+                            )
+                        else:
+                            await interaction.response.send_message("❌ This command must be used in a server.", ephemeral=True)
+                    else:
+                        await interaction.response.send_message("❌ ManageGiftCode module not found.", ephemeral=True)
 
                 elif custom_id == "add_alliance":
                     if not is_admin:

@@ -5357,13 +5357,13 @@ class BotOperations(commands.Cog):
 
                 # Build embed description (show current page slice + page indicator)
                 lines = []
-                for index, (gid, data) in enumerate(sorted_combined[:75], start=1):
+                start_idx = page * PAGE_SIZE
+                end_idx = start_idx + PAGE_SIZE
+                for index, (gid, data) in enumerate(sorted_combined[start_idx:end_idx], start=start_idx + 1):
                     guild = self.bot.get_guild(gid)
                     g_name = guild.name if guild else "Unknown Server"
                     prio_str = f"**#{data['priority']}**" if data['priority'] != 999 else "*default*"
                     lines.append(f"> **{index}.** {g_name} — {prio_str}")
-                if len(sorted_combined) > 75:
-                    lines.append(f"\n*...and {len(sorted_combined) - 75} more servers*")
 
                 all_settings_str = "\n".join(lines) if lines else "No auto-redeem servers configured."
 

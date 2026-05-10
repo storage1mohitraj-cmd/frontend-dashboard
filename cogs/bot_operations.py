@@ -1495,6 +1495,13 @@ class BotOperations(commands.Cog):
                     row=1
                 ))
                 view.add_item(discord.ui.Button(
+                    label="📊 Live Status",
+                    emoji="🔴",
+                    style=discord.ButtonStyle.danger,
+                    custom_id="giftcode_live_status",
+                    row=2
+                ))
+                view.add_item(discord.ui.Button(
                     label="Other Features",
                     emoji="🔮",
                     style=discord.ButtonStyle.secondary,
@@ -6025,6 +6032,13 @@ class BotOperations(commands.Cog):
                     row=1
                 ))
                 dashboard_view.add_item(discord.ui.Button(
+                    label="📊 Live Status",
+                    emoji="🔴",
+                    style=discord.ButtonStyle.danger,
+                    custom_id="giftcode_live_status",
+                    row=2
+                ))
+                dashboard_view.add_item(discord.ui.Button(
                     label="Other Features",
                     emoji="🔮",
                     style=discord.ButtonStyle.secondary,
@@ -6170,6 +6184,27 @@ class BotOperations(commands.Cog):
                             style=discord.ButtonStyle.secondary,
                             custom_id="giftcode_menu",
                             row=0
+                        ))
+                        dashboard_view.add_item(discord.ui.Button(
+                            label="Alliance Monitor",
+                            emoji="🏰",
+                            style=discord.ButtonStyle.secondary,
+                            custom_id="manage_alliance_monitor",
+                            row=1
+                        ))
+                        dashboard_view.add_item(discord.ui.Button(
+                            label="Other Features",
+                            emoji="🔮",
+                            style=discord.ButtonStyle.secondary,
+                            custom_id="manage_other_features",
+                            row=1
+                        ))
+                        dashboard_view.add_item(discord.ui.Button(
+                            label="📊 Live Status",
+                            emoji="🔴",
+                            style=discord.ButtonStyle.danger,
+                            custom_id="giftcode_live_status",
+                            row=2
                         ))
 
                         # Send success message with dashboard

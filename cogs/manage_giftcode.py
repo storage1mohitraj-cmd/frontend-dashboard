@@ -788,17 +788,24 @@ class ManageGiftCode(commands.Cog):
                 await status_msg.edit(content="❌ **No members configured for Auto-Redeem.** Please add members first.")
                 return
 
-            # If no FID is provided, run the full auto-redeem process for the guild
-            await status_msg.edit(
-                content=(
-                    f"✅ Configuration verified. Queuing full auto-redeem test for `{code}`\n"
-                    f"📊 **Watch progress in:** <#{channel_id}>\n"
-                    f"⏳ Processing via the standard queue — results will appear in the auto-redeem channel."
-                )
-            )
-            # Route through the standard queue (same path as all other triggers)
+            # Ensure the code is tracked in both databases before starting
+            try:
+                self.cursor.execute("INSERT OR IGNORE INTO gift_codes (giftcode, date) VALUES (?, ?)", (code, datetime.now().isoformat()))
+                self.giftcode_db.commit()
+            except Exception as e:
+                self.logger.error(f"Error inserting test code into SQLite: {e}")
+
+            if mongo_enabled() and GiftCodeAdapter:
+                try:
+                    GiftCodeAdapter.add_code(code)
+                except Exception as e:
+                    self.logger.error(f"Error inserting test code into MongoDB: {e}")
+
+            # Route through the standard queue but specify only this guild
             # is_recheck=True so it bypasses the 'already processed' guard
-            await self.trigger_auto_redeem_for_new_codes([(code, "Manual Test")], is_recheck=True)
+            # By passing guild_id, we tell trigger_auto_redeem_for_new_codes to restrict its execution
+            await self.trigger_auto_redeem_for_new_codes([(code, "Manual Test")], is_recheck=True, specific_guild_id=ctx.guild.id)
+            
             # Update command-channel message once done so user knows it finished
             try:
                 await status_msg.edit(
@@ -3561,13 +3568,21 @@ class ManageGiftCode(commands.Cog):
         except Exception as e:
             self.logger.exception(f"Error notifying admins/triggering auto-redeem: {e}")
     
-    async def trigger_auto_redeem_for_new_codes(self, new_codes, is_recheck=False):
-        """Trigger auto-redeem for all guilds with auto-redeem enabled"""
+    async def trigger_auto_redeem_for_new_codes(self, new_codes, is_recheck=False, specific_guild_id=None):
+        """Trigger auto-redeem for all guilds with auto-redeem enabled, or just one specific guild if provided"""
         try:
             self.logger.info("🔔 === TRIGGER AUTO-REDEEM ===")
             self.logger.info(f"📥 Received {len(new_codes)} codes to process: {[c[0] for c in new_codes]}")
             
             enabled_guilds = await self._get_enabled_guilds()
+            
+            if specific_guild_id:
+                # Filter down to just the specific guild requested
+                enabled_guilds = [g for g in enabled_guilds if g[0] == specific_guild_id]
+                if not enabled_guilds:
+                    self.logger.error(f"❌ CRITICAL: Guild {specific_guild_id} does not have auto-redeem enabled!")
+                    return
+            
             if not enabled_guilds:
                 self.logger.error("❌ CRITICAL: No guilds have auto-redeem enabled!")
                 return
@@ -4318,13 +4333,6 @@ class ManageGiftCode(commands.Cog):
                 style=discord.ButtonStyle.primary,
                 custom_id="giftcode_auto_redeem",
                 row=0
-            ))
-            view.add_item(discord.ui.Button(
-                label="📊 Live Status",
-                emoji="🔴",
-                style=discord.ButtonStyle.danger,
-                custom_id="giftcode_live_status",
-                row=1
             ))
             view.add_item(discord.ui.Button(
                 label="History",

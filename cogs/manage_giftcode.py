@@ -702,6 +702,12 @@ class ManageGiftCode(commands.Cog):
             except sqlite3.OperationalError:
                 pass  # Column already exists
 
+            try:
+                self.cursor.execute("ALTER TABLE gift_codes ADD COLUMN giftcode_original TEXT")
+                self.logger.info("Added giftcode_original column to gift_codes")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
+
             # Gift code channels table
             self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS giftcode_channels (
@@ -2815,13 +2821,21 @@ class ManageGiftCode(commands.Cog):
             for code, date in new_codes:
                 code_up = str(code).upper()
                 try:
-                    # Insert into SQLite
+                    # Insert into SQLite — store uppercase key AND preserve original case
                     self.cursor.execute(
                         "INSERT OR IGNORE INTO gift_codes (giftcode, date, validation_status, added_at, auto_redeem_processed) VALUES (?, ?, ?, ?, ?)",
                         (code_up, date, "validated", datetime.now(), 0)
                     )
-                    self.logger.info(f"Added new code to SQLite: {code_up}")
-                    
+                    # Save original case so the WOS API call uses the right casing
+                    try:
+                        self.cursor.execute(
+                            "UPDATE gift_codes SET giftcode_original = ? WHERE giftcode = ? AND (giftcode_original IS NULL OR giftcode_original = '')",
+                            (code, code_up)
+                        )
+                    except Exception:
+                        pass  # Column added by migration below — safe to ignore here
+                    self.logger.info(f"Added new code to SQLite: {code_up} (original case: {code})")
+
                     # CRITICAL: Also insert into MongoDB if enabled
                     if mongo_enabled() and GiftCodesAdapter and _get_db:
                         try:
@@ -2832,6 +2846,7 @@ class ManageGiftCode(commands.Cog):
                                     {'_id': code_up},
                                     {
                                         '$set': {
+                                            'giftcode_original': code,  # preserve original case
                                             'date': date,
                                             'validation_status': 'validated',
                                             'auto_redeem_processed': False,
@@ -2841,11 +2856,11 @@ class ManageGiftCode(commands.Cog):
                                     },
                                     upsert=True
                                 )
-                                self.logger.info(f"✅ Added new code to MongoDB: {code}")
+                                self.logger.info(f"Added new code to MongoDB: {code_up} (original: {code})")
                         except Exception as mongo_err:
-                            self.logger.error(f"⚠️ Failed to add code {code} to MongoDB: {mongo_err}")
+                            self.logger.error(f"Failed to add code {code} to MongoDB: {mongo_err}")
                             # Continue anyway - SQLite is the fallback
-                    
+
                 except Exception as e:
                     self.logger.error(f"Error inserting code {code}: {e}")
             
@@ -3056,19 +3071,19 @@ class ManageGiftCode(commands.Cog):
             try:
                 self.logger.info("📂 Fetching from SQLite...")
                 self.cursor.execute("""
-                    SELECT giftcode, date
-                    FROM gift_codes 
+                    SELECT giftcode, date, giftcode_original
+                    FROM gift_codes
                     WHERE auto_redeem_processed = 0 OR auto_redeem_processed IS NULL
                     ORDER BY date DESC
                 """)
                 sqlite_rows = self.cursor.fetchall()
                 count_sqlite = 0
                 for row in sqlite_rows:
-                    giftcode = row[0]
-                    if giftcode not in unprocessed_codes:
-                        # Use date as proxy for created_at if calling code expects 3 items
-                        # But wait, we store (date_str, created_at) in unprocessed_codes dict
-                        unprocessed_codes[giftcode] = (row[1], None) # None for created_at
+                    giftcode_key = row[0]   # uppercase DB key
+                    # Prefer original case from column 2 if available
+                    giftcode_display = row[2] if len(row) > 2 and row[2] else giftcode_key
+                    if giftcode_key not in unprocessed_codes:
+                        unprocessed_codes[giftcode_key] = (row[1], None, giftcode_display)
                         count_sqlite += 1
                 self.logger.info(f"✅ SQLite: Found {count_sqlite} unique unprocessed codes (not in Mongo)")
             except Exception as e:
@@ -3086,7 +3101,12 @@ class ManageGiftCode(commands.Cog):
             
             now = datetime.now()
             
-            for code, (date_str, created_at) in unprocessed_codes.items():
+            for code_key, meta in unprocessed_codes.items():
+                # meta may be (date_str, created_at) or (date_str, created_at, original_code)
+                date_str = meta[0]
+                created_at = meta[1] if len(meta) > 1 else None
+                # Use original-case code for API calls
+                code = meta[2] if len(meta) > 2 and meta[2] else code_key
                 is_recent = False
                 
                 # Check created_at (from MongoDB)

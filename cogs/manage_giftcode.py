@@ -408,6 +408,217 @@ class ManageGiftCode(commands.Cog):
                 self.logger.error(f"❌ [WORKER {worker_id}] Critical error in queue loop: {e}")
                 await asyncio.sleep(5.0)
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # Live Status & Priority helpers
+    # ─────────────────────────────────────────────────────────────────────────
+
+    async def _send_live_status(self, interaction: discord.Interaction):
+        """Build and send the real-time redemption status embed."""
+        try:
+            now_ts = int(datetime.now().timestamp())
+
+            # ── Queue & Worker state ──────────────────────────────────────
+            queue_size  = self.auto_redeem_queue.qsize()
+            active_jobs = dict(self.current_jobs)   # worker_id -> (guild_id, code)
+            total_done  = self.processed_jobs_count
+            pending_per_code = dict(self._pending_jobs_per_code)   # code -> guilds remaining
+            active_redeem_pairs = set(self._active_redemptions)     # {(guild_id, code)}
+            stop_sigs   = {gid for gid, v in self.stop_signals.items() if v}
+
+            # ── Build embed ───────────────────────────────────────────────
+            is_idle = (queue_size == 0 and not active_jobs)
+            color   = 0xED4245 if active_jobs else (0xFEE75C if queue_size else 0x57F287)
+
+            embed = discord.Embed(
+                title="🔴 Live Redemption Status" if active_jobs else "✅ Redemption Status (Idle)",
+                color=color,
+            )
+
+            # Workers
+            if active_jobs:
+                worker_lines = []
+                for wid, (gid, code) in sorted(active_jobs.items()):
+                    g = self.bot.get_guild(gid)
+                    gname = g.name if g else f"Server {gid}"
+                    pending = pending_per_code.get(code.upper(), "?")
+                    worker_lines.append(
+                        f"**Worker {wid}** → `{code}` | 🏰 {gname}\n"
+                        f"  ↳ `{pending}` server(s) still queued for this code"
+                    )
+                embed.add_field(
+                    name=f"👷 Active Workers ({len(active_jobs)}/{self.guild_worker_count})",
+                    value="\n".join(worker_lines) or "—",
+                    inline=False,
+                )
+            else:
+                embed.add_field(
+                    name="👷 Workers",
+                    value=f"All {self.guild_worker_count} worker(s) idle",
+                    inline=False,
+                )
+
+            # Queue depth
+            embed.add_field(
+                name="📥 Queue Depth",
+                value=f"`{queue_size}` guild-code job(s) waiting",
+                inline=True,
+            )
+
+            # Total processed
+            embed.add_field(
+                name="✅ Total Processed",
+                value=f"`{total_done}` jobs since bot start",
+                inline=True,
+            )
+
+            # Active codes summary
+            if pending_per_code:
+                code_lines = []
+                for code, remaining in sorted(pending_per_code.items(), key=lambda x: -x[1]):
+                    code_lines.append(f"• `{code}` — **{remaining}** server(s) left")
+                embed.add_field(
+                    name="🎁 Codes In-Progress",
+                    value="\n".join(code_lines[:10]) or "—",
+                    inline=False,
+                )
+
+            # Active redemption pairs (member-level concurrency)
+            if active_redeem_pairs:
+                pair_lines = []
+                for (gid, code) in list(active_redeem_pairs)[:8]:
+                    g = self.bot.get_guild(int(gid))
+                    gname = g.name if g else str(gid)
+                    pair_lines.append(f"• {gname} → `{code}`")
+                embed.add_field(
+                    name=f"⚡ Member-Level Redemptions ({len(active_redeem_pairs)} active)",
+                    value="\n".join(pair_lines) or "—",
+                    inline=False,
+                )
+
+            # Stop signals
+            if stop_sigs:
+                stop_lines = []
+                for gid in stop_sigs:
+                    g = self.bot.get_guild(gid)
+                    stop_lines.append(g.name if g else str(gid))
+                embed.add_field(
+                    name="🛑 Stop Signals Active",
+                    value=", ".join(stop_lines),
+                    inline=False,
+                )
+
+            embed.set_footer(text=f"Snapshot at {datetime.now().strftime('%H:%M:%S')} UTC  •  Whiteout Survival ❄️")
+
+            # ── Buttons ───────────────────────────────────────────────────
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(
+                label="🔄 Refresh",
+                style=discord.ButtonStyle.primary,
+                custom_id="giftcode_live_status",
+            ))
+            view.add_item(discord.ui.Button(
+                label="🏅 Priority Order",
+                style=discord.ButtonStyle.secondary,
+                custom_id="giftcode_server_priority",
+            ))
+            view.add_item(discord.ui.Button(
+                label="◀ Gift Codes",
+                style=discord.ButtonStyle.secondary,
+                custom_id="giftcode_menu",
+            ))
+
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+        except Exception as e:
+            self.logger.exception(f"Error building live status: {e}")
+            await interaction.followup.send(f"❌ Error building status: {e}", ephemeral=True)
+
+    async def _send_priority_panel(self, interaction: discord.Interaction):
+        """Build and send the server priority order panel."""
+        try:
+            # Fetch sorted guild list from the same function the queue uses
+            sorted_guilds = await self._get_enabled_guilds()   # [(guild_id,), ...]
+
+            # Also pull raw priorities from DB for display
+            priority_map = {}
+            try:
+                if mongo_enabled() and AutoRedeemSettingsAdapter and \
+                        hasattr(AutoRedeemSettingsAdapter, 'get_all_settings'):
+                    all_s = AutoRedeemSettingsAdapter.get_all_settings()
+                    if all_s:
+                        for s in all_s:
+                            if s.get('enabled', False):
+                                priority_map[int(s['guild_id'])] = s.get('priority', 999)
+            except Exception:
+                pass
+
+            if not priority_map:
+                try:
+                    self.cursor.execute(
+                        "SELECT guild_id, priority FROM auto_redeem_settings WHERE enabled = 1"
+                    )
+                    for row in self.cursor.fetchall():
+                        priority_map[int(row[0])] = int(row[1]) if row[1] is not None else 999
+                except Exception:
+                    pass
+
+            if not sorted_guilds:
+                await interaction.followup.send(
+                    "📋 No servers have Auto-Redeem enabled yet.", ephemeral=True
+                )
+                return
+
+            lines = []
+            for rank, (gid,) in enumerate(sorted_guilds, start=1):
+                g = self.bot.get_guild(gid)
+                gname = f"**{g.name}**" if g else f"Server `{gid}`"
+                prio  = priority_map.get(gid, 999)
+                badge = "🥇" if rank == 1 else ("🥈" if rank == 2 else ("🥉" if rank == 3 else f"`#{rank}`"))
+                lines.append(f"{badge} {gname} — Priority `{prio}`")
+
+            embed = discord.Embed(
+                title="🏅 Server Redemption Priority Order",
+                description=(
+                    "Servers are processed **strictly** in this order when a code is redeemed.\n"
+                    "Lower priority number = processed **first**.\n"
+                    "Equal priorities are shuffled randomly each run.\n\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    + "\n".join(lines[:25])
+                ),
+                color=0x5865F2,
+            )
+            if len(sorted_guilds) > 25:
+                embed.set_footer(
+                    text=f"Showing top 25 of {len(sorted_guilds)} enabled servers"
+                )
+            else:
+                embed.set_footer(
+                    text=f"{len(sorted_guilds)} server(s) with Auto-Redeem enabled  •  Whiteout Survival ❄️"
+                )
+
+            view = discord.ui.View()
+            view.add_item(discord.ui.Button(
+                label="✏️ Set a Server's Priority",
+                style=discord.ButtonStyle.primary,
+                custom_id="giftcode_set_priority_confirm",
+            ))
+            view.add_item(discord.ui.Button(
+                label="🔴 Live Status",
+                style=discord.ButtonStyle.danger,
+                custom_id="giftcode_live_status",
+            ))
+            view.add_item(discord.ui.Button(
+                label="◀ Back",
+                style=discord.ButtonStyle.secondary,
+                custom_id="giftcode_configure_auto_redeem",
+            ))
+
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+        except Exception as e:
+            self.logger.exception(f"Error building priority panel: {e}")
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+
     async def _safe_edit_message(self, interaction: discord.Interaction, **kwargs):
         """Safely edit an interaction message, falling back to followup if already acknowledged."""
         try:
@@ -3958,6 +4169,102 @@ class ManageGiftCode(commands.Cog):
             return
         # --------------------------------------
 
+        # ── Live Status Panel ──────────────────────────────────────────────
+        if custom_id == "giftcode_live_status":
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+                return
+            await interaction.response.defer(ephemeral=True)
+            await self._send_live_status(interaction)
+            return
+
+        # ── Server Priority Panel ──────────────────────────────────────────
+        if custom_id == "giftcode_server_priority":
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+                return
+            await interaction.response.defer(ephemeral=True)
+            await self._send_priority_panel(interaction)
+            return
+
+        # ── Set Priority Modal submit ──────────────────────────────────────
+        if custom_id == "giftcode_set_priority_confirm":
+            if not await self.check_admin_permission(interaction.user.id):
+                await interaction.response.send_message("❌ Admin only.", ephemeral=True)
+                return
+
+            class SetPriorityModal(discord.ui.Modal, title="Set Server Redemption Priority"):
+                guild_id_input = discord.ui.TextInput(
+                    label="Server ID (or leave blank = this server)",
+                    placeholder="e.g. 123456789012345678",
+                    required=False,
+                    max_length=20
+                )
+                priority_input = discord.ui.TextInput(
+                    label="Priority (1 = highest, 999 = lowest)",
+                    placeholder="e.g. 1",
+                    required=True,
+                    max_length=5
+                )
+
+                def __init__(self, cog):
+                    super().__init__()
+                    self.cog = cog
+
+                async def on_submit(self, modal_interaction: discord.Interaction):
+                    try:
+                        raw_gid = self.guild_id_input.value.strip()
+                        target_guild_id = int(raw_gid) if raw_gid.isdigit() else modal_interaction.guild.id
+                        priority_val = int(self.priority_input.value.strip())
+                        if not (1 <= priority_val <= 9999):
+                            await modal_interaction.response.send_message(
+                                "❌ Priority must be between 1 and 9999.", ephemeral=True
+                            )
+                            return
+
+                        # Save to SQLite
+                        self.cog.cursor.execute(
+                            """INSERT INTO auto_redeem_settings (guild_id, enabled, priority, updated_by, updated_at)
+                               VALUES (?, 1, ?, ?, ?)
+                               ON CONFLICT(guild_id) DO UPDATE SET priority = excluded.priority""",
+                            (target_guild_id, priority_val, modal_interaction.user.id, datetime.now())
+                        )
+                        self.cog.giftcode_db.commit()
+
+                        # Save to MongoDB if available
+                        if mongo_enabled() and AutoRedeemSettingsAdapter:
+                            try:
+                                from db.mongo_adapters import _get_db as get_db
+                                db = get_db()
+                                if db is not None:
+                                    db[AutoRedeemSettingsAdapter.COLL].update_one(
+                                        {'guild_id': str(target_guild_id)},
+                                        {'$set': {'priority': priority_val}},
+                                        upsert=True
+                                    )
+                            except Exception as me:
+                                self.cog.logger.warning(f"Failed to sync priority to MongoDB: {me}")
+
+                        guild_obj = self.cog.bot.get_guild(target_guild_id)
+                        guild_name = guild_obj.name if guild_obj else f"ID {target_guild_id}"
+                        await modal_interaction.response.send_message(
+                            f"✅ **{guild_name}** priority set to **{priority_val}** "
+                            f"(lower = processed earlier).",
+                            ephemeral=True
+                        )
+                    except ValueError:
+                        await modal_interaction.response.send_message(
+                            "❌ Invalid input. Priority must be a number.", ephemeral=True
+                        )
+                    except Exception as e:
+                        self.cog.logger.exception(f"Error setting priority: {e}")
+                        await modal_interaction.response.send_message(
+                            f"❌ Error: {e}", ephemeral=True
+                        )
+
+            await interaction.response.send_modal(SetPriorityModal(self))
+            return
+
         # Handle gift code menu button
         if custom_id == "giftcode_menu":
             # Check admin permissions
@@ -4011,6 +4318,13 @@ class ManageGiftCode(commands.Cog):
                 style=discord.ButtonStyle.primary,
                 custom_id="giftcode_auto_redeem",
                 row=0
+            ))
+            view.add_item(discord.ui.Button(
+                label="📊 Live Status",
+                emoji="🔴",
+                style=discord.ButtonStyle.danger,
+                custom_id="giftcode_live_status",
+                row=1
             ))
             view.add_item(discord.ui.Button(
                 label="History",
@@ -5420,6 +5734,15 @@ class ManageGiftCode(commands.Cog):
                 style=discord.ButtonStyle.danger,
                 custom_id="auto_redeem_delete_code",
                 row=1
+            ))
+
+            # Server priority order button
+            view.add_item(discord.ui.Button(
+                label="Server Priority Order",
+                emoji="🏅",
+                style=discord.ButtonStyle.primary,
+                custom_id="giftcode_server_priority",
+                row=2
             ))
             
             # Back button

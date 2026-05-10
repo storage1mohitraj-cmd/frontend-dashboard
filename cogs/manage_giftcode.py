@@ -1933,6 +1933,7 @@ class ManageGiftCode(commands.Cog):
             failed_count = 0
             already_redeemed_count = 0
             completed_count = 0
+            rate_limit_count = 0
             fail_reasons = {}
             redemption_tracking_batch = []
             redeemed_members_batch = []
@@ -1944,106 +1945,33 @@ class ManageGiftCode(commands.Cog):
             # Semaphore to limit concurrent redemptions
             semaphore = asyncio.Semaphore(self.concurrent_redemptions)
             
-            # Throttled progress update state
-            last_update_time = 0
-            UPDATE_INTERVAL = 3.0  # Update Discord every 3 seconds max
-            
-            retry_members = []  # Members that hit rate limits and need a second pass
-            
-            async def process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=True):
-                """Process a single member with semaphore control"""
-                nonlocal success_count, failed_count, already_redeemed_count, completed_count, code_is_invalid, last_update_time
-                
-                # Check for stop signal before acquiring semaphore
-                if self.stop_signals.get(guild_id) or code_is_invalid:
-                    async with progress_lock:
-                        completed_count += 1
-                else:
-                    async with semaphore:
-                        # Double check after acquiring semaphore
-                        if self.stop_signals.get(guild_id) or code_is_invalid:
-                            async with progress_lock:
-                                completed_count += 1
-                        else:
-                            # Process the member with robust error handling
-                            try:
-                                status, success, already_redeemed, failed = await self._redeem_for_member(
-                                    guild_id, fid, nickname, furnace_lv, giftcode, track_result=False
-                                )
-                                
-                                # If status is permanently invalid for everyone, abort early
-                                if status in ["INVALID_CODE", "EXPIRED", "TIME_ERROR", "USAGE_LIMIT", "CDK_NOT_FOUND"]:
-                                    if not code_is_invalid:
-                                        self.logger.warning(f"🚫 Code {giftcode} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
-                                        code_is_invalid = True
-                                        self.stop_signals[guild_id] = True  # Signal all running tasks to abort
-                                
-                                # Update counters
-                                async with progress_lock:
-                                    # Don't track ABORTED as failed if code is globally invalid
-                                    if status == "ABORTED" and code_is_invalid:
-                                        failed = 0
-                                        
-                                    success_count += success
-                                    already_redeemed_count += already_redeemed
-                                    if status:
-                                        tracking_status = self._tracking_status_from_result(success, already_redeemed)
-                                        redemption_tracking_batch.append({
-                                            "fid": str(fid),
-                                            "status": tracking_status,
-                                        })
-                                        if success or already_redeemed:
-                                            redeemed_members_batch.append({
-                                                "fid": str(fid),
-                                                "status": tracking_status,
-                                            })
-                                    if failed:
-                                        # Check if this is a retryable failure (rate limit / captcha)
-                                        retryable = status in (
-                                            "LOGIN_FAILED", "CAPTCHA_FETCH_ERROR",
-                                            "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID",
-                                            "CAPTCHA_SOLVER_NOT_AVAILABLE", "RATE_LIMITED",
-                                            "CAPTCHA_TOO_FREQUENT", "TIMEOUT", "REQUEST_ERROR"
-                                        )
-                                        if retryable and allow_second_pass:
-                                            # Don't count as failed yet — add to second-pass queue
-                                            retry_members.append((fid, nickname, furnace_lv))
-                                            self.logger.info(f"🔁 Will retry {nickname} (FID: {fid}) in second pass — status: {status}")
-                                        else:
-                                            failed_count += failed
-                                            # Add status reason mapping
-                                            reason_key = str(status) if status else "UNKNOWN"
-                                            fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
-                                    completed_count += 1
-                            except Exception as member_err:
-                                self.logger.error(f"❌ Error processing member {nickname} (FID: {fid}): {member_err}")
-                                async with progress_lock:
-                                    failed_count += 1
-                                    completed_count += 1
-                                    fail_reasons["EXCEPTION"] = fail_reasons.get("EXCEPTION", 0) + 1
-                
-                # ── Progress update (runs for ALL cases: processed, aborted, stopped) ──
-                # Read shared state safely under lock to avoid race conditions
+            # --- Background UI Updater Task ---
+            async def ui_updater():
                 try:
-                    now = time.time()
-                    async with progress_lock:
-                        current_completed = completed_count
-                    is_last = (current_completed >= len(members))
-                    
-                    if is_last or (now - last_update_time >= UPDATE_INTERVAL):
-                        last_update_time = now
+                    while completed_count < len(members) and not code_is_invalid:
+                        await asyncio.sleep(UPDATE_INTERVAL)
+                        async with progress_lock:
+                            current_completed = completed_count
+                            current_success = success_count
+                            current_already = already_redeemed_count
+                            current_failed = failed_count
+                            current_rate_limits = rate_limit_count
                         
-                        # Calculate progress percentage and create visual bar
                         display_completed = min(current_completed, len(members))
-                        progress_percent = min(100.0, (display_completed / len(members)) * 100)
+                        progress_percent = min(100.0, (display_completed / len(members)) * 100) if len(members) > 0 else 0
                         bar_length = 20
-                        filled_length = min(bar_length, int(bar_length * display_completed / len(members)))
+                        filled_length = min(bar_length, int(bar_length * display_completed / len(members))) if len(members) > 0 else 0
                         progress_bar = '█' * filled_length + '░' * (bar_length - filled_length)
                         
                         reasons_text = ""
                         if fail_reasons:
-                            reasons_list = [f"  └ {r}: {c}" for r, c in fail_reasons.items()]
+                            reasons_list = [f"  └ {r}: {c}" for r, c in list(fail_reasons.items())]
                             reasons_text = "\n" + "\n".join(reasons_list)
+                        
+                        # Show warning if rate limiting is high
+                        status_text = "Processing..."
+                        if current_rate_limits > 10: # If more than 10 members are currently rate limited
+                            status_text = "⚠️ API Congestion (Rate Limited)"
                         
                         guild_name = channel.guild.name if channel and channel.guild else "Unknown Server"
                         progress_embed = discord.Embed(
@@ -2056,26 +1984,126 @@ class ManageGiftCode(commands.Cog):
                                 f"```\n"
                                 f"**Progress:** `{progress_bar}` **{progress_percent:.1f}%**\n"
                                 f"📊 **Processed:** {display_completed}/{len(members)}\n\n"
-                                f"✅ **Success:** {success_count}\n"
-                                f"ℹ️ **Already Redeemed:** {already_redeemed_count}\n"
-                                f"❌ **Failed:** {failed_count}{reasons_text}\n"
+                                f"✅ **Success:** {current_success}\n"
+                                f"ℹ️ **Already Redeemed:** {current_already}\n"
+                                f"❌ **Failed:** {current_failed}{reasons_text}\n"
+                                f"⏳ **Status:** {status_text}\n"
                                 f"🏰 **Server:** {guild_name}\n"
                             ),
                             color=0x5865F2
                         )
                         if animation_message:
                             await animation_message.edit(embed=progress_embed)
+                except asyncio.CancelledError:
+                    pass
                 except Exception as e:
-                    self.logger.warning(f"Failed to update progress message: {e}")
+                    self.logger.warning(f"UI Updater encountered an error: {e}")
+
+            updater_task = asyncio.create_task(ui_updater())
             
-            # Create tasks for all members
-            tasks = [
-                process_member_with_semaphore(idx, fid, nickname, furnace_lv)
-                for idx, (fid, nickname, furnace_lv) in enumerate(members, 1)
-            ]
+            retry_members = []  # Members that hit rate limits and need a second pass
             
-            # Process all members concurrently
+            async def process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=True):
+                """Process a single member with semaphore control"""
+                nonlocal success_count, failed_count, already_redeemed_count, completed_count, rate_limit_count, code_is_invalid
+                
+                # Check for stop signal before acquiring semaphore
+                if self.stop_signals.get(guild_id) or code_is_invalid:
+                    async with progress_lock:
+                        completed_count += 1
+                    return
+
+                async with semaphore:
+                    # Double check after acquiring semaphore
+                    if self.stop_signals.get(guild_id) or code_is_invalid:
+                        async with progress_lock:
+                            completed_count += 1
+                        return
+
+                    # Process the member with robust error handling
+                    try:
+                        status, success, already_redeemed, failed = await self._redeem_for_member(
+                            guild_id, fid, nickname, furnace_lv, giftcode, track_result=False
+                        )
+                        
+                        # If status is permanently invalid for everyone, abort early
+                        if status in ["INVALID_CODE", "EXPIRED", "TIME_ERROR", "USAGE_LIMIT", "CDK_NOT_FOUND"]:
+                            if not code_is_invalid:
+                                self.logger.warning(f"🚫 Code {giftcode} is globally invalid ({status})! Aborting remaining members in guild {guild_id}")
+                                code_is_invalid = True
+                                self.stop_signals[guild_id] = True  # Signal all running tasks to abort
+                        
+                        # Update counters
+                        async with progress_lock:
+                            if status == "RATE_LIMITED":
+                                rate_limit_count += 1
+                            
+                            # Don't track ABORTED as failed if code is globally invalid
+                            if status == "ABORTED" and code_is_invalid:
+                                failed = 0
+                                
+                            success_count += success
+                            already_redeemed_count += already_redeemed
+                            if status:
+                                tracking_status = self._tracking_status_from_result(success, already_redeemed)
+                                redemption_tracking_batch.append({
+                                    "fid": str(fid),
+                                    "status": tracking_status,
+                                })
+                                if success or already_redeemed:
+                                    redeemed_members_batch.append({
+                                        "fid": str(fid),
+                                        "status": tracking_status,
+                                    })
+                            if failed:
+                                # Check if this is a retryable failure (rate limit / captcha)
+                                retryable = status in (
+                                    "LOGIN_FAILED", "CAPTCHA_FETCH_ERROR",
+                                    "MAX_CAPTCHA_ATTEMPTS_REACHED", "CAPTCHA_INVALID",
+                                    "CAPTCHA_SOLVER_NOT_AVAILABLE", "RATE_LIMITED",
+                                    "CAPTCHA_TOO_FREQUENT", "TIMEOUT", "REQUEST_ERROR"
+                                )
+                                if retryable and allow_second_pass:
+                                    # Don't count as failed yet — add to second-pass queue
+                                    retry_members.append((fid, nickname, furnace_lv))
+                                    self.logger.info(f"🔁 Will retry {nickname} (FID: {fid}) in second pass — status: {status}")
+                                else:
+                                    failed_count += failed
+                                    # Add status reason mapping
+                                    reason_key = str(status) if status else "UNKNOWN"
+                                    fail_reasons[reason_key] = fail_reasons.get(reason_key, 0) + 1
+                            completed_count += 1
+                            
+                            # Decrement rate limit count if it finished (successfully or not, but wasn't a rate limit itself)
+                            if status != "RATE_LIMITED" and rate_limit_count > 0:
+                                rate_limit_count -= 1
+                                
+                    except Exception as member_err:
+                        self.logger.error(f"❌ Error processing member {nickname} (FID: {fid}): {member_err}")
+                        async with progress_lock:
+                            failed_count += 1
+                            completed_count += 1
+                            fail_reasons["EXCEPTION"] = fail_reasons.get("EXCEPTION", 0) + 1
+            
+            # Create tasks for all members with staggering
+            tasks = []
+            for idx, (fid, nickname, furnace_lv) in enumerate(members, 1):
+                # We create the task, but wait slightly before creating the next one
+                t = asyncio.create_task(process_member_with_semaphore(idx, fid, nickname, furnace_lv))
+                tasks.append(t)
+                # Stagger the start of each task by 0.15s to avoid initial millisecond burst
+                # For 88 members, this adds ~13 seconds to total time but DRASTICALLY reduces initial 403s/429s
+                await asyncio.sleep(0.15)
+            
+            # Process all members concurrently (wait for all to finish)
             await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Stop the UI updater
+            updater_task.cancel()
+            try:
+                await updater_task
+            except asyncio.CancelledError:
+                pass
             
             # ── SECOND PASS: Retry rate-limited members after cooldown ──
             if retry_members and not code_is_invalid:
@@ -2104,12 +2132,23 @@ class ManageGiftCode(commands.Cog):
                 
                 await asyncio.sleep(60)  # Let API rate limit expire
                 
-                # Re-process all the failed members
-                retry_tasks = [
-                    process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=False)
-                    for idx, (fid, nickname, furnace_lv) in enumerate(members_for_retry, 1)
-                ]
+                # Restart UI updater for second pass
+                completed_count = 0
+                updater_task = asyncio.create_task(ui_updater())
+                
+                # Re-process all the failed members (staggered again)
+                retry_tasks = []
+                for idx, (fid, nickname, furnace_lv) in enumerate(members_for_retry, 1):
+                    t = asyncio.create_task(process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=False))
+                    retry_tasks.append(t)
+                    await asyncio.sleep(0.2)
+                
                 await asyncio.gather(*retry_tasks, return_exceptions=True)
+                updater_task.cancel()
+                try:
+                    await updater_task
+                except asyncio.CancelledError:
+                    pass
                 self.logger.info(f"✅ Second pass complete for guild {guild_id}")
 
             await self._flush_bulk_redemption_tracking(
@@ -2119,17 +2158,10 @@ class ManageGiftCode(commands.Cog):
                 redeemed_members_batch,
             )
             
-            # Flush any remaining retry_members still in list into failed (edge case)
-            if retry_members:
-                async with progress_lock:
-                    for fid, nickname, furnace_lv in retry_members:
-                        # Only count as failed if they somehow didn't get retried
-                        pass  # They were already processed above
-            
             # Send final completion message
             reasons_text = ""
             if fail_reasons:
-                reasons_list = [f"  └ {r}: {c}" for r, c in fail_reasons.items()]
+                reasons_list = [f"  └ {r}: {c}" for r, c in list(fail_reasons.items())]
                 reasons_text = "\n" + "\n".join(reasons_list)
                 
             final_embed = discord.Embed(

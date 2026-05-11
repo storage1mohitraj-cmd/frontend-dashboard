@@ -795,9 +795,9 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 self.logger.error(f"Error inserting test code into SQLite: {e}")
 
-            if mongo_enabled() and GiftCodeAdapter:
+            if mongo_enabled() and GiftCodesAdapter:
                 try:
-                    GiftCodeAdapter.add_code(code)
+                    GiftCodesAdapter.add_code(code)
                 except Exception as e:
                     self.logger.error(f"Error inserting test code into MongoDB: {e}")
 

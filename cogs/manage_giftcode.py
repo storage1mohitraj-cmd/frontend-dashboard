@@ -4289,12 +4289,6 @@ class ManageGiftCode(commands.Cog):
                 await interaction.response.send_message("❌ Admin only.", ephemeral=True)
                 return
 
-            # Determine caller's permission tier BEFORE opening modal
-            caller_is_superadmin = (
-                await is_bot_owner(self.bot, interaction.user.id)
-                or is_global_admin(interaction.user.id)
-            )
-
             class SetPriorityModal(discord.ui.Modal, title="Set Server Redemption Priority"):
                 guild_id_input = discord.ui.TextInput(
                     label="Server ID (or leave blank = this server)",
@@ -4309,10 +4303,9 @@ class ManageGiftCode(commands.Cog):
                     max_length=5
                 )
 
-                def __init__(self, cog, is_superadmin: bool):
+                def __init__(self, cog):
                     super().__init__()
                     self.cog = cog
-                    self.is_superadmin = is_superadmin
 
                 async def on_submit(self, modal_interaction: discord.Interaction):
                     try:
@@ -4327,7 +4320,13 @@ class ManageGiftCode(commands.Cog):
                             )
                             return
 
-                        if priority_val <= 10 and not self.is_superadmin:
+                        # Determine caller's permission tier
+                        caller_is_superadmin = (
+                            await is_bot_owner(self.cog.bot, modal_interaction.user.id)
+                            or is_global_admin(modal_interaction.user.id)
+                        )
+
+                        if priority_val <= 10 and not caller_is_superadmin:
                             await modal_interaction.response.send_message(
                                 "🔒 **Priority 1–10 is reserved for Global Administrators only.**\n"
                                 "Your account can set priorities **11–9999**.",
@@ -4377,7 +4376,7 @@ class ManageGiftCode(commands.Cog):
                             f"❌ Error: {e}", ephemeral=True
                         )
 
-            await interaction.response.send_modal(SetPriorityModal(self, caller_is_superadmin))
+            await interaction.response.send_modal(SetPriorityModal(self))
             return
 
         # Handle gift code menu button

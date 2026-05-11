@@ -265,9 +265,14 @@ class ManageGiftCode(commands.Cog):
         self.processed_jobs_count = 0
         self._pending_jobs_per_code = {} # {code: count_of_guilds_left}
         self._completion_events = {}     # {code: asyncio.Event}
-        
+
+        # Live stats per active guild/code job — updated in real-time by process_auto_redeem
+        # Key: (guild_id, code_upper) → dict with progress info
+        self._guild_live_stats = {}  # {(guild_id, code): {total, done, success, already, failed, rate_limits, started_at, code_is_invalid}}
+        self._last_completed_jobs = []  # List of last 5 completed job summaries for history
+
         self._bg_tasks = set()  # Strong references for background tasks
-        
+
         self.session = None
 
     def _set_embed_footer(self, embed: discord.Embed, guild: discord.Guild = None):
@@ -413,89 +418,110 @@ class ManageGiftCode(commands.Cog):
     # ─────────────────────────────────────────────────────────────────────────
 
     async def _send_live_status(self, interaction: discord.Interaction):
-        """Build and send the real-time redemption status embed."""
+        """Build and send the detailed real-time redemption status embed."""
         try:
-            now_ts = int(datetime.now().timestamp())
+            now_dt = datetime.now()
+            now_ts = int(now_dt.timestamp())
 
-            # ── Queue & Worker state ──────────────────────────────────────
-            queue_size  = self.auto_redeem_queue.qsize()
-            active_jobs = dict(self.current_jobs)   # worker_id -> (guild_id, code)
-            total_done  = self.processed_jobs_count
-            pending_per_code = dict(self._pending_jobs_per_code)   # code -> guilds remaining
-            active_redeem_pairs = set(self._active_redemptions)     # {(guild_id, code)}
-            stop_sigs   = {gid for gid, v in self.stop_signals.items() if v}
+            # ── Snapshot runtime state ────────────────────────────────────
+            queue_size        = self.auto_redeem_queue.qsize()
+            active_jobs       = dict(self.current_jobs)          # worker_id -> (guild_id, code)
+            total_done        = self.processed_jobs_count
+            pending_per_code  = dict(self._pending_jobs_per_code) # code -> guilds remaining
+            active_pairs      = set(self._active_redemptions)     # {(guild_id, code)}
+            stop_sigs         = {gid for gid, v in self.stop_signals.items() if v}
+            live_stats        = dict(self._guild_live_stats)      # per-job detailed progress
+            last_jobs         = list(self._last_completed_jobs)   # recent completed job summaries
 
-            # ── Build embed ───────────────────────────────────────────────
-            is_idle = (queue_size == 0 and not active_jobs)
+            # ── Colour & title ────────────────────────────────────────────
+            is_busy = bool(active_jobs or queue_size)
             color   = 0xED4245 if active_jobs else (0xFEE75C if queue_size else 0x57F287)
+            title   = "🔴 Live Redemption Status" if active_jobs else ("⏳ Queue Filling" if queue_size else "✅ Redemption Status (Idle)")
 
-            embed = discord.Embed(
-                title="🔴 Live Redemption Status" if active_jobs else "✅ Redemption Status (Idle)",
-                color=color,
-            )
+            embed = discord.Embed(title=title, color=color)
 
-            # Workers
+            # ── System overview ────────────────────────────────────────────
+            latency_ms = round(self.bot.latency * 1000)
+            lat_icon   = "🟢" if latency_ms < 150 else ("🟡" if latency_ms < 300 else "🔴")
+            overview_lines = [
+                f"{lat_icon} **Bot Latency:** `{latency_ms} ms`",
+                f"👷 **Workers:** `{len(active_jobs)}/{self.guild_worker_count}` active",
+                f"📥 **Queue Depth:** `{queue_size}` job(s) waiting",
+                f"✅ **Total Jobs Done:** `{total_done}` since bot start",
+                f"⚡ **Concurrent Slots/Worker:** `{self.concurrent_redemptions}`",
+            ]
+            embed.add_field(name="📊 System Overview", value="\n".join(overview_lines), inline=False)
+
+            # ── Active workers with per-guild progress ─────────────────────
             if active_jobs:
                 worker_lines = []
                 for wid, (gid, code) in sorted(active_jobs.items()):
-                    g = self.bot.get_guild(gid)
-                    gname = g.name if g else f"Server {gid}"
-                    pending = pending_per_code.get(code.upper(), "?")
-                    worker_lines.append(
-                        f"**Worker {wid}** → `{code}` | 🏰 {gname}\n"
-                        f"  ↳ `{pending}` server(s) still queued for this code"
-                    )
+                    g      = self.bot.get_guild(gid)
+                    gname  = g.name if g else f"Server `{gid}`"
+                    pending_servers = pending_per_code.get(code.upper(), "?")
+                    stat   = live_stats.get((gid, code.upper()))
+                    if stat:
+                        total   = stat.get('total', 0)
+                        done    = stat.get('done', 0)
+                        success = stat.get('success', 0)
+                        already = stat.get('already', 0)
+                        failed  = stat.get('failed', 0)
+                        rl      = stat.get('rate_limits', 0)
+                        started = stat.get('started_at', now_ts)
+                        elapsed = now_ts - started
+                        pct     = f"{(done/total*100):.1f}%" if total else "0.0%"
+                        bar_f   = min(10, int(10 * done / total)) if total else 0
+                        bar     = "█" * bar_f + "░" * (10 - bar_f)
+                        invalid = " 🚫 CODE INVALID" if stat.get('code_is_invalid') else ""
+                        rl_note = f" ⚠️ RL×{rl}" if rl else ""
+                        worker_lines.append(
+                            f"**Worker {wid}** — 🏰 {gname}{invalid}\n"
+                            f"  Code: `{code}` | Servers left: `{pending_servers}`\n"
+                            f"  `{bar}` **{pct}** ({done}/{total} members)\n"
+                            f"  ✅ {success}  ℹ️ {already}  ❌ {failed}{rl_note}  ⏱️ {elapsed}s elapsed"
+                        )
+                    else:
+                        worker_lines.append(
+                            f"**Worker {wid}** — 🏰 {gname}\n"
+                            f"  Code: `{code}` | Servers left: `{pending_servers}` | ⏳ Starting..."
+                        )
                 embed.add_field(
                     name=f"👷 Active Workers ({len(active_jobs)}/{self.guild_worker_count})",
-                    value="\n".join(worker_lines) or "—",
+                    value="\n\n".join(worker_lines) or "—",
                     inline=False,
                 )
             else:
                 embed.add_field(
                     name="👷 Workers",
-                    value=f"All {self.guild_worker_count} worker(s) idle",
+                    value=f"All `{self.guild_worker_count}` worker(s) **idle** — waiting for the next code.",
                     inline=False,
                 )
 
-            # Queue depth
-            embed.add_field(
-                name="📥 Queue Depth",
-                value=f"`{queue_size}` guild-code job(s) waiting",
-                inline=True,
-            )
-
-            # Total processed
-            embed.add_field(
-                name="✅ Total Processed",
-                value=f"`{total_done}` jobs since bot start",
-                inline=True,
-            )
-
-            # Active codes summary
+            # ── Codes in-progress summary ──────────────────────────────────
             if pending_per_code:
                 code_lines = []
                 for code, remaining in sorted(pending_per_code.items(), key=lambda x: -x[1]):
-                    code_lines.append(f"• `{code}` — **{remaining}** server(s) left")
+                    code_lines.append(f"• `{code}` — **{remaining}** server(s) remaining")
                 embed.add_field(
                     name="🎁 Codes In-Progress",
                     value="\n".join(code_lines[:10]) or "—",
                     inline=False,
                 )
 
-            # Active redemption pairs (member-level concurrency)
-            if active_redeem_pairs:
+            # ── Member-level concurrency (active pairs) ────────────────────
+            if active_pairs:
                 pair_lines = []
-                for (gid, code) in list(active_redeem_pairs)[:8]:
+                for (gid, code) in list(active_pairs)[:6]:
                     g = self.bot.get_guild(int(gid))
                     gname = g.name if g else str(gid)
-                    pair_lines.append(f"• {gname} → `{code}`")
+                    pair_lines.append(f"• `{code}` → {gname}")
                 embed.add_field(
-                    name=f"⚡ Member-Level Redemptions ({len(active_redeem_pairs)} active)",
+                    name=f"⚡ Active Member Redemptions ({len(active_pairs)} pairs)",
                     value="\n".join(pair_lines) or "—",
                     inline=False,
                 )
 
-            # Stop signals
+            # ── Stop signals ──────────────────────────────────────────────
             if stop_sigs:
                 stop_lines = []
                 for gid in stop_sigs:
@@ -507,7 +533,22 @@ class ManageGiftCode(commands.Cog):
                     inline=False,
                 )
 
-            embed.set_footer(text=f"Snapshot at {datetime.now().strftime('%H:%M:%S')} UTC  •  Whiteout Survival ❄️")
+            # ── Recent completed jobs history ──────────────────────────────
+            if last_jobs:
+                hist_lines = []
+                for j in reversed(last_jobs[-5:]):
+                    g = self.bot.get_guild(j.get('guild_id', 0))
+                    gn  = g.name if g else f"ID {j.get('guild_id')}"
+                    ts  = j.get('finished_at', 0)
+                    res = f"✅{j.get('success',0)} ℹ️{j.get('already',0)} ❌{j.get('failed',0)}"
+                    hist_lines.append(f"• {gn} — `{j.get('code','?')}` — {res} — <t:{ts}:R>")
+                embed.add_field(
+                    name="📜 Recently Completed (last 5)",
+                    value="\n".join(hist_lines),
+                    inline=False,
+                )
+
+            embed.set_footer(text=f"🕐 Snapshot: {now_dt.strftime('%H:%M:%S')}  •  Whiteout Survival ❄️  •  Auto-refreshes on button press")
 
             # ── Buttons ───────────────────────────────────────────────────
             view = discord.ui.View()
@@ -2162,6 +2203,15 @@ class ManageGiftCode(commands.Cog):
             redemption_tracking_batch = []
             redeemed_members_batch = []
             progress_lock = asyncio.Lock()
+
+            # ── Live stats tracking for the Live Status panel ──────────────
+            _live_key = (guild_id, code_up)
+            self._guild_live_stats[_live_key] = {
+                'total': len(members), 'done': 0, 'success': 0,
+                'already': 0, 'failed': 0, 'rate_limits': 0,
+                'started_at': int(datetime.now().timestamp()),
+                'code_is_invalid': False,
+            }
             
             # Lock to stop processing if the code proves invalid globally
             code_is_invalid = False
@@ -2262,13 +2312,24 @@ class ManageGiftCode(commands.Cog):
                         async with progress_lock:
                             if status == "RATE_LIMITED":
                                 rate_limit_count += 1
-                            
+
                             # Don't track ABORTED as failed if code is globally invalid
                             if status == "ABORTED" and code_is_invalid:
                                 failed = 0
-                                
+
                             success_count += success
                             already_redeemed_count += already_redeemed
+
+                            # ── update live stats dict ──
+                            _s = self._guild_live_stats.get(_live_key)
+                            if _s is not None:
+                                _s['done']        = completed_count + 1
+                                _s['success']     = success_count
+                                _s['already']     = already_redeemed_count
+                                _s['failed']      = failed_count
+                                _s['rate_limits'] = rate_limit_count
+                                if code_is_invalid:
+                                    _s['code_is_invalid'] = True
                             if status:
                                 tracking_status = self._tracking_status_from_result(success, already_redeemed)
                                 redemption_tracking_batch.append({
@@ -2421,7 +2482,27 @@ class ManageGiftCode(commands.Cog):
                 if redemption_key in self._active_redemptions:
                     self._active_redemptions.discard(redemption_key)
                     self.logger.info(f"🔓 Released auto-redeem lock for guild {guild_id} with code {code_up}")
-            
+
+            # ── Record completed job for Live Status history ──────────────────
+            try:
+                _live_key = (guild_id, code_up)
+                _snapshot = self._guild_live_stats.pop(_live_key, {})
+                _hist_entry = {
+                    'guild_id':    guild_id,
+                    'code':        code_up,
+                    'success':     _snapshot.get('success', 0),
+                    'already':     _snapshot.get('already', 0),
+                    'failed':      _snapshot.get('failed', 0),
+                    'total':       _snapshot.get('total', 0),
+                    'finished_at': int(datetime.now().timestamp()),
+                }
+                self._last_completed_jobs.append(_hist_entry)
+                # Keep only the last 5 entries
+                if len(self._last_completed_jobs) > 5:
+                    self._last_completed_jobs = self._last_completed_jobs[-5:]
+            except Exception:
+                pass
+
             # NOTE: Code is NOT marked as processed here to allow multiple guilds to process the same code
             # Code will be marked as processed by trigger_auto_redeem_for_new_codes after all guilds finish
     
@@ -4208,6 +4289,12 @@ class ManageGiftCode(commands.Cog):
                 await interaction.response.send_message("❌ Admin only.", ephemeral=True)
                 return
 
+            # Determine caller's permission tier BEFORE opening modal
+            caller_is_superadmin = (
+                await is_bot_owner(self.bot, interaction.user.id)
+                or is_global_admin(interaction.user.id)
+            )
+
             class SetPriorityModal(discord.ui.Modal, title="Set Server Redemption Priority"):
                 guild_id_input = discord.ui.TextInput(
                     label="Server ID (or leave blank = this server)",
@@ -4216,28 +4303,39 @@ class ManageGiftCode(commands.Cog):
                     max_length=20
                 )
                 priority_input = discord.ui.TextInput(
-                    label="Priority (1 = highest, 999 = lowest)",
-                    placeholder="e.g. 1",
+                    label="Priority (1–10 = Global Admin only  |  11–9999 = Normal Admin)",
+                    placeholder="e.g. 50",
                     required=True,
                     max_length=5
                 )
 
-                def __init__(self, cog):
+                def __init__(self, cog, is_superadmin: bool):
                     super().__init__()
                     self.cog = cog
+                    self.is_superadmin = is_superadmin
 
                 async def on_submit(self, modal_interaction: discord.Interaction):
                     try:
                         raw_gid = self.guild_id_input.value.strip()
                         target_guild_id = int(raw_gid) if raw_gid.isdigit() else modal_interaction.guild.id
                         priority_val = int(self.priority_input.value.strip())
+
+                        # ── Permission-tiered validation ──────────────────
                         if not (1 <= priority_val <= 9999):
                             await modal_interaction.response.send_message(
-                                "❌ Priority must be between 1 and 9999.", ephemeral=True
+                                "❌ Priority must be between **1** and **9999**.", ephemeral=True
                             )
                             return
 
-                        # Save to SQLite
+                        if priority_val <= 10 and not self.is_superadmin:
+                            await modal_interaction.response.send_message(
+                                "🔒 **Priority 1–10 is reserved for Global Administrators only.**\n"
+                                "Your account can set priorities **11–9999**.",
+                                ephemeral=True
+                            )
+                            return
+
+                        # ── Persist to SQLite ─────────────────────────────
                         self.cog.cursor.execute(
                             """INSERT INTO auto_redeem_settings (guild_id, enabled, priority, updated_by, updated_at)
                                VALUES (?, 1, ?, ?, ?)
@@ -4246,7 +4344,7 @@ class ManageGiftCode(commands.Cog):
                         )
                         self.cog.giftcode_db.commit()
 
-                        # Save to MongoDB if available
+                        # ── Persist to MongoDB ────────────────────────────
                         if mongo_enabled() and AutoRedeemSettingsAdapter:
                             try:
                                 from db.mongo_adapters import _get_db as get_db
@@ -4254,7 +4352,8 @@ class ManageGiftCode(commands.Cog):
                                 if db is not None:
                                     db[AutoRedeemSettingsAdapter.COLL].update_one(
                                         {'guild_id': str(target_guild_id)},
-                                        {'$set': {'priority': priority_val}},
+                                        {'$set': {'priority': priority_val,
+                                                  'priority_set_by': str(modal_interaction.user.id)}},
                                         upsert=True
                                     )
                             except Exception as me:
@@ -4262,14 +4361,15 @@ class ManageGiftCode(commands.Cog):
 
                         guild_obj = self.cog.bot.get_guild(target_guild_id)
                         guild_name = guild_obj.name if guild_obj else f"ID {target_guild_id}"
+                        tier_note  = "🔑 (Global Admin slot)" if priority_val <= 10 else "🔓 (Normal Admin slot)"
                         await modal_interaction.response.send_message(
-                            f"✅ **{guild_name}** priority set to **{priority_val}** "
-                            f"(lower = processed earlier).",
+                            f"✅ **{guild_name}** priority set to **`{priority_val}`** {tier_note}\n"
+                            f"Lower number = processed **earlier** in the redemption queue.",
                             ephemeral=True
                         )
                     except ValueError:
                         await modal_interaction.response.send_message(
-                            "❌ Invalid input. Priority must be a number.", ephemeral=True
+                            "❌ Invalid input. Priority must be a whole number.", ephemeral=True
                         )
                     except Exception as e:
                         self.cog.logger.exception(f"Error setting priority: {e}")
@@ -4277,7 +4377,7 @@ class ManageGiftCode(commands.Cog):
                             f"❌ Error: {e}", ephemeral=True
                         )
 
-            await interaction.response.send_modal(SetPriorityModal(self))
+            await interaction.response.send_modal(SetPriorityModal(self, caller_is_superadmin))
             return
 
         # Handle gift code menu button

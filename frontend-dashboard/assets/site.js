@@ -227,13 +227,36 @@
     };
     const renderQueue = () => {
       if (!els.queue) return;
-      els.queue.innerHTML = feedEvents.slice(0, 8).map((event) => `
-        <div class="event-row">
-          <div class="event-icon">${escapeHtml(iconLabel(event.type))}</div>
-          <div><b>${escapeHtml(event.title || "Process update")}</b><span>${escapeHtml(event.message || "")}</span></div>
+      
+      const getStatusClass = (status, type) => {
+        if (status === 'success') return 'status-success';
+        if (status === 'failed') return 'status-failed';
+        if (status === 'retrying' || status === 'already') return 'status-retrying';
+        if (status === 'changed') return 'status-changed';
+        return 'status-info';
+      };
+
+      const formatEventTime = (iso) => {
+        if (!iso) return "now";
+        const date = new Date(iso);
+        if (Number.isNaN(date.getTime())) return "now";
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      };
+
+      els.queue.innerHTML = feedEvents.slice(0, 15).map((event) => {
+        const statusClass = getStatusClass(event.status, event.type);
+        const time = formatEventTime(event.timestamp);
+        return `
+        <div class="dispatch-bubble ${statusClass}">
+          <div class="dispatch-bubble-top">
+            <span class="dispatch-bubble-actor">[BOT] ${escapeHtml(event.title || "Dispatch")}</span>
+            <span class="dispatch-bubble-time">${time}</span>
+          </div>
+          <div class="dispatch-bubble-message">${escapeHtml(event.message || "")}</div>
         </div>
-      `).join("");
-      if (els.eventCount) els.eventCount.textContent = feedEvents[0]?.type === "idle" ? "no recent events" : `${feedEvents.length} live records`;
+      `}).join("");
+      
+      if (els.eventCount) els.eventCount.textContent = feedEvents[0]?.type === "idle" ? "waiting for dispatch" : `${feedEvents.length} live records`;
     };
     const rotate = () => {
       if (!feedEvents.length) return;

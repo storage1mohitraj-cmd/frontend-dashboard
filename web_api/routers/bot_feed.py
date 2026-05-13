@@ -16,13 +16,14 @@ try:
         AllianceMembersAdapter,
         AllianceMonitoringAdapter,
         AutoRedeemSettingsAdapter,
+        BotActivityAdapter,
         GiftCodesAdapter,
         GiftCodeRedemptionAdapter,
         mongo_enabled,
     )
 except ImportError:
     mongo_enabled = lambda: False
-    AllianceEventsAdapter = AllianceMembersAdapter = AllianceMonitoringAdapter = AutoRedeemSettingsAdapter = GiftCodesAdapter = GiftCodeRedemptionAdapter = None
+    AllianceEventsAdapter = AllianceMembersAdapter = AllianceMonitoringAdapter = AutoRedeemSettingsAdapter = BotActivityAdapter = GiftCodesAdapter = GiftCodeRedemptionAdapter = None
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/bot-feed", tags=["Bot Feed"])
@@ -46,19 +47,22 @@ async def get_bot_feed(request: Request, limit: int = 40):
     gift_codes = await _get_gift_codes()
     members = await _get_recent_members(limit=60)
     monitored_member_count = await _count_monitored_members()
-    events = await _build_events(safe_limit, server_lookup, gift_codes)
+    activity_events = await _get_activity_events(safe_limit)
+    events = [*activity_events, *await _build_events(safe_limit, server_lookup, gift_codes)]
     monitors = await _get_monitors()
     auto_redeem_enabled = await _get_auto_redeem_enabled()
     runtime_events, runtime_summary = await _get_runtime_events(bot, server_lookup)
     events = [*runtime_events, *events]
     events.sort(key=_event_sort_key, reverse=True)
     events = events[:safe_limit]
-    has_live_process = any(event.get("live") for event in runtime_events)
+    has_activity = bool(activity_events)
+    has_live_process = has_activity or any(event.get("live") for event in runtime_events)
 
     payload = {
-        "status": _runtime_status(bot, runtime_summary),
+        "status": _feed_status(bot, runtime_summary, activity_events),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "cache_ttl_seconds": _CACHE_TTL_SECONDS,
+        "latest_event": events[0] if events else None,
         "summary": {
             "servers": len(guilds),
             "members": sum((getattr(guild, "member_count", 0) or 0) for guild in guilds),
@@ -73,11 +77,112 @@ async def get_bot_feed(request: Request, limit: int = 40):
         "members": members,
         "events": events,
         "gift_codes": gift_codes,
-        "source": "live_process" if has_live_process else ("live_cache" if events or guilds or gift_codes or members else "idle"),
+        "source": "live_activity" if has_activity else ("live_process" if has_live_process else ("live_cache" if events or guilds or gift_codes or members else "idle")),
     }
     _CACHE["payload"] = payload
     _CACHE["expires_at"] = now + _CACHE_TTL_SECONDS
     return payload
+
+
+async def _get_activity_events(limit: int) -> List[Dict[str, Any]]:
+    if not mongo_enabled() or BotActivityAdapter is None:
+        return []
+    try:
+        docs = await BotActivityAdapter.get_recent_activity_async(limit=limit)
+    except Exception as exc:
+        logger.warning("Unable to load structured bot activity: %s", exc)
+        return []
+    return [_normalize_activity_event(doc) for doc in docs]
+
+
+def _normalize_activity_event(doc: Dict[str, Any]) -> Dict[str, Any]:
+    workflow = str(doc.get("workflow") or "system")
+    event_type = str(doc.get("event_type") or "activity")
+    status = str(doc.get("status") or "info")
+    type_key = _activity_type_key(workflow, event_type)
+    title = _activity_title(workflow, event_type, status)
+    timestamp = _iso(doc.get("created_at"))
+    details = doc.get("details") if isinstance(doc.get("details"), dict) else {}
+    gift_code = doc.get("gift_code")
+    old_value = doc.get("old_value")
+    new_value = doc.get("new_value")
+    return {
+        "id": str(doc.get("id") or f"activity-{workflow}-{event_type}-{timestamp}"),
+        "type": type_key,
+        "workflow": workflow,
+        "event_type": event_type,
+        "status": status,
+        "title": title,
+        "message": doc.get("message") or title,
+        "player": doc.get("nickname"),
+        "fid": str(doc.get("fid") or ""),
+        "state": doc.get("state_id"),
+        "state_id": doc.get("state_id"),
+        "server": doc.get("guild_name"),
+        "guild_id": doc.get("guild_id"),
+        "guild_name": doc.get("guild_name"),
+        "alliance_id": doc.get("alliance_id"),
+        "alliance_name": doc.get("alliance_name"),
+        "gift_code": gift_code,
+        "new_value": gift_code if type_key == "redeem" else new_value,
+        "old_value": old_value,
+        "reason": doc.get("reason"),
+        "details": details,
+        "timestamp": timestamp,
+        "live": _is_recent_iso(timestamp, max_age_seconds=900),
+        "priority": _activity_priority(workflow, event_type, status),
+        "old_avatar": old_value if type_key == "avatar" else None,
+        "new_avatar": new_value if type_key == "avatar" else details.get("avatar_image"),
+    }
+
+
+def _activity_type_key(workflow: str, event_type: str) -> str:
+    if workflow == "auto_redeem" or event_type.startswith("redeem_"):
+        return "redeem"
+    if "furnace" in event_type:
+        return "furnace"
+    if "nickname" in event_type or "name" in event_type:
+        return "name"
+    if "avatar" in event_type:
+        return "avatar"
+    if "state" in event_type:
+        return "state"
+    if workflow == "alliance_monitor":
+        return "monitor"
+    return "system"
+
+
+def _activity_title(workflow: str, event_type: str, status: str) -> str:
+    titles = {
+        "redeem_success": "Gift code redeemed",
+        "redeem_already_claimed": "Gift code already claimed",
+        "redeem_failed": "Gift code redeem failed",
+        "redeem_rate_limited": "Redeem rate limited",
+        "redeem_skipped_cached": "Gift code already in records",
+        "server_redeem_started": "Auto redeem started",
+        "server_redeem_processing": "Auto redeem processing",
+        "server_redeem_completed": "Auto redeem completed",
+        "server_redeem_skipped": "Auto redeem skipped",
+        "furnace_changed": "Furnace upgrade detected",
+        "nickname_changed": "Name change detected",
+        "avatar_changed": "Avatar updated",
+        "state_changed": "State transfer detected",
+    }
+    return titles.get(event_type, "Bot activity update" if workflow == "system" else workflow.replace("_", " ").title())
+
+
+def _activity_priority(workflow: str, event_type: str, status: str) -> int:
+    if event_type in {"redeem_success", "redeem_failed", "redeem_rate_limited"}:
+        return 120
+    if event_type in {"furnace_changed", "nickname_changed", "avatar_changed", "state_changed"}:
+        return 115
+    if event_type in {"redeem_already_claimed", "redeem_skipped_cached"}:
+        return 105
+    if workflow == "auto_redeem":
+        return 95
+    if workflow == "alliance_monitor":
+        return 80
+    return 30
 
 
 async def _build_events(limit: int, server_lookup: Dict[str, str], gift_codes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

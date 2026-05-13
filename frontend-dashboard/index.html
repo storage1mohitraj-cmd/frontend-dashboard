@@ -398,51 +398,78 @@
       min-height: 27rem;
     }
 
-    .event-queue {
+    .dispatch-feed {
       display: flex;
       flex-direction: column;
-      gap: 0.55rem;
-      max-height: 19rem;
-      overflow: hidden;
+      gap: 0.75rem;
+      max-height: 25rem;
+      overflow-y: auto;
+      padding-right: 0.5rem;
+      scroll-behavior: smooth;
     }
 
-    .event-row {
-      display: grid;
-      grid-template-columns: 2.1rem minmax(0, 1fr);
-      gap: 0.65rem;
-      align-items: center;
+    .dispatch-feed::-webkit-scrollbar {
+      width: 4px;
+    }
+    .dispatch-feed::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .dispatch-feed::-webkit-scrollbar-thumb {
+      background: rgba(141, 232, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    .dispatch-bubble {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      background: rgba(255, 255, 255, 0.035);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 0.62rem;
-      background: rgba(255, 255, 255, 0.032);
-      padding: 0.62rem;
+      border-top-left-radius: 0.1rem;
+      padding: 0.65rem 0.85rem;
+      position: relative;
+      animation: bubbleSlideIn 0.3s ease-out;
     }
 
-    .event-row b {
-      color: rgba(255, 255, 255, 0.92);
-      font-size: 0.9rem;
+    .dispatch-bubble.status-success { border-left: 2px solid #48e0a7; }
+    .dispatch-bubble.status-failed { border-left: 2px solid #ff5d5d; }
+    .dispatch-bubble.status-retrying { border-left: 2px solid #ffb84d; }
+    .dispatch-bubble.status-info { border-left: 2px solid #4da6ff; }
+    .dispatch-bubble.status-changed { border-left: 2px solid #b366ff; }
+
+    .dispatch-bubble-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
     }
 
-    .event-row span {
-      display: block;
-      margin-top: 0.14rem;
-      color: rgba(232, 240, 247, 0.58);
-      font-size: 0.76rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .event-icon {
-      display: grid;
-      place-items: center;
-      width: 2.1rem;
-      aspect-ratio: 1;
-      border-radius: 0.55rem;
-      background: rgba(141, 232, 255, 0.1);
+    .dispatch-bubble-actor {
       color: #9eeaff;
-      font-family: var(--font-mono);
       font-size: 0.78rem;
-      font-weight: 800;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .dispatch-bubble-time {
+      color: rgba(232, 240, 247, 0.45);
+      font-size: 0.7rem;
+      font-family: var(--font-mono);
+    }
+
+    .dispatch-bubble-message {
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 0.88rem;
+      line-height: 1.4;
+    }
+
+    @keyframes bubbleSlideIn {
+      from { opacity: 0; transform: translateX(10px); }
+      to { opacity: 1; transform: translateX(0); }
     }
 
     .server-radar {
@@ -692,10 +719,10 @@
 
           <aside class="event-list-panel">
             <div class="radar-topline">
-              <span>process-queue</span>
+              <span>live-dispatch-stream</span>
               <span data-event-count>looping cached events</span>
             </div>
-            <div class="event-queue" data-event-queue></div>
+            <div class="dispatch-feed" data-event-queue></div>
           </aside>
         </div>
       </div>

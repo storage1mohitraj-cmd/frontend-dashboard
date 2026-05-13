@@ -9,6 +9,7 @@ from typing import List, Dict, Optional
 import os
 from .login_handler import LoginHandler
 from command_animator import command_animation
+from bot_activity import publish_bot_activity
 from admin_utils import is_admin, is_global_admin, grant_admin_if_discord_admin, is_bot_owner, get_level_mapping, format_furnace_level
 from .pagination_helper import ResultsPaginationView
 try:
@@ -3477,6 +3478,7 @@ class Alliance(commands.Cog):
                                     'old_value': old_nickname,
                                     'new_value': api_nickname,
                                     'furnace_lv': api_furnace_lv,
+                                    'state_id': api_state_id,
                                     'alliance_name': alliance_name,
                                     'avatar_image': api_data.get('avatar_image', '')
                                 })
@@ -3491,6 +3493,7 @@ class Alliance(commands.Cog):
                                     'old_value': old_avatar,
                                     'new_value': api_avatar,
                                     'furnace_lv': api_furnace_lv,
+                                    'state_id': api_state_id,
                                     'alliance_name': alliance_name
                                 })
                             
@@ -3502,6 +3505,7 @@ class Alliance(commands.Cog):
                                     'nickname': api_nickname,
                                     'old_value': old_furnace_lv,
                                     'new_value': api_furnace_lv,
+                                    'state_id': api_state_id,
                                     'alliance_name': alliance_name,
                                     'avatar_image': api_data.get('avatar_image', '')
                                 })
@@ -3516,6 +3520,7 @@ class Alliance(commands.Cog):
                                     'old_value': old_state_id,
                                     'new_value': api_state_id,
                                     'furnace_lv': api_furnace_lv,
+                                    'state_id': api_state_id,
                                     'alliance_name': alliance_name,
                                     'avatar_image': api_data.get('avatar_image', '')
                                 })
@@ -3558,6 +3563,7 @@ class Alliance(commands.Cog):
                                         'old_value': old_nickname,
                                         'new_value': api_nickname,
                                         'furnace_lv': api_furnace_lv,
+                                        'state_id': api_state_id,
                                         'alliance_name': alliance_name,
                                         'avatar_image': api_data.get('avatar_image', '')
                                     })
@@ -3574,6 +3580,7 @@ class Alliance(commands.Cog):
                                         'old_value': old_avatar,
                                         'new_value': api_avatar,
                                         'furnace_lv': api_furnace_lv,
+                                        'state_id': api_state_id,
                                         'alliance_name': alliance_name
                                     })
                                 
@@ -3585,6 +3592,7 @@ class Alliance(commands.Cog):
                                         'nickname': api_nickname,
                                         'old_value': old_furnace_lv,
                                         'new_value': api_furnace_lv,
+                                        'state_id': api_state_id,
                                         'alliance_name': alliance_name,
                                         'avatar_image': api_data.get('avatar_image', '')
                                     })
@@ -3599,6 +3607,7 @@ class Alliance(commands.Cog):
                                         'old_value': old_state_id,
                                         'new_value': api_state_id,
                                         'furnace_lv': api_furnace_lv,
+                                        'state_id': api_state_id,
                                         'alliance_name': alliance_name,
                                         'avatar_image': api_data.get('avatar_image', '')
                                     })
@@ -3622,12 +3631,60 @@ class Alliance(commands.Cog):
             
             # Post change notifications
             for change in changes_detected:
+                change_type = change.get('type')
+                nickname = (
+                    change.get('nickname')
+                    or (change.get('new_value') if change_type == 'name_change' else None)
+                    or "Unknown"
+                )
+                old_value = change.get('old_value')
+                new_value = change.get('new_value')
+                if change_type == 'furnace_change':
+                    event_type = "furnace_changed"
+                    status = "changed"
+                    message = f"{nickname} moved from {format_furnace_level(old_value)} to {format_furnace_level(new_value)}"
+                elif change_type == 'name_change':
+                    event_type = "nickname_changed"
+                    status = "changed"
+                    message = f"{old_value} is now {new_value}"
+                elif change_type == 'avatar_change':
+                    event_type = "avatar_changed"
+                    status = "changed"
+                    message = f"{nickname} changed profile avatar"
+                elif change_type == 'state_change':
+                    event_type = "state_changed"
+                    status = "changed"
+                    message = f"{nickname} moved from State {old_value} to State {new_value}"
+                else:
+                    event_type = "profile_changed"
+                    status = "changed"
+                    message = f"{nickname} profile changed"
+
+                await publish_bot_activity(
+                    workflow="alliance_monitor",
+                    event_type=event_type,
+                    status=status,
+                    message=message,
+                    guild_id=getattr(guild, "id", None),
+                    guild_name=getattr(guild, "name", None),
+                    alliance_id=alliance_id,
+                    alliance_name=change.get('alliance_name') or alliance_name,
+                    fid=str(change.get('fid')),
+                    nickname=nickname,
+                    state_id=change.get('state_id'),
+                    old_value=old_value,
+                    new_value=new_value,
+                    details={
+                        "furnace_lv": change.get('furnace_lv'),
+                        "avatar_image": change.get('avatar_image', ''),
+                    },
+                )
+
                 # Consolidated event logging for dashboard
                 if mongo_enabled():
                     try:
-                        nickname = change.get('nickname') or change.get('new_value') if change['type'] == 'name_change' else change.get('nickname', 'Unknown')
                         await AllianceEventsAdapter.log_event_async(
-                            event_type=change['type'],
+                            event_type=change_type,
                             fid=str(change['fid']),
                             nickname=nickname,
                             alliance_id=alliance_id,

@@ -15,6 +15,7 @@ from datetime import datetime
 import time
 import logging
 import giftcode_poster
+from bot_activity import publish_bot_activity
 from admin_utils import is_admin, is_global_admin, is_bot_owner, format_furnace_level as shared_format_furnace_level
 
 try:
@@ -288,6 +289,22 @@ class ManageGiftCode(commands.Cog):
         embed = discord.Embed(title=title, description=description, color=color)
         self._set_embed_footer(embed, guild)
         return embed
+
+    def _guild_display_name(self, guild_id):
+        guild = self.bot.get_guild(int(guild_id)) if guild_id else None
+        return guild.name if guild else f"Server {guild_id}"
+
+    async def _publish_redeem_activity(self, event_type, status, message, guild_id, giftcode, **kwargs):
+        await publish_bot_activity(
+            workflow="auto_redeem",
+            event_type=event_type,
+            status=status,
+            message=message,
+            guild_id=guild_id,
+            guild_name=self._guild_display_name(guild_id),
+            gift_code=str(giftcode).upper() if giftcode else None,
+            **kwargs,
+        )
 
     async def cog_load(self):
         """Called when the cog is loaded. Initializes background tasks and sessions."""
@@ -2046,6 +2063,14 @@ class ManageGiftCode(commands.Cog):
             if not enabled:
                 self.logger.info(f"Auto redeem disabled for guild {guild_id}, skipping")
                 return
+
+            await self._publish_redeem_activity(
+                "server_redeem_started",
+                "running",
+                f"Auto redeem started for {code_up} on {self._guild_display_name(guild_id)}",
+                guild_id,
+                code_up,
+            )
             
             # Get import channel - try MongoDB first, fallback to SQLite
             channel_id = None
@@ -2081,6 +2106,14 @@ class ManageGiftCode(commands.Cog):
             
             if not members_data:
                 self.logger.info(f"No auto-redeem members for guild {guild_id}")
+                await self._publish_redeem_activity(
+                    "server_redeem_skipped",
+                    "skipped",
+                    f"No auto-redeem members found for {self._guild_display_name(guild_id)}",
+                    guild_id,
+                    code_up,
+                    reason="no_members",
+                )
                 return
             
             
@@ -2094,7 +2127,7 @@ class ManageGiftCode(commands.Cog):
             if is_recheck:
                 self.logger.info(f"🔄 Manual Trigger: Bypassing member-level redemption cache for code {giftcode}")
                 members_to_process = [
-                    (member['fid'], member['nickname'], member.get('furnace_lv', 0))
+                    (member['fid'], member['nickname'], member.get('furnace_lv', 0), member.get('state_id') or member.get('kid'))
                     for member in members_data
                 ]
             elif mongo_enabled() and AutoRedeemedCodesAdapter:
@@ -2118,22 +2151,34 @@ class ManageGiftCode(commands.Cog):
                         if redeemed_status.get(fid, False):
                             self.logger.info(f"⏭️ Skipping {member['nickname']} (FID: {fid}) - already redeemed code {giftcode}")
                             skipped_count += 1
+                            await self._publish_redeem_activity(
+                                "redeem_skipped_cached",
+                                "already",
+                                f"{member['nickname']} already redeemed {code_up}",
+                                guild_id,
+                                code_up,
+                                fid=fid,
+                                nickname=member.get('nickname'),
+                                state_id=member.get('state_id') or member.get('kid'),
+                                reason="cached_already_redeemed",
+                                details={"furnace_lv": member.get('furnace_lv', 0)},
+                            )
                         else:
-                            members_to_process.append((fid, member['nickname'], member.get('furnace_lv', 0)))
+                            members_to_process.append((fid, member['nickname'], member.get('furnace_lv', 0), member.get('state_id') or member.get('kid')))
                     
                     self.logger.info(f"✅ Batch check complete: {len(members_to_process)} to process, {skipped_count} already redeemed")
                 except Exception as e:
                     self.logger.warning(f"Error during batch check, falling back to processing all members: {e}")
                     # On error, process all members (better than skipping everyone)
                     members_to_process = [
-                        (member['fid'], member['nickname'], member.get('furnace_lv', 0))
+                        (member['fid'], member['nickname'], member.get('furnace_lv', 0), member.get('state_id') or member.get('kid'))
                         for member in members_data
                     ]
             else:
                 # MongoDB not enabled, process all members
                 self.logger.info("MongoDB not enabled, processing all members")
                 members_to_process = [
-                    (member['fid'], member['nickname'], member.get('furnace_lv', 0))
+                    (member['fid'], member['nickname'], member.get('furnace_lv', 0), member.get('state_id') or member.get('kid'))
                     for member in members_data
                 ]
             
@@ -2144,11 +2189,27 @@ class ManageGiftCode(commands.Cog):
                 # Silently skip for automated background checks to prevent spam
                 if not is_recheck:
                     self.logger.info(f"✅ Silent skip: All {len(members_data)} members have already redeemed code {code_up} for guild {guild_id}")
+                    await self._publish_redeem_activity(
+                        "server_redeem_completed",
+                        "already",
+                        f"All {len(members_data)} members already redeemed {code_up} on {self._guild_display_name(guild_id)}",
+                        guild_id,
+                        code_up,
+                        details={"member_count": len(members_data)},
+                    )
                     # CRITICAL: Mark guild as completed so we don't spam logs again
                     await self._mark_guild_completed(guild_id, code_up)
                     return
 
                 self.logger.info(f"✅ All {len(members_data)} members have already redeemed code {code_up} for guild {guild_id}")
+                await self._publish_redeem_activity(
+                    "server_redeem_completed",
+                    "already",
+                    f"All {len(members_data)} members already redeemed {code_up} on {self._guild_display_name(guild_id)}",
+                    guild_id,
+                    code_up,
+                    details={"member_count": len(members_data), "manual_recheck": True},
+                )
                 
                 # CRITICAL: Mark guild as completed so we don't spam this skip message again!
                 await self._mark_guild_completed(guild_id, code_up)
@@ -2192,6 +2253,14 @@ class ManageGiftCode(commands.Cog):
                 color=0xFEE75C
             )
             animation_message = await channel.send(embed=initial_embed)
+            await self._publish_redeem_activity(
+                "server_redeem_processing",
+                "running",
+                f"Redeeming {code_up} for {len(members)} player(s) on {self._guild_display_name(guild_id)}",
+                guild_id,
+                code_up,
+                details={"members": len(members), "skipped": skipped_count},
+            )
             
             # Shared counters for progress tracking
             success_count = 0
@@ -2278,7 +2347,7 @@ class ManageGiftCode(commands.Cog):
             
             retry_members = []  # Members that hit rate limits and need a second pass
             
-            async def process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=True):
+            async def process_member_with_semaphore(idx, fid, nickname, furnace_lv, state_id=None, allow_second_pass=True):
                 """Process a single member with semaphore control"""
                 nonlocal success_count, failed_count, already_redeemed_count, completed_count, rate_limit_count, code_is_invalid
                 
@@ -2332,6 +2401,40 @@ class ManageGiftCode(commands.Cog):
                                     _s['code_is_invalid'] = True
                             if status:
                                 tracking_status = self._tracking_status_from_result(success, already_redeemed)
+                                if success:
+                                    activity_type = "redeem_success"
+                                    activity_status = "success"
+                                    activity_message = f"Redeemed {code_up} for {nickname}"
+                                elif already_redeemed:
+                                    activity_type = "redeem_already_claimed"
+                                    activity_status = "already"
+                                    activity_message = f"{nickname} already claimed {code_up}"
+                                elif status == "RATE_LIMITED":
+                                    activity_type = "redeem_rate_limited"
+                                    activity_status = "retrying" if allow_second_pass else "failed"
+                                    activity_message = f"Rate limited while redeeming {code_up} for {nickname}"
+                                else:
+                                    activity_type = "redeem_failed"
+                                    activity_status = "failed"
+                                    activity_message = f"Failed to redeem {code_up} for {nickname}: {status}"
+                                await self._publish_redeem_activity(
+                                    activity_type,
+                                    activity_status,
+                                    activity_message,
+                                    guild_id,
+                                    code_up,
+                                    fid=fid,
+                                    nickname=nickname,
+                                    state_id=state_id,
+                                    reason=status,
+                                    details={
+                                        "furnace_lv": furnace_lv,
+                                        "success": success,
+                                        "already_redeemed": already_redeemed,
+                                        "failed": failed,
+                                        "member_index": idx,
+                                    },
+                                )
                                 redemption_tracking_batch.append({
                                     "fid": str(fid),
                                     "status": tracking_status,
@@ -2351,7 +2454,7 @@ class ManageGiftCode(commands.Cog):
                                 )
                                 if retryable and allow_second_pass:
                                     # Don't count as failed yet — add to second-pass queue
-                                    retry_members.append((fid, nickname, furnace_lv))
+                                    retry_members.append((fid, nickname, furnace_lv, state_id))
                                     self.logger.info(f"🔁 Will retry {nickname} (FID: {fid}) in second pass — status: {status}")
                                 else:
                                     failed_count += failed
@@ -2373,9 +2476,9 @@ class ManageGiftCode(commands.Cog):
             
             # Create tasks for all members with staggering
             tasks = []
-            for idx, (fid, nickname, furnace_lv) in enumerate(members, 1):
+            for idx, (fid, nickname, furnace_lv, state_id) in enumerate(members, 1):
                 # We create the task, but wait slightly before creating the next one
-                t = asyncio.create_task(process_member_with_semaphore(idx, fid, nickname, furnace_lv))
+                t = asyncio.create_task(process_member_with_semaphore(idx, fid, nickname, furnace_lv, state_id))
                 tasks.append(t)
                 # Stagger the start of each task by 0.5s to enforce ~2 members/second throughput
                 # For 88 members, this adds ~44s total but prevents 429 rate-limit bursts
@@ -2424,8 +2527,8 @@ class ManageGiftCode(commands.Cog):
                 
                 # Re-process all the failed members (staggered again)
                 retry_tasks = []
-                for idx, (fid, nickname, furnace_lv) in enumerate(members_for_retry, 1):
-                    t = asyncio.create_task(process_member_with_semaphore(idx, fid, nickname, furnace_lv, allow_second_pass=False))
+                for idx, (fid, nickname, furnace_lv, state_id) in enumerate(members_for_retry, 1):
+                    t = asyncio.create_task(process_member_with_semaphore(idx, fid, nickname, furnace_lv, state_id, allow_second_pass=False))
                     retry_tasks.append(t)
                     await asyncio.sleep(0.5)
                 
@@ -2469,6 +2572,23 @@ class ManageGiftCode(commands.Cog):
                 await animation_message.edit(embed=final_embed)
             
             self.logger.info(f"Auto-redeem completed for guild {guild_id}: {success_count} success, {already_redeemed_count} already redeemed, {failed_count} failed")
+            await self._publish_redeem_activity(
+                "server_redeem_completed",
+                "completed",
+                (
+                    f"Completed {code_up} on {self._guild_display_name(guild_id)}: "
+                    f"{success_count} success, {already_redeemed_count} already, {failed_count} failed"
+                ),
+                guild_id,
+                code_up,
+                details={
+                    "success": success_count,
+                    "already_redeemed": already_redeemed_count,
+                    "failed": failed_count,
+                    "total": len(members),
+                    "fail_reasons": fail_reasons,
+                },
+            )
             
             # Record completion state per-guild to survive bot restarts
             await self._mark_guild_completed(guild_id, code_up)

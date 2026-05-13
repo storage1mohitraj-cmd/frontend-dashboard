@@ -107,6 +107,8 @@ async def get_status():
         "api_started_at": STARTED_AT.isoformat(),
         "bot_ready_at": bot_ready_at.isoformat() if isinstance(bot_ready_at, datetime) else None,
         "latency_ms": round(bot.latency * 1000) if bot else None,
+        "bot_feed_loaded": True,
+        "activity_store_enabled": mongo_enabled(),
     }
 
 @app.get("/api/debug/env")

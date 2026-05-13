@@ -176,7 +176,7 @@
       });
     };
     const iconLabel = (type) => {
-      const labels = { redeem: "GC", furnace: "FC", avatar: "AV", name: "NM", state: "ST" };
+      const labels = { redeem: "GC", furnace: "FC", avatar: "AV", name: "NM", state: "ST", monitor: "AM" };
       return labels[type] || "UP";
     };
     const renderEvent = (event) => {
@@ -263,9 +263,10 @@
           setMetric("monitors", feed.summary?.active_monitors || 0);
           setMetric("redeem", feed.summary?.auto_redeem_servers || 0);
           setMetric("codes", feed.summary?.active_gift_codes || 0);
-          if (els.state) els.state.textContent = feed.status || "online";
-          if (els.heroState) els.heroState.textContent = feed.source === "idle" ? "waiting for data" : "live process";
-          if (els.source) els.source.textContent = feed.source === "idle" ? "idle" : "live cache";
+          const statusLabel = feed.status === "redeeming" ? "redeeming" : (feed.status === "queued" ? "queued" : (feed.status || "online"));
+          if (els.state) els.state.textContent = statusLabel;
+          if (els.heroState) els.heroState.textContent = feed.status === "redeeming" ? "redeeming now" : (feed.source === "idle" ? "waiting for data" : "live process");
+          if (els.source) els.source.textContent = feed.source === "live_process" ? "bot internals" : (feed.source === "idle" ? "idle" : "live cache");
           const updatedAt = `updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
           if (els.clock) els.clock.textContent = updatedAt;
           if (els.heroTime) els.heroTime.textContent = updatedAt;
@@ -290,7 +291,7 @@
     rotate();
     syncFeed();
     setInterval(rotate, 5200);
-    setInterval(syncFeed, 60000);
+    setInterval(syncFeed, 5000);
   }
 
   const commandList = document.querySelector("[data-command-list]");

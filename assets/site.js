@@ -142,7 +142,8 @@
       heroMeta: document.querySelector("[data-hero-feed-meta]"),
       heroAvatars: document.querySelector("[data-hero-feed-avatars]"),
       heroOldAvatar: document.querySelector("[data-hero-old-avatar]"),
-      heroNewAvatar: document.querySelector("[data-hero-new-avatar]")
+      heroNewAvatar: document.querySelector("[data-hero-new-avatar]"),
+      refresh: document.querySelector("[data-feed-refresh]")
     };
     const idleEvents = [
       {
@@ -176,24 +177,31 @@
       });
     };
     const iconLabel = (type) => {
-      const labels = { redeem: "GC", furnace: "FC", avatar: "AV", name: "NM", state: "ST", monitor: "AM" };
+      const labels = { redeem: "GC", gift_code: "GC", furnace: "FC", avatar: "AV", name: "NM", state: "ST", monitor: "AM", system: "SYS" };
       return labels[type] || "UP";
     };
+    const eventTagValues = (event) => [
+      event.player,
+      event.fid ? `ID ${event.fid}` : "",
+      event.state_id ? `State ${event.state_id}` : (event.state ? `State ${event.state}` : ""),
+      event.fc_lvl ? `FC ${event.fc_lvl}` : "",
+      event.server || event.guild_name,
+      event.alliance_name,
+      event.gift_code ? `Code ${event.gift_code}` : (event.new_value && (event.type === "redeem" || event.type === "gift_code") ? `Code ${event.new_value}` : ""),
+      event.status ? `Status ${String(event.status).replace(/_/g, " ")}` : ""
+    ].filter(Boolean);
     const renderEvent = (event) => {
       els.kind.textContent = (event.type || "update").replace(/_/g, " ");
       els.title.textContent = event.title || "Bot process update";
       els.message.textContent = event.message || "A bot workflow completed.";
       const meta = [
-        event.player,
-        event.fid ? `ID ${event.fid}` : "",
-        event.state ? `State ${event.state}` : "",
-        event.new_value && event.type === "redeem" ? `Code ${event.new_value}` : "",
-        event.old_value && event.new_value && event.type !== "avatar" && event.type !== "redeem" ? `${event.old_value} -> ${event.new_value}` : ""
+        ...eventTagValues(event),
+        event.old_value && event.new_value && event.type !== "avatar" && event.type !== "redeem" && event.type !== "gift_code" ? `${event.old_value} -> ${event.new_value}` : ""
       ].filter(Boolean);
       els.meta.innerHTML = meta.length
         ? meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")
         : "<span>real bot data only</span><span>waiting for events</span>";
-      const hasAvatarPair = event.type === "avatar" && (event.old_avatar || event.old_value) && (event.new_avatar || event.new_value);
+      const hasAvatarPair = (event.type === "avatar" || event.old_avatar || event.new_avatar) && (event.old_avatar || event.old_value) && (event.new_avatar || event.new_value);
       els.avatarCompare.classList.toggle("is-visible", Boolean(hasAvatarPair));
       if (hasAvatarPair) {
         els.oldAvatar.src = event.old_avatar || event.old_value;
@@ -207,11 +215,8 @@
       els.heroMessage.textContent = event.message || "A bot workflow completed.";
       const meta = [
         event.type ? event.type.replace(/_/g, " ") : "update",
-        event.player,
-        event.fid ? `ID ${event.fid}` : "",
-        event.state ? `State ${event.state}` : "",
-        event.new_value && event.type === "redeem" ? `Code ${event.new_value}` : ""
-      ].filter(Boolean);
+        ...eventTagValues(event)
+      ].filter(Boolean).slice(0, 5);
       if (els.heroMeta) {
         els.heroMeta.innerHTML = meta.length
           ? meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")
@@ -232,7 +237,7 @@
         if (status === 'success') return 'status-success';
         if (status === 'failed') return 'status-failed';
         if (status === 'retrying' || status === 'already') return 'status-retrying';
-        if (status === 'changed') return 'status-changed';
+        if (status === 'changed' || type === 'avatar' || type === 'name' || type === 'furnace' || type === 'state') return 'status-changed';
         return 'status-info';
       };
 
@@ -246,13 +251,18 @@
       els.queue.innerHTML = feedEvents.slice(0, 15).map((event) => {
         const statusClass = getStatusClass(event.status, event.type);
         const time = formatEventTime(event.timestamp);
+        const tags = eventTagValues(event).slice(0, 4);
         return `
         <div class="dispatch-bubble ${statusClass}">
           <div class="dispatch-bubble-top">
-            <span class="dispatch-bubble-actor">[BOT] ${escapeHtml(event.title || "Dispatch")}</span>
+            <div class="dispatch-bubble-title">
+              <span class="dispatch-type">${iconLabel(event.type)}</span>
+              <span class="dispatch-bubble-actor">${escapeHtml(event.title || "Dispatch")}</span>
+            </div>
             <span class="dispatch-bubble-time">${time}</span>
           </div>
           <div class="dispatch-bubble-message">${escapeHtml(event.message || "")}</div>
+          ${tags.length ? `<div class="dispatch-bubble-tags">${tags.map((tag) => `<span>${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
         </div>
       `}).join("");
       
@@ -271,12 +281,35 @@
         ? list.map((server) => `<span class="server-chip">${escapeHtml(server.name)} · ${compactNumber(server.members || 0)}</span>`).join("")
         : '<span class="server-chip">No connected server cache yet</span>';
     };
+    let feedSyncing = false;
+    const feedUrls = ["/api/bot-feed?limit=60"];
+    if (["127.0.0.1", "localhost", "::1"].includes(window.location.hostname)) {
+      feedUrls.push("http://140.245.241.54:8080/api/bot-feed?limit=60");
+    }
+    const fetchBotFeed = async () => {
+      let lastError;
+      for (const url of feedUrls) {
+        try {
+          const response = await fetch(url, { headers: { Accept: "application/json" } });
+          const contentType = response.headers.get("content-type") || "";
+          if (!response.ok || !contentType.includes("application/json")) {
+            throw new Error("Feed unavailable");
+          }
+          return await response.json();
+        } catch (error) {
+          lastError = error;
+        }
+      }
+      throw lastError || new Error("Feed unavailable");
+    };
     const syncFeed = () => {
-      fetch("/api/bot-feed?limit=60", { headers: { Accept: "application/json" } })
-        .then((response) => {
-          if (!response.ok) throw new Error("Feed unavailable");
-          return response.json();
-        })
+      if (feedSyncing) return;
+      feedSyncing = true;
+      if (els.refresh) {
+        els.refresh.disabled = true;
+        els.refresh.textContent = "Syncing";
+      }
+      fetchBotFeed()
         .then((feed) => {
           feedEvents = Array.isArray(feed.events) && feed.events.length ? feed.events : idleEvents;
           feedIndex = 0;
@@ -308,8 +341,18 @@
           if (els.source) els.source.textContent = "api unavailable";
           if (els.heroTime) els.heroTime.textContent = "waiting for bot API";
           rotate();
+        })
+        .finally(() => {
+          feedSyncing = false;
+          if (els.refresh) {
+            els.refresh.disabled = false;
+            els.refresh.textContent = "Refresh";
+          }
         });
     };
+    if (els.refresh) {
+      els.refresh.addEventListener("click", syncFeed);
+    }
     renderQueue();
     rotate();
     syncFeed();

@@ -1579,6 +1579,33 @@ class ManageGiftCode(commands.Cog):
                 return False
         
         @staticmethod
+        async def find_member_anywhere_async(cog_instance, fid):
+            """Find which guild a member is registered in (cross-server check) asynchronously"""
+            try:
+                fid = str(fid).strip()
+                
+                # Try MongoDB first (async)
+                if mongo_enabled() and AutoRedeemMembersAdapter:
+                    try:
+                        return await AutoRedeemMembersAdapter.find_member_anywhere_async(fid)
+                    except Exception as e:
+                        cog_instance.logger.warning(f"MongoDB cross-server find failed, using SQLite: {e}")
+                
+                # Fallback to SQLite (async)
+                def find_sqlite():
+                    cog_instance.cursor.execute(
+                        "SELECT guild_id FROM auto_redeem_members WHERE fid = ?",
+                        (fid,)
+                    )
+                    row = cog_instance.cursor.fetchone()
+                    return row[0] if row else None
+                
+                return await asyncio.to_thread(find_sqlite)
+            except Exception as e:
+                cog_instance.logger.error(f"Error in find_member_anywhere_async: {e}")
+                return None
+
+        @staticmethod
         def sync_members_from_sqlite(cog_instance, guild_id=None):
             """Manually sync all auto-redeem members from SQLite to MongoDB
             This is useful for Oracle VM deployments where MongoDB may have been down
@@ -4111,13 +4138,36 @@ class ManageGiftCode(commands.Cog):
                 try:
                     self.logger.debug(f"Processing FID {fid} from user {message.author.id}")
                     
-                    # Check if already exists
+                    # Check if already exists in THIS guild
                     if await self.AutoRedeemDB.member_exists_async(self, message.guild.id, fid):
                         self.logger.info(f"FID {fid} already exists in auto-redeem list for guild {message.guild.id}")
                         embed = discord.Embed(
                             title="⚠️ Already Registered",
                             description=f"{message.author.mention} Your Player ID `{fid}` is already enrolled for automated gift codes in this server.",
                             color=0xF1C40F
+                        )
+                        self._set_embed_footer(embed, message.guild)
+                        await message.reply(embed=embed)
+                        continue
+                    
+                    # Check if already exists in ANOTHER guild (cross-server check)
+                    existing_guild_id = await self.AutoRedeemDB.find_member_anywhere_async(self, fid)
+                    if existing_guild_id and existing_guild_id != message.guild.id:
+                        try:
+                            guild = self.bot.get_guild(existing_guild_id)
+                            guild_name = guild.name if guild else f"Server {existing_guild_id}"
+                        except:
+                            guild_name = "another server"
+                        
+                        self.logger.info(f"FID {fid} blocked - already enrolled in {guild_name} ({existing_guild_id})")
+                        embed = discord.Embed(
+                            title="⚠️ Already Enrolled Elsewhere",
+                            description=(
+                                f"{message.author.mention} Your Player ID `{fid}` is already enrolled for "
+                                f"automated gift codes in **{guild_name}**.\n\n"
+                                "To avoid duplicates and save resources, a Player ID can only be active in one server at a time."
+                            ),
+                            color=0xED4245 # Red
                         )
                         self._set_embed_footer(embed, message.guild)
                         await message.reply(embed=embed)
@@ -5477,9 +5527,22 @@ class ManageGiftCode(commands.Cog):
                         fail_count = 0
                         
                         for fid, custom_nickname in fid_entries:
-                            # Check if already exists
+                            # Check if already exists in THIS guild
                             if await self.cog.AutoRedeemDB.member_exists_async(self.cog, modal_interaction.guild.id, fid):
                                 results.append(f"❌ Already exists: `{fid}`")
+                                fail_count += 1
+                                continue
+                            
+                            # Check if already exists in ANOTHER guild (cross-server check)
+                            existing_guild_id = await self.cog.AutoRedeemDB.find_member_anywhere_async(self.cog, fid)
+                            if existing_guild_id and existing_guild_id != modal_interaction.guild.id:
+                                try:
+                                    guild = self.cog.bot.get_guild(existing_guild_id)
+                                    guild_name = guild.name if guild else f"Server {existing_guild_id}"
+                                except:
+                                    guild_name = "another server"
+                                
+                                results.append(f"❌ Already enrolled in **{guild_name}**")
                                 fail_count += 1
                                 continue
                             
@@ -6596,6 +6659,19 @@ class ManageGiftCode(commands.Cog):
                                 # Find member data
                                 member = next((m for m in self.members if m.get('fid') == fid), None)
                                 if member:
+                                    # Cross-server check
+                                    existing_guild_id = await self.cog.AutoRedeemDB.find_member_anywhere_async(self.cog, fid)
+                                    if existing_guild_id and existing_guild_id != self.guild_id:
+                                        try:
+                                            guild = self.cog.bot.get_guild(existing_guild_id)
+                                            guild_name = guild.name if guild else f"Server {existing_guild_id}"
+                                        except:
+                                            guild_name = "another server"
+                                        
+                                        results.append(f"❌ **{member.get('nickname', fid)}** - Already enrolled in **{guild_name}**")
+                                        fail_count += 1
+                                        continue
+
                                     member_data = {
                                         'nickname': member.get('nickname', 'Unknown'),
                                         'furnace_lv': int(member.get('furnace_lv', 0) or 0),

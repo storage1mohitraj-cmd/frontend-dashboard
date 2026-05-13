@@ -162,6 +162,39 @@ class IDChannel(commands.Cog):
                 stove_lv_content = player_data.get('stove_lv_content', '')
                 avatar_image = player_data.get('avatar_image', '')
                 
+                # Cross-server Auto-Redeem Check
+                from db.mongo_adapters import AutoRedeemMembersAdapter
+                if mongo_enabled() and AutoRedeemMembersAdapter:
+                    try:
+                        existing_gid = await AutoRedeemMembersAdapter.find_member_anywhere_async(str(fid))
+                        if existing_gid and existing_gid != message.guild.id:
+                            try:
+                                guild = self.bot.get_guild(existing_gid)
+                                guild_name = guild.name if guild else f"Server {existing_gid}"
+                            except:
+                                guild_name = "another server"
+                            
+                            await message.add_reaction('⚠️')
+                            embed = discord.Embed(
+                                title="⚠️ Already Enrolled Elsewhere",
+                                description=(
+                                    f"❌ **{nickname}** (`{fid}`) is already enrolled for "
+                                    f"automated gift codes in **{guild_name}**.\n\n"
+                                    "A Player ID can only be active in one server at a time to prevent duplicates."
+                                ),
+                                color=0xED4245 # Red
+                            )
+                            if avatar_image and str(avatar_image).startswith('http'):
+                                embed.set_thumbnail(url=avatar_image)
+                            
+                            server_name = message.guild.name if message.guild else "Whiteout Survival"
+                            embed.set_footer(text=f"Whiteout Survival || {server_name} ❄️")
+                            
+                            await message.reply(embed=embed)
+                            return
+                    except Exception as e:
+                        self._log_debug(f"Cross-server check error: {e}")
+
                 # Save to database
                 success = self._upsert_member_from_api(
                     fid, nickname, furnace_lv, kid, 

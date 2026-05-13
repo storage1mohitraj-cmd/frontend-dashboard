@@ -1797,6 +1797,22 @@ class AutoRedeemMembersAdapter:
         return db_list
 
     @staticmethod
+    async def find_member_anywhere_async(fid: str) -> Optional[int]:
+        """Find which guild a member is registered in (cross-server check) asynchronously"""
+        try:
+            fid_str = str(fid).strip()
+            db_list = await AutoRedeemMembersAdapter._get_target_dbs_async()
+            
+            for target_db in db_list:
+                doc = await target_db[AutoRedeemMembersAdapter.COLL].find_one({'fid': fid_str})
+                if doc:
+                    return int(doc.get('guild_id'))
+            return None
+        except Exception as e:
+            logger.error(f'Failed to find member {fid} anywhere: {e}')
+            return None
+
+    @staticmethod
     async def _get_target_dbs_async() -> List[Any]:
         """Helper to get all relevant databases asynchronously"""
         db_list = []

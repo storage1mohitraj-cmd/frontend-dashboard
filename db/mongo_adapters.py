@@ -2841,30 +2841,48 @@ class AllianceEventsAdapter:
 class BotActivityAdapter:
     """Structured activity ledger for public live bot operations."""
     COLL = 'bot_activity'
+    TTL_SECONDS = 60 * 60 * 24 * 7  # 7 days
+    _indexes_created: bool = False
 
-    @staticmethod
-    async def ensure_indexes_async() -> bool:
+    @classmethod
+    async def _ensure_indexes(cls) -> None:
+        """Create TTL + query indexes once per process lifetime."""
+        if cls._indexes_created:
+            return
         try:
             db = await _get_db_wos_async()
-            await db[BotActivityAdapter.COLL].create_index([("created_at", -1)], background=True)
-            await db[BotActivityAdapter.COLL].create_index([("workflow", 1), ("created_at", -1)], background=True)
-            await db[BotActivityAdapter.COLL].create_index([("event_type", 1), ("created_at", -1)], background=True)
-            await db[BotActivityAdapter.COLL].create_index([("guild_id", 1), ("created_at", -1)], background=True)
-            await db[BotActivityAdapter.COLL].create_index([("fid", 1), ("created_at", -1)], background=True)
-            return True
-        except Exception as e:
-            logger.error(f"Failed to ensure bot activity indexes: {e}")
-            return False
+            coll = db[cls.COLL]
+            await coll.create_index(
+                'created_at',
+                expireAfterSeconds=cls.TTL_SECONDS,
+                background=True,
+                name='ttl_created_at',
+            )
+            for field in ('workflow', 'event_type', 'guild_id', 'fid'):
+                await coll.create_index(
+                    field, background=True, sparse=True, name=f'idx_{field}'
+                )
+            cls._indexes_created = True
+            logger.info('BotActivityAdapter: indexes ensured on %s', cls.COLL)
+        except Exception as exc:
+            logger.warning('BotActivityAdapter: could not ensure indexes: %s', exc)
 
     @staticmethod
     async def insert_activity_async(activity: Dict[str, Any]) -> bool:
         try:
             db = await _get_db_wos_async()
+            # Lazy index bootstrap
+            if not BotActivityAdapter._indexes_created:
+                import asyncio
+                asyncio.ensure_future(BotActivityAdapter._ensure_indexes())
+                
             now = datetime.utcnow()
             doc = dict(activity or {})
-            doc.setdefault("created_at", now)
+            if 'created_at' not in doc or not isinstance(doc.get('created_at'), datetime):
+                doc['created_at'] = now
             doc.setdefault("updated_at", now)
-            doc.setdefault("_id", str(uuid.uuid4()))
+            if "_id" not in doc:
+                doc["_id"] = str(uuid.uuid4())
             await db[BotActivityAdapter.COLL].insert_one(doc)
             return True
         except Exception as e:
@@ -2872,12 +2890,27 @@ class BotActivityAdapter:
             return False
 
     @staticmethod
-    async def get_recent_activity_async(limit: int = 80) -> list:
+    async def get_recent_activity_async(
+        limit: int = 80,
+        workflow: Optional[str] = None,
+        guild_id: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
         try:
             db = await _get_db_wos_async()
+            query: Dict[str, Any] = {}
+            if workflow:
+                query['workflow'] = workflow
+            if guild_id:
+                query['guild_id'] = str(guild_id)
+
             safe_limit = max(1, min(int(limit), 200))
-            cursor = db[BotActivityAdapter.COLL].find({}).sort("created_at", -1).limit(safe_limit)
-            docs = await cursor.to_list(length=None)
+            cursor = (
+                db[BotActivityAdapter.COLL]
+                .find(query)
+                .sort('created_at', -1)
+                .limit(safe_limit)
+            )
+            docs = await cursor.to_list(length=safe_limit)
             for doc in docs:
                 doc["id"] = str(doc.get("_id"))
                 doc.pop("_id", None)
@@ -2888,6 +2921,19 @@ class BotActivityAdapter:
         except Exception as e:
             logger.warning(f"Failed to fetch bot activity: {e}")
             return []
+
+    @staticmethod
+    async def purge_old_async(days: int = 7) -> int:
+        try:
+            db = await _get_db_wos_async()
+            cutoff = datetime.utcnow() - timedelta(days=days)
+            result = await db[BotActivityAdapter.COLL].delete_many(
+                {'created_at': {'$lt': cutoff}}
+            )
+            return result.deleted_count
+        except Exception as e:
+            logger.error(f"Failed to purge old bot activity: {e}")
+            return 0
 
 
 class AllianceMonitoringAdapter:
@@ -4760,108 +4806,4 @@ class ServerLimitsAdapter:
             return False
 
 
-class BotActivityAdapter:
-    """Persists and retrieves structured bot operation events for the Live Bot Dispatch feed."""
-
-    COLL = 'bot_activity'
-    # Keep events for 7 days; indexes are created lazily on first write
-    TTL_SECONDS = 60 * 60 * 24 * 7
-    _indexes_created: bool = False
-
-    # ── Index bootstrap ──────────────────────────────────────────────────────
-
-    @classmethod
-    async def _ensure_indexes(cls) -> None:
-        """Create TTL + query indexes once per process lifetime."""
-        if cls._indexes_created:
-            return
-        try:
-            db = await _get_db_main_async()
-            coll = db[cls.COLL]
-            await coll.create_index(
-                'created_at',
-                expireAfterSeconds=cls.TTL_SECONDS,
-                background=True,
-                name='ttl_created_at',
-            )
-            for field in ('workflow', 'event_type', 'guild_id', 'fid'):
-                await coll.create_index(
-                    field, background=True, sparse=True, name=f'idx_{field}'
-                )
-            cls._indexes_created = True
-            logger.info('BotActivityAdapter: indexes ensured on %s', cls.COLL)
-        except Exception as exc:
-            logger.warning('BotActivityAdapter: could not ensure indexes: %s', exc)
-
-    # ── Write ────────────────────────────────────────────────────────────────
-
-    @staticmethod
-    async def insert_activity_async(doc: Dict[str, Any]) -> bool:
-        """Insert a single activity event document.
-
-        The document must contain at minimum:
-            workflow, event_type, status, message, created_at
-        """
-        try:
-            db = await _get_db_main_async()
-            # Lazy index bootstrap (fire-and-forget, won't block insert)
-            if not BotActivityAdapter._indexes_created:
-                import asyncio
-                asyncio.ensure_future(BotActivityAdapter._ensure_indexes())
-            # Guarantee created_at is a datetime
-            if 'created_at' not in doc or not isinstance(doc.get('created_at'), datetime):
-                doc = {**doc, 'created_at': datetime.utcnow()}
-            await db[BotActivityAdapter.COLL].insert_one(doc)
-            return True
-        except Exception as exc:
-            logger.warning('BotActivityAdapter.insert_activity_async failed: %s', exc)
-            return False
-
-    # ── Read ─────────────────────────────────────────────────────────────────
-
-    @staticmethod
-    async def get_recent_activity_async(
-        limit: int = 30,
-        workflow: Optional[str] = None,
-        guild_id: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
-        """Return the most recent *limit* activity events, newest first.
-
-        Optionally filter by workflow (e.g. 'auto_redeem', 'alliance_monitor')
-        and/or guild_id.
-        """
-        try:
-            db = await _get_db_main_async()
-            query: Dict[str, Any] = {}
-            if workflow:
-                query['workflow'] = workflow
-            if guild_id:
-                query['guild_id'] = str(guild_id)
-
-            safe_limit = max(1, min(int(limit), 100))
-            cursor = (
-                db[BotActivityAdapter.COLL]
-                .find(query, {'_id': 0})
-                .sort('created_at', -1)
-                .limit(safe_limit)
-            )
-            docs = await cursor.to_list(length=safe_limit)
-            return docs
-        except Exception as exc:
-            logger.warning('BotActivityAdapter.get_recent_activity_async failed: %s', exc)
-            return []
-
-    @staticmethod
-    async def purge_old_async(days: int = 7) -> int:
-        """Manually purge events older than *days* days (TTL index handles this
-        automatically, but this helper is useful for admin tools)."""
-        try:
-            db = await _get_db_main_async()
-            cutoff = datetime.utcnow() - timedelta(days=days)
-            result = await db[BotActivityAdapter.COLL].delete_many(
-                {'created_at': {'$lt': cutoff}}
-            )
-            return result.deleted_count
-        except Exception as exc:
-            logger.warning('BotActivityAdapter.purge_old_async failed: %s', exc)
-            return 0
+# BotActivityAdapter is defined once at the top of the file

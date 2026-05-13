@@ -59,7 +59,7 @@ async def get_bot_feed(request: Request, limit: int = 40):
     has_live_process = has_activity or any(event.get("live") for event in runtime_events)
 
     payload = {
-        "status": _feed_status(bot, runtime_summary, activity_events),
+        "status": _runtime_status(bot, runtime_summary),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "cache_ttl_seconds": _CACHE_TTL_SECONDS,
         "latest_event": events[0] if events else None,
@@ -118,6 +118,7 @@ def _normalize_activity_event(doc: Dict[str, Any]) -> Dict[str, Any]:
         "fid": str(doc.get("fid") or ""),
         "state": doc.get("state_id"),
         "state_id": doc.get("state_id"),
+        "fc_lvl": details.get("furnace_lv") or doc.get("furnace_lv"),
         "server": doc.get("guild_name"),
         "guild_id": doc.get("guild_id"),
         "guild_name": doc.get("guild_name"),
@@ -129,7 +130,7 @@ def _normalize_activity_event(doc: Dict[str, Any]) -> Dict[str, Any]:
         "reason": doc.get("reason"),
         "details": details,
         "timestamp": timestamp,
-        "live": _is_recent_iso(timestamp, max_age_seconds=900),
+        "live": _is_recent_iso(timestamp, max_age_seconds=300),
         "priority": _activity_priority(workflow, event_type, status),
         "old_avatar": old_value if type_key == "avatar" else None,
         "new_avatar": new_value if type_key == "avatar" else details.get("avatar_image"),
@@ -499,33 +500,54 @@ def _get_auto_redeem_runtime_events(cog: Any, server_lookup: Dict[str, str]) -> 
 def _get_alliance_runtime_events(cog: Any) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     task = getattr(cog, "monitor_alliances", None)
     running = bool(task and getattr(task, "is_running", lambda: False)())
-    next_iteration = getattr(task, "next_iteration", None) if task else None
-    latest_log = _read_latest_alliance_log(getattr(cog, "log_file", None))
-    event = {
-        "id": "alliance-monitor-runtime",
-        "type": "monitor",
-        "title": "Alliance monitor online" if running else "Alliance monitor standby",
-        "message": "Watching tracked players for furnace, nickname, avatar, and state changes.",
-        "server": "Alliance monitor",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "live": False,
-        "priority": 40,
-    }
+    current = getattr(cog, "_current_scanning_alliance", None)
+    stats = getattr(cog, "_last_cycle_stats", {})
+    
+    events: List[Dict[str, Any]] = []
+    
+    if running:
+        title = "Alliance monitor active"
+        message = "Monitoring alliances for profile changes"
+        if current:
+            alliance_name = current.get("name") or f"ID {current.get('id')}"
+            message = f"Currently scanning alliance: {alliance_name}"
+            
+        events.append(
+            {
+                "id": "alliance-monitor-running",
+                "type": "monitor",
+                "title": title,
+                "message": message,
+                "server": "Alliance system",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "live": True,
+                "priority": 90,
+            }
+        )
 
-    if latest_log:
-        event["message"] = latest_log["message"]
-        event["timestamp"] = latest_log["timestamp"] or event["timestamp"]
-        event["live"] = _is_recent_iso(event["timestamp"], max_age_seconds=600)
-        if event["live"]:
-            event["title"] = "Alliance monitor cycle active"
-            event["priority"] = 60
-    elif next_iteration:
-        event["message"] = f"Watching tracked players. Next scheduled check: {_iso(next_iteration)}."
-
-    return [event], {
+    # Add summary
+    summary = {
         "alliance_monitor_running": running,
-        "alliance_monitor_next_check": _iso(next_iteration),
+        "alliance_monitor_current": current,
+        "alliance_monitor_last_start": _iso(stats.get("start")),
+        "alliance_monitor_last_end": _iso(stats.get("end")),
     }
+
+    latest_log = _read_latest_alliance_log(getattr(cog, "log_file", None))
+    if latest_log:
+        events.append(
+            {
+                "id": f"alliance-monitor-log-{abs(hash(latest_log.get('message', '')))}",
+                "type": "monitor",
+                "title": "Alliance monitor log",
+                "message": latest_log.get("message"),
+                "timestamp": latest_log.get("timestamp"),
+                "live": _is_recent_iso(latest_log.get("timestamp"), 300),
+                "priority": 40,
+            }
+        )
+
+    return events, summary
 
 
 def _get_cog(bot: Any, name: str) -> Any:

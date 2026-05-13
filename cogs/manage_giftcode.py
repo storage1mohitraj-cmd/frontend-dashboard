@@ -2388,6 +2388,20 @@ class ManageGiftCode(commands.Cog):
 
                             success_count += success
                             already_redeemed_count += already_redeemed
+                            
+                            # Publish activity for success or already redeemed
+                            if success or already_redeemed:
+                                await self._publish_redeem_activity(
+                                    "redeem_success" if success else "redeem_already_claimed",
+                                    "success" if success else "already",
+                                    f"{nickname} redeemed {code_up}",
+                                    guild_id,
+                                    code_up,
+                                    fid=fid,
+                                    nickname=nickname,
+                                    state_id=state_id,
+                                    details={"furnace_lv": furnace_lv}
+                                )
 
                             # ── update live stats dict ──
                             _s = self._guild_live_stats.get(_live_key)

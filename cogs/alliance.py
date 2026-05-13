@@ -130,6 +130,8 @@ class Alliance(commands.Cog):
         # Check API availability and enable dual-API mode if both are available
         # This will be called asynchronously when the monitoring task starts
         self._api_check_done = False
+        self._current_scanning_alliance = None
+        self._last_cycle_stats = {"start": None, "end": None, "alliances": 0, "changes": 0}
         
         # Level mapping for furnace levels
         self.level_mapping = get_level_mapping()
@@ -3839,6 +3841,19 @@ class Alliance(commands.Cog):
             
             self.log_message(f"Monitoring {len(monitored)} alliance(s)")
             
+            # Start cycle activity
+            from bot_activity import publish_bot_activity
+            self._last_cycle_stats["start"] = datetime.utcnow()
+            self._last_cycle_stats["alliances"] = len(monitored)
+            self._last_cycle_stats["changes"] = 0
+            
+            await publish_bot_activity(
+                workflow="alliance_monitor",
+                event_type="cycle_started",
+                status="processing",
+                message=f"Starting scan of {len(monitored)} alliance(s)"
+            )
+            
             for config in monitored:
                 # Check if this guild's monitor is locked
                 guild_id = config['guild_id']
@@ -3849,6 +3864,36 @@ class Alliance(commands.Cog):
                 except Exception:
                     pass  # On error, proceed with monitoring (fail-open)
                 
+                # Get alliance name for activity
+                alliance_name = "Unknown Alliance"
+                try:
+                    with get_db_connection('alliance.sqlite') as alliance_db:
+                        cursor = alliance_db.cursor()
+                        cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (config['alliance_id'],))
+                        result = cursor.fetchone()
+                        if result:
+                            alliance_name = result[0]
+                except Exception:
+                    pass
+
+                self._current_scanning_alliance = {
+                    "id": config['alliance_id'],
+                    "name": alliance_name,
+                    "guild_id": guild_id,
+                    "started_at": datetime.utcnow()
+                }
+
+                # Individual alliance scan activity
+                await publish_bot_activity(
+                    workflow="alliance_monitor",
+                    event_type="scan_started",
+                    status="processing",
+                    message=f"Scanning alliance: {alliance_name}",
+                    guild_id=guild_id,
+                    alliance_id=config['alliance_id'],
+                    alliance_name=alliance_name
+                )
+
                 await self._check_alliance_changes(
                     config['alliance_id'],
                     config['channel_id'],
@@ -3858,10 +3903,28 @@ class Alliance(commands.Cog):
                 # Add delay between alliances
                 await asyncio.sleep(5)
             
+            self._current_scanning_alliance = None
+            self._last_cycle_stats["end"] = datetime.utcnow()
             self.log_message("Alliance monitoring cycle completed")
+            await publish_bot_activity(
+                workflow="alliance_monitor",
+                event_type="cycle_completed",
+                status="success",
+                message=f"Completed scan of {len(monitored)} alliance(s)"
+            )
             
         except Exception as e:
             self.log_message(f"Error in monitoring task: {e}")
+            try:
+                from bot_activity import publish_bot_activity
+                await publish_bot_activity(
+                    workflow="alliance_monitor",
+                    event_type="cycle_failed",
+                    status="failed",
+                    message=f"Monitoring cycle error: {str(e)[:100]}"
+                )
+            except Exception:
+                pass
     
     @monitor_alliances.before_loop
     async def before_monitor_alliances(self):

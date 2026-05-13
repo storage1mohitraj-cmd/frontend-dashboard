@@ -1,10 +1,17 @@
 (() => {
-  const FLAKE_COUNT = 120;
+  // Lightweight + slow snow for homepage only.
+  // (Even if this script is accidentally included elsewhere, bail out.)
+  const path = (location.pathname || "").toLowerCase();
+  if (!path.endsWith("/index.html") && path !== "/" && !path.endsWith("/frontend-dashboard/") && !path.endsWith("/frontend-dashboard/index.html")) {
+    return;
+  }
+
+  const FLAKE_COUNT = 55;
   const MIN_SIZE = 1;
-  const MAX_SIZE = 4;
-  const MIN_SPEED = 0.4;
-  const MAX_SPEED = 1.8;
-  const WIND_STRENGTH = 0.25;
+  const MAX_SIZE = 3.2;
+  const MIN_SPEED = 0.06;
+  const MAX_SPEED = 0.35;
+  const WIND_STRENGTH = 0.14;
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -20,7 +27,7 @@
   canvas.style.height = "100vh";
   canvas.style.pointerEvents = "none";
   canvas.style.zIndex = "2";
-  canvas.style.opacity = "0.8";
+  canvas.style.opacity = "0.55";
 
   let width = window.innerWidth;
   let height = window.innerHeight;

@@ -202,6 +202,7 @@
     .live-command-center {
       position: relative;
       overflow: hidden;
+      scroll-margin-top: 5.2rem;
       border-block: 1px solid rgba(212, 225, 235, 0.12);
       background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.014)),
@@ -257,6 +258,37 @@
       font-family: var(--font-body);
       font-size: 0.78rem;
       font-weight: 700;
+    }
+
+    .live-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .live-refresh {
+      border: 1px solid rgba(141, 232, 255, 0.25);
+      border-radius: 999px;
+      background: rgba(141, 232, 255, 0.08);
+      color: #dff8ff;
+      cursor: pointer;
+      font: 700 0.78rem var(--font-body);
+      padding: 0.42rem 0.72rem;
+      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+
+    .live-refresh:hover {
+      border-color: rgba(141, 232, 255, 0.5);
+      background: rgba(141, 232, 255, 0.14);
+      transform: translateY(-1px);
+    }
+
+    .live-refresh:disabled {
+      cursor: wait;
+      opacity: 0.62;
+      transform: none;
     }
 
     .live-pill::before {
@@ -432,6 +464,45 @@
       animation: bubbleSlideIn 0.3s ease-out;
     }
 
+    .dispatch-bubble-title {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .dispatch-type {
+      display: inline-flex;
+      width: 1.9rem;
+      height: 1.45rem;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      border: 1px solid rgba(141, 232, 255, 0.18);
+      border-radius: 0.42rem;
+      background: rgba(141, 232, 255, 0.08);
+      color: #dff8ff;
+      font: 800 0.62rem var(--font-mono);
+    }
+
+    .dispatch-bubble-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.1rem;
+    }
+
+    .dispatch-bubble-tags span {
+      border: 1px solid rgba(212, 225, 235, 0.1);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.035);
+      color: rgba(232, 240, 247, 0.68);
+      padding: 0.22rem 0.42rem;
+      font-size: 0.68rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
     .dispatch-bubble.status-success { border-left: 2px solid #48e0a7; }
     .dispatch-bubble.status-failed { border-left: 2px solid #ff5d5d; }
     .dispatch-bubble.status-retrying { border-left: 2px solid #ffb84d; }
@@ -453,6 +524,10 @@
       display: flex;
       align-items: center;
       gap: 0.35rem;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .dispatch-bubble-time {
@@ -572,6 +647,7 @@
         <a href="features.html">Features</a>
         <a href="commands.html">Commands</a>
         <a href="chat.html">Chat</a>
+        <a href="#live-process">Live Process</a>
         <a href="#preview">Preview</a>
       </nav>
 
@@ -670,14 +746,17 @@
       </div>
     </section>
 
-    <section class="section live-command-center" aria-label="Live bot process status">
+    <section class="section live-command-center" id="live-process" aria-label="Live bot process status">
       <div class="container">
         <div class="section-heading split">
           <div>
-            <p>Live Bot Status</p>
-            <h2>Every server process visible in one loop.</h2>
+            <p>Live Bot Process</p>
+            <h2>Every bot workflow visible in one live control menu.</h2>
           </div>
-          <span class="live-pill" data-feed-state>syncing</span>
+          <div class="live-actions">
+            <button class="live-refresh" type="button" data-feed-refresh>Refresh</button>
+            <span class="live-pill" data-feed-state>syncing</span>
+          </div>
         </div>
 
         <div class="live-board">
@@ -685,7 +764,7 @@
             <article class="status-stage">
               <div class="status-topline">
                 <span data-feed-clock>waiting for feed</span>
-                <span data-feed-source>cached display</span>
+                <span data-feed-source>bot process feed</span>
               </div>
               <div class="spotlight-event" data-spotlight-event>
                 <div>
@@ -719,7 +798,7 @@
 
           <aside class="event-list-panel">
             <div class="radar-topline">
-              <span>live-dispatch-stream</span>
+              <span>live-process-menu</span>
               <span data-event-count>looping cached events</span>
             </div>
             <div class="dispatch-feed" data-event-queue></div>

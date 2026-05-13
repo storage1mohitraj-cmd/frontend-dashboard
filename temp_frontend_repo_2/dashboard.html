@@ -4,22 +4,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Whiteout Survival Bot</title>
+  <title>Whiteout Survival - Dashboard</title>
   <!-- Modern Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+
   <style>
     :root {
-      --primary: #5865F2;
-      --primary-hover: #4752C4;
-      --accent: #ff8b6b;
-      --bg-dark: #0a0a0c;
-      --glass-bg: rgba(20, 20, 24, 0.65);
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --text-main: #ffffff;
-      --text-muted: #949499;
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.5);
+      --accent: #f43f5e;
+      --bg-dark: #030712;
+      --card-bg: rgba(17, 24, 39, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.05);
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --gradient-brand: linear-gradient(135deg, #fff 0%, #9ca3af 100%);
     }
 
     * {
@@ -29,11 +30,11 @@
     }
 
     body {
-      font-family: 'Inter', sans-serif;
+      font-family: 'Plus Jakarta Sans', sans-serif;
       background-color: var(--bg-dark);
-      background-image: 
-        radial-gradient(circle at 10% 20%, rgba(88, 101, 242, 0.1), transparent 35%),
-        radial-gradient(circle at 90% 80%, rgba(255, 139, 107, 0.08), transparent 35%);
+      background-image:
+        radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.15), transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(244, 63, 94, 0.1), transparent 40%);
       color: var(--text-main);
       min-height: 100vh;
       display: flex;
@@ -41,157 +42,175 @@
       overflow-x: hidden;
     }
 
-    /* Animated background */
+    /* Subtle background texture */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-image: url("https://www.transparenttextures.com/patterns/carbon-fibre.png");
+      opacity: 0.03;
+      z-index: -1;
+      pointer-events: none;
+    }
+
     .bg-animation {
       position: fixed;
       top: 0; left: 0; width: 100vw; height: 100vh;
       background: url('hero-bg.png') no-repeat center center/cover;
-      opacity: 0.15;
-      z-index: -1;
-      filter: blur(4px) brightness(0.5);
+      opacity: 0.1;
+      z-index: -2;
+      filter: blur(8px) brightness(0.3);
     }
 
     header {
-      background: rgba(10, 10, 12, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
+      background: rgba(3, 7, 18, 0.8);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       border-bottom: 1px solid var(--glass-border);
-      padding: 16px 32px;
+      padding: 16px 48px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       position: sticky;
       top: 0;
       z-index: 100;
-      box-shadow: 0 4px 30px rgba(0,0,0,0.5);
     }
 
     .brand {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 800;
-      font-size: 1.3em;
       display: flex;
       align-items: center;
-      gap: 12px;
-      letter-spacing: -0.5px;
+      gap: 16px;
+      text-decoration: none;
     }
 
     .brand img {
-      height: 36px;
-      width: 36px;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(88, 101, 242, 0.4);
+      height: 42px;
+      width: 42px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px var(--primary-glow);
+      transition: transform 0.3s ease;
+    }
+
+    .brand:hover img {
+      transform: rotate(5deg) scale(1.05);
+    }
+
+    .brand-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.6em;
+      letter-spacing: -1px;
+      background: var(--gradient-brand);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
     }
 
     .btn {
       background: var(--primary);
       color: #fff;
       border: none;
-      padding: 10px 20px;
-      border-radius: 8px;
+      padding: 12px 24px;
+      border-radius: 12px;
       cursor: pointer;
-      font-size: 0.95em;
-      font-weight: 600;
-      font-family: 'Inter', sans-serif;
+      font-size: 0.9em;
+      font-weight: 700;
       text-decoration: none;
-      transition: all 0.3s;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
     }
 
     .btn:hover {
-      background: var(--primary-hover);
+      background: #4f46e5;
       transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(88, 101, 242, 0.3);
+      box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
     }
 
     .btn.danger {
-      background: rgba(255, 85, 85, 0.1);
-      border: 1px solid rgba(255, 85, 85, 0.3);
-      color: #ff5555;
-    }
-
-    .btn.danger:hover {
-      background: rgba(255, 85, 85, 0.2);
-      border-color: rgba(255, 85, 85, 0.5);
+      background: rgba(244, 63, 94, 0.1);
+      border: 1px solid rgba(244, 63, 94, 0.2);
+      color: #f43f5e;
       box-shadow: none;
     }
 
-    .main-nav {
-      display: flex;
-      gap: 24px;
-      align-items: center;
-    }
-
-    .main-nav a {
-      color: var(--text-muted);
-      text-decoration: none;
-      font-weight: 500;
-      font-size: 0.95em;
-      transition: color 0.2s;
-    }
-    
-    .main-nav a:hover, .main-nav a.active {
-      color: var(--text-main);
-    }
-
-    .main-nav a.premium {
-      color: var(--accent);
-      text-shadow: 0 0 10px rgba(255, 139, 107, 0.3);
+    .btn.danger:hover {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: rgba(244, 63, 94, 0.4);
     }
 
     .account-area {
       display: flex;
-      gap: 16px;
+      gap: 20px;
       align-items: center;
     }
 
+    #user-container {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 4px 4px 4px 16px;
+      border-radius: 14px;
+      border: 1px solid var(--glass-border);
+    }
+
     .small-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      border: 2px solid var(--glass-border);
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      margin-left: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .user-name-small {
-      margin-left: 8px;
-      margin-right: 12px;
       color: var(--text-main);
-      font-weight: 500;
-      font-size: 0.95em;
+      font-weight: 600;
+      font-size: 0.9em;
     }
 
     main {
       flex: 1;
       max-width: 1200px;
       margin: 0 auto;
-      padding: 40px 24px;
+      padding: 60px 24px;
       width: 100%;
     }
 
     .user-profile {
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      margin-bottom: 40px;
+      border-radius: 24px;
+      margin-bottom: 60px;
       display: flex;
-      align-items: flex-start;
-      gap: 28px;
-      padding: 32px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      align-items: center;
+      gap: 32px;
+      padding: 40px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .user-profile::after {
+      content: "";
+      position: absolute;
+      top: -50%; right: -20%;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, var(--primary-glow), transparent 70%);
+      opacity: 0.2;
+      pointer-events: none;
     }
 
     .avatar {
-      width: 110px;
-      height: 110px;
-      border-radius: 50%;
-      background: #2D2D2F;
-      border: 6px solid var(--bg-dark);
-      margin-top: -55px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      width: 120px;
+      height: 120px;
+      border-radius: 30px;
+      object-fit: cover;
+      border: 4px solid var(--bg-dark);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
     }
 
     .profile-right {
@@ -201,172 +220,217 @@
       align-items: center;
     }
 
-    .profile-meta {
-      color: var(--text-muted);
-      font-size: 0.95em;
-      margin-top: 6px;
-    }
-
     #profile-name {
       font-family: 'Outfit', sans-serif;
-      color: #fff;
-      font-size: 2.2em;
+      font-size: 2.8em;
       font-weight: 800;
-      margin: 0;
-      letter-spacing: -0.5px;
+      letter-spacing: -1.5px;
+      margin-bottom: 4px;
+    }
+
+    .profile-meta {
+      display: flex;
+      gap: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      margin-bottom: 32px;
     }
 
     .section-title {
       font-family: 'Outfit', sans-serif;
-      font-size: 1.8em;
-      margin: 0 0 24px 0;
+      font-size: 2em;
       font-weight: 800;
-      display: flex;
-      align-items: center;
-      gap: 16px;
+      letter-spacing: -0.5px;
     }
 
     .servers-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 24px;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 32px;
     }
 
     .server-card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(10px);
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
       border: 1px solid var(--glass-border);
-      border-radius: 16px;
-      padding: 0;
+      border-radius: 24px;
       display: flex;
       flex-direction: column;
-      align-items: stretch;
-      text-align: center;
       overflow: hidden;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+      position: relative;
+      cursor: pointer;
+    }
+
+    .server-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 0%, rgba(99, 102, 241, 0.05) 100%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
     }
 
     .server-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
-      border-color: rgba(255,255,255,0.15);
+      transform: translateY(-12px) scale(1.02);
+      border-color: rgba(99, 102, 241, 0.3);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.1);
+    }
+
+    .server-card:hover::before {
+      opacity: 1;
     }
 
     .server-banner {
-      height: 100px;
-      background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      height: 120px;
+      background: linear-gradient(45deg, #1e1b4b, #312e81);
       position: relative;
+      overflow: hidden;
+    }
+
+    .server-banner::after {
+      content: "";
+      position: absolute;
+      width: 150%; height: 150%;
+      background: radial-gradient(circle at center, var(--primary-glow), transparent 60%);
+      top: -25%; left: -25%;
+      opacity: 0.4;
+      animation: drift 10s infinite linear;
+    }
+
+    @keyframes drift {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
     .server-icon {
-      width: 80px;
-      height: 80px;
-      border-radius: 20px;
-      background: var(--bg-dark);
+      width: 84px;
+      height: 84px;
+      border-radius: 24px;
       position: absolute;
-      bottom: -40px;
-      left: 50%;
-      transform: translateX(-50%);
-      overflow: hidden;
+      bottom: -42px;
+      left: 32px;
       border: 6px solid var(--bg-dark);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      background: var(--bg-dark);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      z-index: 2;
+      transition: transform 0.3s ease;
+    }
+
+    .server-card:hover .server-icon {
+      transform: scale(1.1);
     }
 
     .server-icon img {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       object-fit: cover;
+      border-radius: 18px;
     }
 
     .server-body {
-      padding: 56px 24px 24px;
+      padding: 56px 32px 32px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
     }
 
     .server-name {
       font-family: 'Outfit', sans-serif;
+      font-size: 1.4em;
       font-weight: 800;
-      margin-bottom: 8px;
-      color: white;
-      font-size: 1.25em;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .member-count {
       color: var(--text-muted);
       font-size: 0.9em;
+      font-weight: 600;
       margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    
+
+    .member-count::before {
+      content: "";
+      width: 8px; height: 8px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #10b981;
+    }
+
+    .server-actions {
+      margin-top: auto;
+    }
+
     .server-actions .btn {
       width: 100%;
+      justify-content: center;
     }
 
     footer {
-      padding: 24px;
-      font-size: 0.9em;
-      color: rgba(255,255,255,0.4);
+      padding: 40px;
       text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85em;
+      font-weight: 500;
       border-top: 1px solid var(--glass-border);
-      background: rgba(10,10,12,0.6);
-      backdrop-filter: blur(10px);
+      background: rgba(3, 7, 18, 0.4);
     }
 
     #debug-panel {
-      margin: 20px 0 30px 0;
-      background: rgba(0,0,0,0.4);
+      margin-bottom: 40px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 16px;
       border: 1px solid var(--glass-border);
-      border-radius: 12px;
       overflow: hidden;
     }
 
     #debug-panel summary {
-      padding: 16px 20px;
+      padding: 16px 24px;
       cursor: pointer;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--text-muted);
-      user-select: none;
+      background: rgba(255, 255, 255, 0.02);
+      transition: color 0.2s;
+    }
+
+    #debug-panel summary:hover {
+      color: var(--text-main);
     }
 
     #debug-panel pre {
-      margin: 0;
-      padding: 20px;
-      background: rgba(0,0,0,0.6);
-      color: #a5b4fc;
-      overflow-x: auto;
-      font-family: monospace;
+      padding: 24px;
+      font-family: 'Fira Code', monospace;
       font-size: 13px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      border-top: 1px solid var(--glass-border);
+      color: #818cf8;
+      background: #000;
+      max-height: 400px;
+      overflow-y: auto;
     }
 
     @media (max-width: 768px) {
-      header {
-        flex-direction: column;
-        padding: 16px;
-        gap: 16px;
-      }
-      .main-nav {
-        width: 100%;
-        overflow-x: auto;
-        padding-bottom: 8px;
-        justify-content: center;
-      }
+      header { padding: 16px 24px; }
+      .brand-text { font-size: 1.2em; }
       .user-profile {
         flex-direction: column;
-        align-items: center;
         text-align: center;
-        padding-top: 56px;
-      }
-      .avatar {
-        margin-top: -85px;
+        padding: 40px 24px;
       }
       .profile-right {
         flex-direction: column;
-        gap: 20px;
+        gap: 32px;
       }
+      #profile-name { font-size: 2em; }
     }
   </style>
 </head>
@@ -374,28 +438,21 @@
 <body>
   <div class="bg-animation"></div>
   <header>
-    <div class="brand">
-      <img src="/logo.gif"
-        alt="Bot Avatar">
-      <span>Whiteout Survival Bot</span>
-    </div>
-
-    <nav class="main-nav">
-      <a href="dashboard.html">Dashboard</a>
-      <a href="#">Documentation</a>
-      <a href="#">Support</a>
-      <a href="#" class="premium">Premium</a>
-    </nav>
+    <a href="/" class="brand">
+      <img src="/logo.gif" alt="Bot Logo">
+      <span class="brand-text">Whiteout Survival</span>
+    </a>
 
     <div class="account-area">
-      <button class="btn"
-        onclick="window.location.href='https://discord.com/api/oauth2/authorize?client_id=1399025185046134866&permissions=8&scope=bot%20applications.commands'">Add
-        to Server</button>
+      <button class="btn" onclick="window.location.href='https://discord.com/api/oauth2/authorize?client_id=1399025185046134866&permissions=8&scope=bot%20applications.commands'">
+        Add to Server
+      </button>
       <div id="user-container">
-        <img id="user-avatar" class="small-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png"
-          alt="User Avatar">
-        <span id="user-name" class="user-name-small"></span>
-        <button onclick="logout()" class="btn danger">Logout</button>
+        <span id="user-name" class="user-name-small">...</span>
+        <img id="user-avatar" class="small-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User">
+        <button onclick="logout()" class="btn danger" style="padding: 8px 12px; margin-left: 12px; border-radius: 10px;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        </button>
       </div>
     </div>
   </header>
@@ -405,111 +462,91 @@
       <img id="profile-avatar" class="avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="Profile">
       <div class="profile-right">
         <div>
-          <h2 id="profile-name">Loading...</h2>
+          <h2 id="profile-name">Loading Profile...</h2>
           <div class="profile-meta">
             <span id="profile-tag"></span>
-            <span id="profile-id" style="margin-left:12px;"></span>
+            <span>•</span>
+            <span id="profile-id"></span>
           </div>
         </div>
         <div class="profile-cta">
           <div id="auth-status"></div>
-          <div style="margin-top:6px">
-            <a class="btn" href="#" id="goto-account">Go to your account</a>
+          <div style="margin-top:12px">
+            <a class="btn" href="#" id="goto-account" target="_blank" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff;">
+              View Account
+            </a>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="section-title">
-      Your Servers
-      <button onclick="debugState()" class="btn" style="background: #2D2D2F; margin-left: 12px;">
-        Debug State
+    <div class="section-header">
+      <h3 class="section-title">Your Servers</h3>
+      <button onclick="debugState()" class="btn" style="background: rgba(255,255,255,0.05); color: var(--text-muted); padding: 8px 16px;">
+        Debug Console
       </button>
     </div>
 
-    <details id="debug-panel" open>
-      <summary>Debug Information</summary>
-      <pre id="raw-responses">Initializing...</pre>
+    <details id="debug-panel">
+      <summary>Diagnostic Logs</summary>
+      <pre id="raw-responses">System ready...</pre>
     </details>
 
     <div id="servers-list" class="servers-grid">
-      <!-- Server cards will be inserted here -->
+      <!-- Loading placeholders -->
+      <div class="server-card" style="opacity: 0.3; pointer-events: none;">
+        <div class="server-banner"></div>
+        <div class="server-body">
+          <div class="server-name">Loading...</div>
+        </div>
+      </div>
     </div>
   </main>
 
   <footer>
-    Whiteout Survival Bot © 2026
+    <div style="margin-bottom: 8px; font-weight: 700; color: #fff;">Whiteout Survival</div>
+    &copy; 2026 • Crafted with passion for the community.
   </footer>
 
   <script>
-    // ─── Config ───────────────────────────────────────────────
     const CONFIG = {
-      API_BASE: '', // Vercel rewrites handles /api requests to Oracle VM
+      API_BASE: '',
       BOT_CLIENT_ID: '1399025185046134866',
       DEFAULT_AVATAR: 'https://cdn.discordapp.com/embed/avatars/0.png',
-      TIMEOUT_MS: 10000
+      TIMEOUT_MS: 15000
     };
 
-    // Debug logging utility
     const Debug = {
       _el: null,
       get element() {
-        if (!this._el) {
-          this._el = document.getElementById('raw-responses');
-        }
+        if (!this._el) this._el = document.getElementById('raw-responses');
         return this._el;
       },
-
-      clear() {
-        if (this.element) {
-          this.element.textContent = '';
-        }
-      },
-
+      clear() { if (this.element) this.element.textContent = ''; },
       log(message, data = null) {
         if (!this.element) return;
-
-        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+        const timestamp = new Date().toLocaleTimeString();
         let text = `[${timestamp}] ${message}\n`;
-
-        if (data) {
-          try {
-            text += JSON.stringify(data, null, 2) + '\n';
-          } catch (e) {
-            text += String(data) + '\n';
-          }
-        }
-
+        if (data) text += JSON.stringify(data, null, 2) + '\n';
         this.element.textContent += text;
+        this.element.scrollTop = this.element.scrollHeight;
         console.log(message, data);
       },
-
       error(message, error = null) {
         if (!this.element) return;
-
-        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-        let text = `[${timestamp}] ERROR: ${message}\n`;
-
-        if (error) {
-          text += error.stack || error.message || String(error);
-          text += '\n';
-        }
-
+        const timestamp = new Date().toLocaleTimeString();
+        let text = `[${timestamp}] ❌ ${message}\n`;
+        if (error) text += (error.stack || error.message || String(error)) + '\n';
         this.element.textContent += text;
         console.error(message, error);
       }
     };
 
-    // API client
     const API = {
       async fetch(endpoint, options = {}) {
         const url = CONFIG.API_BASE + endpoint;
-        Debug.log(`Fetching: ${url}`);
-
         const token = localStorage.getItem('discord_access_token');
-        if (!token && endpoint !== '/api/status') {
-          throw new Error('No access token found');
-        }
+        if (!token && endpoint !== '/api/status') throw new Error('Authentication required');
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
@@ -525,57 +562,22 @@
             signal: controller.signal
           });
 
-          Debug.log(`Response status: ${response.status}`);
-
           const text = await response.text();
           let data;
+          try { data = JSON.parse(text); } catch (e) { throw new Error('Invalid server response'); }
 
-          try {
-            data = JSON.parse(text);
-            Debug.log('Response data:', data);
-          } catch (e) {
-            Debug.log('Raw response:', text);
-            throw new Error('Invalid JSON response');
-          }
-
-          if (!response.ok) {
-            throw new Error(data.message || `HTTP error ${response.status}`);
-          }
-
+          if (!response.ok) throw new Error(data.message || `Error ${response.status}`);
           return data;
-        } catch (error) {
-          if (error.name === 'AbortError') {
-            throw new Error(`Request timeout after ${CONFIG.TIMEOUT_MS}ms`);
-          }
-          throw error;
         } finally {
           clearTimeout(timeout);
         }
       },
-
-      getProfile() {
-        return this.fetch('/api/auth/me');
-      },
-
-      getGuilds() {
-        return this.fetch('/api/servers');
-      },
-
-      getBotStatus(guildIds) {
-        // Handled via the unified backend payload
-        return Promise.resolve({ present: guildIds }); 
-      }
+      getProfile() { return this.fetch('/api/auth/me'); },
+      getGuilds() { return this.fetch('/api/servers'); }
     };
 
-    // UI state management
     const UI = {
-      setLoadingState() {
-        document.getElementById('profile-name').textContent = 'Loading...';
-        document.getElementById('auth-status').textContent = '';
-      },
-
       setProfileData(userData) {
-        // Update avatar
         const avatarUrl = userData.avatar
           ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png?size=256`
           : CONFIG.DEFAULT_AVATAR;
@@ -588,54 +590,44 @@
           }
         });
 
-        // Update text elements
         document.getElementById('user-name').textContent = userData.username;
-        document.getElementById('profile-name').textContent = userData.username;
-
-        const tag = userData.discriminator && userData.discriminator !== '0'
-          ? `${userData.username}#${userData.discriminator}`
-          : userData.global_name || userData.username;
-        document.getElementById('profile-tag').textContent = tag;
-
-        document.getElementById('profile-id').textContent = `ID: ${userData.id}`;
+        document.getElementById('profile-name').textContent = userData.global_name || userData.username;
+        document.getElementById('profile-tag').textContent = `@${userData.username}`;
+        document.getElementById('profile-id').textContent = userData.id;
         document.getElementById('goto-account').href = `https://discord.com/users/${userData.id}`;
       },
-
       setErrorState(message) {
-        document.getElementById('profile-name').textContent = 'Error';
+        document.getElementById('profile-name').textContent = 'Session Error';
         document.getElementById('auth-status').innerHTML = `
-          <div style="color:#ff5555;margin-bottom:8px">${message}</div>
-          <div style="display:flex;gap:8px">
-            <button class="btn" onclick="checkAuth()">Retry</button>
-            <a class="btn" href="login.html">Sign in</a>
-          </div>
+          <div style="color:#f43f5e; margin-bottom:12px; font-weight:600;">${message}</div>
+          <a class="btn" href="login.html">Reconnect Account</a>
         `;
       },
-
       setLoginPrompt() {
-        document.getElementById('profile-name').textContent = 'Not signed in';
-        document.getElementById('auth-status').innerHTML =
-          '<a class="btn" href="login.html">Sign in with Discord</a>';
+        document.getElementById('profile-name').textContent = 'Welcome, Guest';
+        document.getElementById('auth-status').innerHTML = '<a class="btn" href="login.html">Sign in with Discord</a>';
       },
-
       renderServers(guilds, botPresence = new Set()) {
         const container = document.getElementById('servers-list');
         if (!container) return;
-
         container.innerHTML = '';
 
         if (!guilds || !guilds.length) {
-          container.innerHTML = '<div style="color:#8f97a2;padding:16px">No servers found.</div>';
+          container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted); font-weight: 600;">No servers discovered.</div>';
           return;
         }
 
-        guilds.forEach(guild => {
+        guilds.forEach((guild, index) => {
           const card = document.createElement('div');
           card.className = 'server-card';
+          card.style.animation = `fadeUp 0.5s ease forwards ${index * 0.1}s`;
+          card.style.opacity = '0';
 
           const icon = guild.icon
             ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
             : CONFIG.DEFAULT_AVATAR;
+
+          const isBotPresent = botPresence.has(String(guild.id));
 
           card.innerHTML = `
             <div class="server-banner">
@@ -645,101 +637,54 @@
             </div>
             <div class="server-body">
               <div class="server-name">${guild.name}</div>
-              <div class="member-count">${guild.approximate_member_count !== undefined ? guild.approximate_member_count : 'Unknown'} Members</div>
+              <div class="member-count">${guild.approximate_member_count || '0'} Total Members</div>
               <div class="server-actions">
-                ${botPresence.has(String(guild.id))
-              ? `<a href="manage.html?id=${guild.id}" class="btn">Manage Server</a>`
-              : `<a href="https://discord.com/api/oauth2/authorize?client_id=${CONFIG.BOT_CLIENT_ID}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}" class="btn">Add to Server</a>`
-            }
+                ${isBotPresent
+                  ? `<a href="manage.html?id=${guild.id}" class="btn">Configure Settings</a>`
+                  : `<a href="https://discord.com/api/oauth2/authorize?client_id=${CONFIG.BOT_CLIENT_ID}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}" class="btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:#fff;">Setup Bot</a>`
+                }
               </div>
             </div>
           `;
+
+          card.onclick = (e) => {
+             if (e.target.tagName !== 'A') {
+                const link = card.querySelector('a');
+                if (link) link.click();
+             }
+          };
 
           container.appendChild(card);
         });
       }
     };
 
-    // ─── Core Auth Flow ────────────────────────────────────────
+    // Animation helper
+    const style = document.createElement('style');
+    style.textContent = `@keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }`;
+    document.head.appendChild(style);
+
     async function checkAuth() {
-      Debug.clear();
-
-      // STEP 1: Check token in localStorage
       const token = localStorage.getItem('discord_access_token');
-      Debug.log('STEP 1 — Token in localStorage:', token ? token.slice(0,15)+'...' : '❌ MISSING');
+      if (!token) { UI.setLoginPrompt(); return; }
 
-      if (!token) {
-        UI.setLoginPrompt();
-        return false;
-      }
-
-      // STEP 2: Call /api/auth/me
-      Debug.log('STEP 2 — Calling /api/auth/me ...');
       try {
         const userData = await API.getProfile();
-        Debug.log('STEP 2 ✔ User profile received:', userData);
         UI.setProfileData(userData);
+
+        const guildsResponse = await API.getGuilds();
+        const guilds = Array.isArray(guildsResponse) ? guildsResponse : (guildsResponse.servers || []);
+        const botPresence = new Set(guilds.filter(g => g.bot_present).map(g => String(g.id)));
+        UI.renderServers(guilds, botPresence);
       } catch (error) {
-        Debug.error('STEP 2 ❌ /api/auth/me failed: ' + error.message, error);
-        if (error.message.includes('401') || error.message.includes('Invalid')) {
+        Debug.error('Auth check failed', error);
+        if (error.message.includes('401')) {
           localStorage.removeItem('discord_access_token');
           UI.setLoginPrompt();
         } else {
-          UI.setErrorState('API Error: ' + error.message);
+          UI.setErrorState(error.message);
         }
-        return false;
       }
-
-      // STEP 3: Load guilds
-      Debug.log('STEP 3 — Calling /api/servers ...');
-      try {
-        const guildsResponse = await API.getGuilds();
-        Debug.log('STEP 3 raw response:', guildsResponse);
-        const guilds = Array.isArray(guildsResponse)
-          ? guildsResponse
-          : (guildsResponse.servers || []);
-        Debug.log('STEP 3 ✔ Guilds parsed:', guilds.length, 'servers');
-        // bot_present is returned by the backend directly
-        const botPresence = new Set(
-          guilds.filter(g => g.bot_present).map(g => String(g.id))
-        );
-        UI.renderServers(guilds, botPresence);
-      } catch (error) {
-        Debug.error('STEP 3 ❌ /api/servers failed: ' + error.message, error);
-        UI.renderServers([], new Set());
-      }
-
-      return true;
-    }
-
-    // Kept for compatibility but now unused (logic folded into checkAuth)
-    async function loadUserData() {
-      return checkAuth();
-    }
-
-    function debugState() {
-      Debug.clear();
-      const token = localStorage.getItem('discord_access_token');
-
-      Debug.log('Debug State');
-      Debug.log('API Base:', CONFIG.API_BASE);
-      Debug.log('Token exists:', Boolean(token));
-      Debug.log('Token preview:', token ? token.slice(0, 10) + '...' : 'null');
-
-      // Check UI state
-      Debug.log('UI Elements:');
-      ['user-avatar', 'profile-avatar', 'profile-name', 'auth-status'].forEach(id => {
-        const el = document.getElementById(id);
-        Debug.log(`${id}:`, el ? {
-          exists: true,
-          content: el.tagName === 'IMG' ? el.src : el.textContent
-        } : 'not found');
-      });
-
-      // Check backend connection
-      API.fetch('/debug/env')
-        .then(data => Debug.log('Backend env:', data))
-        .catch(error => Debug.error('Backend connection failed', error));
     }
 
     function logout() {
@@ -747,13 +692,13 @@
       window.location.href = 'index.html';
     }
 
-    // Initialize on page load
-    window.addEventListener('DOMContentLoaded', () => {
-      checkAuth().catch(error => {
-        Debug.error('Failed to initialize', error);
-      });
-    });
+    function debugState() {
+      const panel = document.getElementById('debug-panel');
+      panel.open = !panel.open;
+      Debug.log('Debug active. Check console for detailed network logs.');
+    }
+
+    window.addEventListener('DOMContentLoaded', checkAuth);
   </script>
-  <script src="snow-effect.js"></script>
 </body>
 </html>

@@ -10,19 +10,19 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    
+
     <style>
         :root {
-            --primary: #ffffff; /* Professional Dark/White Theme */
-            --primary-hover: #e2e8f0;
+            --primary: #8b5cf6; /* Purple like the screenshot */
+            --primary-hover: #7c3aed;
             --accent: #f59e0b;
-            --bg-dark: #0a0a0a;
-            --sidebar-bg: #121212;
-            --card-bg: #1a1a1a;
-            --glass-bg: rgba(26, 26, 26, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.05);
-            --text-main: #f8fafc;
-            --text-muted: #64748b;
+            --bg-dark: #0f1115;
+            --sidebar-bg: #16191f;
+            --card-bg: #1e2229;
+            --glass-bg: rgba(30, 34, 41, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
             --sidebar-width: 280px;
             --top-bar-height: 70px;
         }
@@ -444,13 +444,13 @@
             grid-template-columns: 1.2fr 2fr;
             gap: 24px;
         }
-        @media(max-width: 900px) { 
-            .redeem-grid { grid-template-columns: 1fr; } 
+        @media(max-width: 900px) {
+            .redeem-grid { grid-template-columns: 1fr; }
             #reminder-modal .modal-body { grid-template-columns: 1fr !important; }
             #reminder-modal .modal-content { max-width: 95% !important; margin: 10px; }
             .reminder-preview-side { order: -1; margin-bottom: 20px; }
         }
-        
+
         .player-input-wrap { display: flex; gap: 10px; margin-bottom: 16px; }
         .player-info-display {
             background: rgba(0,0,0,0.2);
@@ -718,196 +718,89 @@
             margin-top: 8px;
         }
 
-        /* Time Wheel Picker Styles - Realistic Mechanical Drum */
+        /* Time Wheel Picker Styles */
         .time-picker-row {
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #050505;
-            padding: 20px 10px;
-            border-radius: 10px;
-            margin: 15px 0;
-            border: 1px solid #1a1a1a;
+            gap: 12px;
+            background: #000000;
+            padding: 20px;
+            border-radius: 16px;
+            margin: 10px 0;
+            border: 1px solid rgba(255,255,255,0.1);
             user-select: none;
             position: relative;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,1);
-            overflow: hidden;
-            gap: 0; /* Tighten for separators */
         }
-        
-        /* The highlight lens - more realistic glass effect */
+        .time-picker-row::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 10px;
+            right: 10px;
+            height: 33px;
+            background: rgba(255,255,255,0.05);
+            transform: translateY(-50%);
+            border-radius: 8px;
+            pointer-events: none;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
         .time-picker-row::before {
             content: '';
             position: absolute;
             top: 50%;
             left: 0;
             right: 0;
-            height: 46px;
-            background: linear-gradient(to bottom, 
-                rgba(255,255,255,0.05) 0%, 
-                rgba(255,255,255,0.02) 50%, 
-                rgba(255,255,255,0.05) 100%
-            );
-            border-top: 1px solid rgba(255,255,255,0.15);
-            border-bottom: 1px solid rgba(255,255,255,0.15);
+            height: 36px;
+            border-top: 1px solid var(--primary);
+            border-bottom: 1px solid var(--primary);
             transform: translateY(-50%);
+            background: rgba(var(--primary-rgb), 0.05);
             pointer-events: none;
-            z-index: 5;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            z-index: 1;
         }
-
-        /* Vertical separators between wheels - Realistic Grooves */
-        .wheel-separator {
-            width: 2px;
-            height: 100px;
-            background: linear-gradient(to bottom, #000 0%, #222 50%, #000 100%);
-            border-left: 1px solid rgba(255,255,255,0.05);
-            border-right: 1px solid rgba(0,0,0,0.5);
-            z-index: 4;
-            margin: 0 10px;
-            flex-shrink: 0;
-        }
-
         .wheel-container {
-            height: 140px; /* Reduced height for tighter alignment */
+            height: 100px;
             overflow-y: scroll;
             scroll-snap-type: y mandatory;
             scrollbar-width: none;
-            width: 70px;
+            width: 60px;
             text-align: center;
             position: relative;
             z-index: 2;
-            mask-image: linear-gradient(to bottom, 
-                transparent 0%, 
-                black 45%, 
-                black 55%, 
-                transparent 100%
-            );
-            -webkit-mask-image: linear-gradient(to bottom, 
-                transparent 0%, 
-                black 45%, 
-                black 55%, 
-                transparent 100%
-            );
+            mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
+            -webkit-mask-image: linear-gradient(to bottom, transparent, black 30%, black 70%, transparent);
             cursor: grab;
-            perspective: 1200px;
-            transform-style: preserve-3d;
+            user-select: none;
         }
-
-        .wheel-container:active { cursor: grabbing; }
+        .wheel-container:active {
+            cursor: grabbing;
+        }
         .wheel-container::-webkit-scrollbar { display: none; }
-
         .wheel-item {
-            height: 46px;
+            height: 33px;
             display: flex;
             align-items: center;
             justify-content: center;
             scroll-snap-align: center;
-            font-size: 1.6rem;
-            color: rgba(255,255,255,0.15);
-            transition: color 0.2s, opacity 0.2s;
+            font-size: 1.1rem;
+            color: rgba(255,255,255,0.4);
+            transition: all 0.2s;
             cursor: pointer;
-            backface-visibility: hidden;
-            transform-style: preserve-3d;
-            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-            font-weight: 700;
         }
-
-        .wheel-item.spacer {
-            pointer-events: none;
-            height: 46px; /* Explicitly match item height */
-        }
-
         .wheel-item.selected {
             color: #fff;
-            font-weight: 800;
-            font-size: 2.2rem;
-            opacity: 1 !important;
+            font-weight: 700;
+            font-size: 1.4rem;
         }
-
         .wheel-label {
-            color: #333;
-            font-weight: 900;
-            font-size: 1.8rem;
-            margin: 0 2px;
-            z-index: 6;
-            pointer-events: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 46px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 1.5rem;
+            margin: 0 5px;
+            z-index: 2;
         }
-
-        /* Dark Theme - No Purple */
-        :root {
-            --primary: #ffffff;
-            --primary-rgb: 255, 255, 255;
-            --primary-hover: #e0e0e0;
-            --bg-dark: #0f1115;
-            --bg-card: #16191f;
-            --border: rgba(255, 255, 255, 0.08);
-        }
-
-        .btn-primary {
-            background: #ffffff !important;
-            color: #000000 !important;
-            border: none !important;
-            font-weight: 700 !important;
-            box-shadow: 0 4px 12px rgba(255,255,255,0.1) !important;
-        }
-        .btn-primary:hover {
-            background: #e0e0e0 !important;
-            transform: translateY(-1px);
-        }
-
-        .ar-icon-box.purple {
-            background: rgba(255, 255, 255, 0.05);
-            color: #ffffff;
-        }
-
-        .pulse-dot { background: #ffffff; }
-
-        .dc-bot-tag {
-            background: #5865f2; /* Keep Discord Blurple for tag as it's authentic */
-        }
-
-        .dc-mention {
-            color: #c9cdfb;
-            background: rgba(88, 101, 242, 0.3);
-            padding: 0 4px;
-            border-radius: 3px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: background 0.1s;
-        }
-        .dc-mention:hover {
-            background: rgba(88, 101, 242, 0.6);
-            color: #fff;
-        }
-
-        .dc-embed-title {
-            font-weight: 800 !important;
-            font-size: 1.2rem !important;
-            color: #fff !important;
-            margin-bottom: 4px;
-        }
-
-        .dc-embed-desc {
-            font-size: 0.95rem !important;
-            color: #dbdee1 !important;
-            line-height: 1.375;
-        }
-
-        #reminder-preview-embed {
-            border-left: 4px solid #ffffff !important;
-            background: #2b2d31 !important;
-            border-radius: 4px;
-            padding: 12px 16px;
-            margin: 8px 0;
-            max-width: 520px !important;
-        }
-
-        .preview-label span { background: #ffffff; }
         .timezone-group {
             margin-top: 10px;
         }
@@ -962,10 +855,6 @@
                     <i data-lucide="shield"></i>
                     <span>Alliance Monitor</span>
                 </button>
-                <button class="nav-item" onclick="showNotification('Premium required for advanced settings', true)">
-                    <i data-lucide="shield-check"></i>
-                    <span>Premium/Pro</span>
-                </button>
             </div>
 
             <div class="nav-group">
@@ -1005,7 +894,6 @@
             </div>
             <div class="top-bar-right">
                 <span style="color:var(--text-muted); cursor:pointer;">Need Support?</span>
-                <button class="upgrade-btn">Upgrade to Premium</button>
                 <div class="user-profile">
                     <img id="user-avatar" src="https://cdn.discordapp.com/embed/avatars/0.png" alt="User">
                     <span id="user-name" style="font-weight:600;">User</span>
@@ -1018,15 +906,14 @@
             <!-- Overview Tab -->
             <div id="tab-overview" class="tab-content active">
                 <h2 class="section-title">Server Overview</h2>
-                
+
                 <div class="overview-card">
                     <img id="overview-server-icon" src="" alt="" class="server-big-icon">
                     <div class="server-details">
                         <h2 id="overview-server-name">Loading... <span class="plan-badge">Free plan</span></h2>
                         <p>ID: <span id="overview-server-id">-</span> <span style="color:var(--primary); margin-left:12px; cursor:pointer;"><i data-lucide="copy" style="width:14px; display:inline-block; vertical-align:middle; margin-right:4px;"></i> Copy ID</span></p>
-                        <p style="margin-top:8px; font-size:0.8rem;">Server not under any Premium or Pro subscription</p>
+                        <p style="margin-top:8px; font-size:0.8rem;">This server is on the free plan.</p>
                     </div>
-                    <button class="btn-primary" style="position:absolute; right:24px; border-radius:12px;">Upgrade to Premium</button>
                 </div>
 
                 <div class="overview-stats-grid">
@@ -1251,7 +1138,7 @@
             <!-- Alliance Monitor Tab -->
             <div id="tab-alliance" class="tab-content">
                 <h2 class="section-title">Alliance Monitor</h2>
-                
+
                 <div class="card">
                     <div class="section-header">
                         <h3><i data-lucide="shield" style="width:18px;height:18px;color:var(--primary);"></i> Monitor Configuration</h3>
@@ -1423,7 +1310,7 @@
                             <div id="selectable-codes-list" class="code-selector-grid">
                                 <div style="color: var(--text-muted); font-size: 0.9rem; padding: 20px;">Loading active codes...</div>
                             </div>
-                            
+
                             <div id="redemption-results" class="redemption-results">
                                 <!-- Results will appear here -->
                             </div>
@@ -1536,192 +1423,131 @@
         </div>
     </div>
 
-    <!-- Translate Modal -->
+    <!-- Modals -->
     <div id="translate-modal" class="modal">
-        <div class="modal-content" style="max-width: 600px; border-radius: 20px; overflow: hidden; background: #1a1d24;">
-            <div class="modal-header" style="padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.05); background: #16191f;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="ar-icon-box dark" style="width: 36px; height: 36px; background: rgba(255,255,255,0.05); color: #fff;">
-                        <i data-lucide="languages" style="width: 18px;"></i>
-                    </div>
-                    <div>
-                        <h3 id="modal-title" style="margin: 0; font-size: 1.1rem;">New Translation Config</h3>
-                        <p style="margin: 2px 0 0; font-size: 0.75rem; color: var(--text-muted);">Configure automatic channel translation</p>
-                    </div>
-                </div>
-                <button onclick="closeTranslateModal()" style="background:rgba(255,255,255,0.05); border:none; color:var(--text-muted); cursor:pointer; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                    <i data-lucide="x" style="width: 16px;"></i>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">New Translation Config</h3>
+                <button onclick="closeTranslateModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
+                    <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body" style="padding: 24px; max-height: 70vh; overflow-y: auto;">
+            <div class="modal-body">
                 <input type="hidden" id="config-id">
-                
                 <div class="form-group">
                     <label>Pipeline Name</label>
-                    <input type="text" id="config-name" placeholder="e.g. Chat Sync" style="padding: 12px;">
+                    <input type="text" id="config-name" placeholder="e.g. Chat Sync">
                 </div>
-
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                     <div class="form-group">
                         <label>Source Lang</label>
                         <select id="source-lang">
-                            <option value="auto">🔄 Auto-Detect</option>
-                            <option value="en">🇺🇸 English</option>
-                            <option value="es">🇪🇸 Spanish</option>
-                            <option value="fr">🇫🇷 French</option>
-                            <option value="de">🇩🇪 German</option>
-                            <option value="it">🇮🇹 Italian</option>
-                            <option value="pt">🇵🇹 Portuguese</option>
-                            <option value="ru">🇷🇺 Russian</option>
-                            <option value="ja">🇯🇵 Japanese</option>
-                            <option value="ko">🇰🇷 Korean</option>
-                            <option value="zh">🇨🇳 Chinese</option>
+                            <option value="auto">Auto-Detect</option>
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="ja">Japanese</option>
+                            <option value="zh">Chinese</option>
+                            <option value="ru">Russian</option>
+                            <option value="ko">Korean</option>
+                            <option value="hi">Hindi</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label>Target Lang</label>
                         <select id="target-lang">
-                            <option value="en">🇺🇸 English</option>
-                            <option value="es">🇪🇸 Spanish</option>
-                            <option value="fr">🇫🇷 French</option>
-                            <option value="de">🇩🇪 German</option>
-                            <option value="it">🇮🇹 Italian</option>
-                            <option value="pt">🇵🇹 Portuguese</option>
-                            <option value="ru">🇷🇺 Russian</option>
-                            <option value="ja">🇯🇵 Japanese</option>
-                            <option value="ko">🇰🇷 Korean</option>
-                            <option value="zh">🇨🇳 Chinese</option>
+                            <option value="en">English</option>
+                            <option value="es">Spanish</option>
+                            <option value="fr">French</option>
+                            <option value="de">German</option>
+                            <option value="ja">Japanese</option>
+                            <option value="zh">Chinese</option>
+                            <option value="ru">Russian</option>
+                            <option value="ko">Korean</option>
+                            <option value="hi">Hindi</option>
                         </select>
                     </div>
                 </div>
-
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                    <div class="form-group"><label>Source Channel</label><select id="source-channel" class="guild-channels"></select></div>
+                    <div class="form-group"><label>Target Channel</label><select id="target-channel" class="guild-channels"></select></div>
+                </div>
+                <div class="form-group"><label>Style</label><select id="translate-style"><option value="webhook">Webhook</option><option value="embed">Embed</option></select></div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:10px;">
                     <div class="form-group">
-                        <label>Source Channel</label>
-                        <select id="source-channel" class="guild-channels"></select>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="translate-delete-original"> Delete Original
+                        </label>
                     </div>
                     <div class="form-group">
-                        <label>Target Channel</label>
-                        <select id="target-channel" class="guild-channels"></select>
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                            <input type="checkbox" id="translate-ignore-same" checked> Ignore Same Source/Target
+                        </label>
                     </div>
                 </div>
-
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                     <div class="form-group">
-                        <label>Style</label>
-                        <select id="translate-style">
-                            <option value="webhook">Webhook (Preserves Author)</option>
-                            <option value="embed">Embed (Bot Message)</option>
-                            <option value="bot">Plain Text (Bot Message)</option>
-                        </select>
+                        <label>Auto Disappear (sec)</label>
+                        <input type="number" id="translate-disappear" value="0" min="0">
                     </div>
                     <div class="form-group">
                         <label>Min Text Length</label>
-                        <input type="number" id="translate-min-length" value="10" min="1">
+                        <input type="number" id="translate-min-len" value="10" min="1">
                     </div>
                 </div>
-
-                <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 16px 0;"></div>
-                
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="translate-ignore-target" checked>
-                        <span>Ignore if detected language is same as target</span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="translate-ignore-not-input">
-                        <span>Ignore if detected language is NOT the source language</span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="translate-skip-attachments">
-                        <span>Skip messages with attachments</span>
-                    </label>
-                </div>
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="translate-delete-original">
-                        <span>Delete original message after translation</span>
-                    </label>
-                </div>
             </div>
-            <div class="modal-footer" style="padding: 16px 24px; background: #16191f; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closeTranslateModal()" class="btn btn-secondary" style="background: rgba(255,255,255,0.05);">Cancel</button>
-                <button onclick="saveTranslateConfig()" class="btn btn-primary" style="padding: 8px 24px;">Save Pipeline</button>
+            <div class="modal-footer">
+                <button onclick="closeTranslateModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="saveTranslateConfig()" class="btn btn-primary">Save Pipeline</button>
             </div>
         </div>
     </div>
 
     <!-- Reminder Modal -->
     <div id="reminder-modal" class="modal">
-        <div class="modal-content" style="max-width: 1000px; border-radius: 24px; overflow: hidden; background: #1a1d24;">
-            <div class="modal-header" style="padding: 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.05); background: #16191f;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="ar-icon-box dark" style="width: 40px; height: 40px; background: rgba(255,255,255,0.05); color: #fff;">
-                        <i data-lucide="bell" style="width: 20px;"></i>
-                    </div>
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.25rem;">New Reminder</h3>
-                        <p style="margin: 4px 0 0; font-size: 0.8rem; color: var(--text-muted);">Schedule a notification for your server</p>
-                    </div>
-                </div>
-                <button onclick="closeReminderModal()" style="background:rgba(255,255,255,0.05); border:none; color:var(--text-muted); cursor:pointer; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
-                    <i data-lucide="x" style="width: 18px;"></i>
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h3>New Reminder</h3>
+                <button onclick="closeReminderModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
+                    <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body" style="display: grid; grid-template-columns: 1.8fr 1fr; gap: 0; padding: 0; height: 80vh;">
+            <div class="modal-body" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
                 <!-- Left Side: Form -->
-                <div class="reminder-form" style="padding: 24px 32px; overflow-y: auto; border-right: 1px solid rgba(255,255,255,0.05);">
+                <div class="reminder-form" style="max-height: 70vh; overflow-y: auto; padding-right: 12px;">
                     <div class="form-group">
                         <label>Title Message</label>
-                        <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()" style="font-size: 1rem; padding: 14px;">
+                        <input type="text" id="reminder-message" placeholder="e.g. Bear Trap starts now!" oninput="updateReminderPreview()">
                     </div>
                     <div class="form-group">
                         <label>Description (Body)</label>
-                        <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 80px; font-size: 0.95rem;" oninput="updateReminderPreview()"></textarea>
+                        <textarea id="reminder-body" placeholder="Optional detailed text" style="min-height: 60px;" oninput="updateReminderPreview()"></textarea>
                     </div>
-                    
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                         <div class="form-group">
                             <label>Start Date</label>
-                            <div style="position: relative;">
-                                <input type="date" id="reminder-date" style="padding-left: 40px;">
-                                <i data-lucide="calendar" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
-                            </div>
+                            <input type="date" id="reminder-date">
                         </div>
                         <div class="form-group">
                             <label>Channel</label>
-                            <div style="position: relative;">
-                                <select id="reminder-channel" class="guild-channels" style="padding-left: 40px;"></select>
-                                <i data-lucide="hash" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; color: var(--text-muted);"></i>
-                            </div>
+                            <select id="reminder-channel" class="guild-channels"></select>
                         </div>
                     </div>
 
-                    <div class="form-group" style="margin-top: 10px;">
-                        <label style="display: flex; justify-content: space-between; align-items: center;">
-                            Start Time
-                            <span style="font-size: 0.75rem; color: var(--primary); font-weight: 500;">Scroll to select</span>
-                        </label>
+                    <div class="form-group">
+                        <label>Start Time (Scroll to Select)</label>
                         <div class="time-picker-row">
-                            <div class="wheel-container" id="wheel-hour" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)"></div>
-                            <div class="wheel-separator"></div>
+                            <div class="wheel-container" id="wheel-hour"></div>
                             <span class="wheel-label">:</span>
-                            <div class="wheel-separator"></div>
-                            <div class="wheel-container" id="wheel-min" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)"></div>
-                            <div class="wheel-separator"></div>
+                            <div class="wheel-container" id="wheel-min"></div>
                             <span class="wheel-label">:</span>
-                            <div class="wheel-separator"></div>
-                            <div class="wheel-container" id="wheel-sec" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)"></div>
-                            <div class="wheel-separator"></div>
-                            <div class="wheel-container" id="wheel-ampm" style="width: 80px;" onscroll="updateWheelSelection(this); handleWheelScrollEnd(this)">
-                                <div class="wheel-item spacer"></div>
+                            <div class="wheel-container" id="wheel-sec"></div>
+                            <div class="wheel-container" id="wheel-ampm" style="width: 70px;">
+                                <div class="wheel-item" style="height:33px;"></div>
                                 <div class="wheel-item" data-val="AM">AM</div>
                                 <div class="wheel-item" data-val="PM">PM</div>
-                                <div class="wheel-item spacer"></div>
+                                <div class="wheel-item" style="height:33px;"></div>
                             </div>
                         </div>
                     </div>
@@ -1740,7 +1566,7 @@
                         </select>
                     </div>
 
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                         <div class="form-group">
                             <label>Repeat / Recurrence</label>
                             <select id="reminder-recurrence" onchange="toggleCustomInterval()">
@@ -1755,10 +1581,7 @@
                             <input type="number" id="reminder-interval" min="1" value="1">
                         </div>
                     </div>
-
-                    <div style="height: 1px; background: rgba(255,255,255,0.05); margin: 24px 0;"></div>
-
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                         <div class="form-group">
                             <label>Mention</label>
                             <select id="reminder-mention" onchange="updateReminderPreview()">
@@ -1769,122 +1592,76 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Image (URL or Upload)</label>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
-                                <input type="file" id="reminder-image-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-image')">
-                                <button onclick="document.getElementById('reminder-image-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
-                                    <i data-lucide="upload" style="width: 18px;"></i>
-                                </button>
-                            </div>
+                            <label>Image URL</label>
+                            <input type="text" id="reminder-image" placeholder="https://..." oninput="updateReminderPreview()">
                         </div>
                     </div>
-
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
                         <div class="form-group">
-                            <label>Thumbnail Presets</label>
-                            <select id="reminder-thumbnail-preset" onchange="applyThumbnailPreset(this.value)">
-                                <option value="">Custom / None</option>
-                                <option value="Bear trap">Bear Trap</option>
-                                <option value="Crazy Joe">Crazy Joe</option>
-                                <option value="set">Bot Logo (Set)</option>
-                                <option value="alert">Alert Icon</option>
-                            </select>
+                            <label>Thumbnail URL</label>
+                            <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()">
                         </div>
-                        <div class="form-group">
-                            <label>Thumbnail (URL or Upload)</label>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="reminder-thumbnail" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
-                                <input type="file" id="reminder-thumbnail-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-thumbnail')">
-                                <button onclick="document.getElementById('reminder-thumbnail-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
-                                    <i data-lucide="upload" style="width: 18px;"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         <div class="form-group">
                             <label>Footer Text</label>
                             <input type="text" id="reminder-footer" placeholder="Optional footer" oninput="updateReminderPreview()">
                         </div>
-                        <div class="form-group">
-                            <label>Footer Icon (URL or Upload)</label>
-                            <div style="display: flex; gap: 8px;">
-                                <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()" style="flex: 1;">
-                                <input type="file" id="reminder-footer-icon-file" style="display: none;" accept="image/*" onchange="handleReminderFileSelect(this, 'reminder-footer-icon')">
-                                <button onclick="document.getElementById('reminder-footer-icon-file').click()" class="btn btn-secondary" style="padding: 10px; min-width: 44px; background: #232831;">
-                                    <i data-lucide="upload" style="width: 18px;"></i>
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>Author URL (Clickable Title)</label>
-                        <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+                        <div class="form-group">
+                            <label>Footer Icon URL</label>
+                            <input type="text" id="reminder-footer-icon" placeholder="https://..." oninput="updateReminderPreview()">
+                        </div>
+                        <div class="form-group">
+                            <label>Author URL</label>
+                            <input type="text" id="reminder-author-url" placeholder="https://..." oninput="updateReminderPreview()">
+                        </div>
                     </div>
                 </div>
 
                 <!-- Right Side: Preview -->
-                <div class="reminder-preview-side" style="padding: 24px; background: #16191f; display: flex; flex-direction: column; scale: 0.95; transform-origin: top left;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
-                        <div class="preview-label" style="margin: 0; font-size: 0.75rem; letter-spacing: 0.05em;">
-                            <span class="pulse-dot"></span> LIVE PREVIEW
-                        </div>
-                        <div style="display: flex; gap: 4px;">
-                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #ff5f56;"></div>
-                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #ffbd2e;"></div>
-                            <div style="width: 6px; height: 6px; border-radius: 50%; background: #27c93f;"></div>
-                        </div>
-                    </div>
-
-                    <div class="dc-chat" style="flex: 1; display: flex; align-items: flex-start;">
-                        <div class="dc-message" style="width: 100%; padding: 0;">
-                            <div style="display: flex; gap: 12px;">
-                                <img class="dc-bot-avatar" src="/logo.gif" alt="Bot" style="width: 32px; height: 32px; margin: 0;">
-                                <div class="dc-message-body" style="flex: 1;">
-                                    <div class="dc-message-header" style="margin-bottom: 2px;">
-                                        <span class="dc-bot-name" style="font-weight: 600; font-size: 0.9rem;">Whiteout Survival</span>
-                                        <span class="dc-bot-tag" style="padding: 1px 3px; font-size: 0.65rem;">APP</span>
-                                        <span class="dc-timestamp" style="font-size: 0.7rem;">Today at 12:00 PM</span>
-                                    </div>
-                                    
-                                    <!-- Embed card -->
-                                    <div class="dc-embed" id="reminder-preview-embed" style="border-left: 3px solid #ffffff; background: #2b2d31; border-radius: 4px; padding: 10px 14px; margin: 6px 0; max-width: 400px;">
-                                        <div class="dc-embed-inner">
-                                            <div style="display: flex; gap: 10px;">
-                                                <div style="flex: 1;">
-                                                    <div class="dc-embed-title" id="reminder-preview-title" style="font-weight: 700; font-size: 0.95rem; color: #fff; margin-bottom: 4px;">Bear Trap starts now!</div>
-                                                    <div class="dc-embed-desc" id="reminder-preview-body" style="font-size: 0.85rem; color: #dbdee1; line-height: 1.3;">Optional detailed text</div>
-                                                </div>
-                                                <img id="reminder-preview-thumbnail" src="" style="width: 60px; height: 60px; border-radius: 4px; object-fit: cover; display: none;">
+                <div class="reminder-preview-side">
+                    <div class="preview-label"><span></span> Live Reminder Preview</div>
+                    <div class="dc-chat">
+                        <div class="dc-message">
+                            <img class="dc-bot-avatar" src="/logo.gif" alt="Bot">
+                            <div class="dc-message-body">
+                                <div class="dc-message-header">
+                                    <span class="dc-bot-name">ICEAngel</span>
+                                    <span class="dc-bot-tag">APP</span>
+                                    <span class="dc-timestamp">Reminder</span>
+                                </div>
+                                <div id="reminder-preview-mention" class="dc-text" style="margin-bottom: 4px;">@everyone</div>
+                                <!-- Embed card -->
+                                <div class="dc-embed" id="reminder-preview-embed" style="border-left-color: #8b5cf6;">
+                                    <div class="dc-embed-inner">
+                                        <div style="display: flex; gap: 12px;">
+                                            <div style="flex: 1;">
+                                                <div class="dc-embed-title" id="reminder-preview-title">Bear Trap starts now!</div>
+                                                <div class="dc-embed-desc" id="reminder-preview-body">Optional detailed text</div>
                                             </div>
-                                            <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 10px; border-radius: 4px; max-width: 100%;">
-                                            <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 6px; margin-top: 10px;">
-                                                <img id="reminder-preview-footer-icon" src="" style="width: 16px; height: 16px; border-radius: 50%; display: none;">
-                                                <span id="reminder-preview-footer-text" style="font-size: 0.7rem; color: #dbdee1; font-weight: 500;"></span>
-                                            </div>
+                                            <img id="reminder-preview-thumbnail" src="" style="width: 80px; height: 80px; border-radius: 4px; object-fit: cover; display: none;">
+                                        </div>
+                                        <img id="reminder-preview-image" class="dc-embed-image" src="" alt="" style="display:none; margin-top: 8px; border-radius: 4px;">
+                                        <div class="dc-embed-footer" id="reminder-preview-footer-container" style="display: none; align-items: center; gap: 8px;">
+                                            <img id="reminder-preview-footer-icon" src="" style="width: 18px; height: 18px; border-radius: 50%; display: none;">
+                                            <span id="reminder-preview-footer-text"></span>
                                         </div>
                                     </div>
-                                    <div id="reminder-preview-mention" class="dc-text" style="margin-top: 2px; color: #00a8fc; font-weight: 500; font-size: 0.85rem;">@everyone</div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div style="margin-top:16px; padding:12px; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
-                        <div style="display: flex; gap: 8px; align-items: flex-start;">
-                            <i data-lucide="info" style="width: 14px; color: #fff; opacity: 0.5; flex-shrink: 0; margin-top: 2px;"></i>
-                            <p style="font-size:0.7rem; color:var(--text-muted); line-height:1.4; margin: 0;">
-                                Preview of your Discord notification.
-                            </p>
-                        </div>
+
+                    <div style="margin-top:16px; padding:12px; background:rgba(139,92,246,0.06); border-radius:10px; border:1px solid rgba(139,92,246,0.15);">
+                        <p style="font-size:0.78rem; color:var(--text-muted); line-height:1.6;">
+                            This is how your reminder will appear in Discord. Use URLs for images and icons.
+                        </p>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" style="padding: 20px 32px; background: #16191f; border-top: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: flex-end; gap: 12px;">
-                <button onclick="closeReminderModal()" class="btn btn-secondary" style="background: rgba(255,255,255,0.05);">Cancel</button>
-                <button onclick="createReminder()" class="btn btn-primary" style="padding: 10px 32px; box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1);">Create Reminder</button>
+            <div class="modal-footer">
+                <button onclick="closeReminderModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="createReminder()" class="btn btn-primary">Create Reminder</button>
             </div>
         </div>
     </div>
@@ -1975,6 +1752,7 @@
     <div id="notification" class="notification">Action completed</div>
 
     <script>
+        let _translateConfigs = [];
         const CONFIG = {
             API_BASE: '',
             LANG_NAMES: {
@@ -1996,28 +1774,26 @@
 
             document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
             document.getElementById(`tab-${tabName}`).classList.add('active');
-            
+
             if (tabName === 'alliance') {
                 loadMonitorSettings();
                 loadMonitorHistory();
                 loadMonitoredMembers();
             }
-            
+
             lucide.createIcons();
         }
 
         function initTimeWheels() {
             const wheels = ['wheel-hour', 'wheel-min', 'wheel-sec', 'wheel-ampm'];
-            
+
             wheels.forEach(id => {
                 const el = document.getElementById(id);
                 if (!el) return;
-                
+
                 if (id !== 'wheel-ampm') {
                     const max = id === 'wheel-hour' ? 12 : 59;
                     const start = id === 'wheel-hour' ? 1 : 0;
-                    
-                    // Add single spacer for perfect centering with 140px container
                     el.innerHTML = '<div class="wheel-item spacer"></div>';
                     for(let i=start; i<=max; i++) {
                         const val = String(i).padStart(2, '0');
@@ -2035,31 +1811,31 @@
                         item.onclick = () => setWheelValue(el, item.dataset.val);
                     });
                 }
-                
+
                 el.addEventListener('scroll', () => updateWheelSelection(el));
-                
+
                 // Drag to scroll support
                 let isDown = false;
                 let startY;
                 let scrollTop;
-                
+
                 el.addEventListener('mousedown', (e) => {
                     isDown = true;
                     el.style.scrollSnapType = 'none'; // Disable snapping while dragging
                     startY = e.pageY - el.offsetTop;
                     scrollTop = el.scrollTop;
                 });
-                
+
                 el.addEventListener('mouseleave', () => {
                     if (isDown) el.style.scrollSnapType = 'y mandatory';
                     isDown = false;
                 });
-                
+
                 el.addEventListener('mouseup', () => {
                     if (isDown) el.style.scrollSnapType = 'y mandatory';
                     isDown = false;
                 });
-                
+
                 el.addEventListener('mousemove', (e) => {
                     if (!isDown) return;
                     e.preventDefault();
@@ -2068,7 +1844,7 @@
                     el.scrollTop = scrollTop - walk;
                 });
             });
-            
+
             // Initial selection based on current time
             setTimeout(() => {
                 const now = new Date();
@@ -2082,70 +1858,35 @@
             }, 500);
         }
 
-        // Optimized Wheel Selection for Smooth Scrolling
-        let wheelUpdatePending = {};
-
         function updateWheelSelection(el) {
-            const id = el.id;
-            if (wheelUpdatePending[id]) return;
-            
-            wheelUpdatePending[id] = true;
-            requestAnimationFrame(() => {
-                const containerRect = el.getBoundingClientRect();
-                const centerY = containerRect.top + containerRect.height / 2;
-                
-                let closestItem = null;
-                let minDiff = Infinity;
-                
-                const items = el.querySelectorAll('.wheel-item[data-val]');
-                for (let i = 0; i < items.length; i++) {
-                    const item = items[i];
-                    const rect = item.getBoundingClientRect();
-                    const itemCenterY = rect.top + rect.height / 2;
-                    const diff = centerY - itemCenterY;
-                    const absDiff = Math.abs(diff);
-                    
-                    // Optimized Mechanical Drum Rotation
-                    const radius = containerRect.height / 2;
-                    const angle = (diff / radius) * 45; 
-                    const opacity = Math.max(0.1, 1 - (absDiff / radius));
-                    const zTranslate = -Math.abs(Math.sin(angle * Math.PI / 180) * 80);
-                    const scale = 1 + Math.max(0, (1 - (absDiff / 25)) * 0.2);
+            const containerRect = el.getBoundingClientRect();
+            const centerY = containerRect.top + containerRect.height / 2;
 
-                    item.style.transform = `rotateX(${angle}deg) translateZ(${zTranslate}px) scale(${scale})`;
-                    item.style.opacity = opacity;
-                    
-                    if (absDiff < minDiff) {
-                        minDiff = absDiff;
-                        closestItem = item;
-                    }
-                    item.classList.remove('selected');
+            let closestItem = null;
+            let minDiff = Infinity;
+
+            el.querySelectorAll('.wheel-item[data-val]').forEach(item => {
+                const rect = item.getBoundingClientRect();
+                const itemCenterY = rect.top + rect.height / 2;
+                const diff = Math.abs(centerY - itemCenterY);
+
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestItem = item;
                 }
-                
-                if (closestItem) {
-                    closestItem.classList.add('selected');
-                }
-                wheelUpdatePending[id] = false;
+                item.classList.remove('selected');
             });
-        }
 
-        // Add snap-to-center functionality
-        function handleWheelScrollEnd(el) {
-            clearTimeout(el.scrollTimeout);
-            el.scrollTimeout = setTimeout(() => {
-                const selected = el.querySelector('.wheel-item.selected');
-                if (selected) {
-                    const val = selected.dataset.val;
-                    setWheelValue(el, val);
-                }
-            }, 150);
+            if (closestItem) {
+                closestItem.classList.add('selected');
+            }
         }
 
         function getWheelValue(id) {
             const el = document.getElementById(id);
             const selected = el.querySelector('.wheel-item.selected');
             if (selected) return selected.dataset.val;
-            
+
             // Fallback: try to find the one closest to the center if none marked selected
             updateWheelSelection(el);
             const afterUpdate = el.querySelector('.wheel-item.selected');
@@ -2159,11 +1900,7 @@
                 const item = items[index];
                 const scrollPos = item.offsetTop - el.offsetTop - (el.clientHeight / 2) + (item.clientHeight / 2);
                 el.scrollTo({ top: scrollPos, behavior: 'smooth' });
-                
-                // Ensure 3D effects are updated during and after smooth scroll
-                const updateLoop = setInterval(() => updateWheelSelection(el), 16);
-                setTimeout(() => clearInterval(updateLoop), 500);
-                
+                // Mark selected immediately for better UX
                 items.forEach(i => i.classList.remove('selected'));
                 item.classList.add('selected');
             }
@@ -2205,7 +1942,7 @@
                 document.getElementById('stat-channels').textContent = stats.channels || 0;
                 document.getElementById('stat-categories').textContent = stats.categories || 0;
                 document.getElementById('stat-roles').textContent = stats.roles || 0;
-                
+
                 document.getElementById('overview-server-icon').src = stats.icon_url || 'https://cdn.discordapp.com/embed/avatars/0.png';
                 document.getElementById('overview-server-id').textContent = guildId;
             } catch (e) {}
@@ -2268,10 +2005,10 @@
             // Embed title + subtitle (drawn on image placeholder or overlay)
             const titleVal = document.getElementById('embed-title').value || 'Welcome {username}';
             const subtitleVal = document.getElementById('embed-subtitle').value || 'to {server}';
-            
+
             const resolvedTitle = applyVarsPlain(titleVal);
             const resolvedSubtitle = applyVarsPlain(subtitleVal);
-            
+
             document.getElementById('preview-title-overlay').textContent = resolvedTitle;
             document.getElementById('preview-subtitle-overlay').textContent = resolvedSubtitle;
 
@@ -2287,7 +2024,7 @@
             const bgUrl = document.getElementById('welcome-bg').value;
             const previewImg = document.getElementById('preview-embed-image');
             const wrap = document.getElementById('preview-img-wrap');
-            
+
             if (bgUrl || window._uploadedPreviewUrl) {
                 previewImg.src = bgUrl || window._uploadedPreviewUrl;
                 previewImg.style.display = 'block';
@@ -2511,6 +2248,7 @@
         async function loadTranslateConfigs() {
             try {
                 const configs = await fetchData(`/api/settings/translate/${guildId}`);
+                _translateConfigs = configs;
                 const list = document.getElementById('translate-configs-list');
                 list.innerHTML = '';
                 if (configs.length === 0) { list.innerHTML = '<div style="text-align:center; padding:40px; color:var(--text-muted);">No pipelines found.</div>'; return; }
@@ -2678,7 +2416,7 @@
                     button.addEventListener('click', () => copyGiftCode(button.dataset.code));
                 });
                 lucide.createIcons();
-                
+
                 // Also update the selectable codes for manual redemption
                 populateSelectableCodes(activeCodes);
             } catch (e) {
@@ -2696,7 +2434,7 @@
         function populateSelectableCodes(codes) {
             const list = document.getElementById('selectable-codes-list');
             if (!list) return;
-            
+
             list.innerHTML = '';
             if (codes.length === 0) {
                 list.innerHTML = '<div style="color: var(--text-muted); font-size: 0.9rem; padding: 20px;">No active codes available.</div>';
@@ -2732,7 +2470,7 @@
             const btn = document.getElementById('redeem-submit-btn');
             const countText = document.getElementById('redeem-selection-count');
             const count = selectedCodes.size;
-            
+
             btn.disabled = !(count > 0 && currentPlayer);
             countText.textContent = `${count} ${count === 1 ? 'code' : 'codes'} selected`;
         }
@@ -2751,7 +2489,7 @@
             btn.disabled = true;
             btn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; animation: spin 1s linear infinite;"></i>';
             lucide.createIcons();
-            
+
             try {
                 const res = await fetchData('/api/giftcodes/player-info', {
                     method: 'POST',
@@ -2782,15 +2520,15 @@
 
         async function redeemSelectedCodes() {
             if (!currentPlayer || selectedCodes.size === 0) return;
-            
+
             const btn = document.getElementById('redeem-submit-btn');
             const resultsContainer = document.getElementById('redemption-results');
-            
+
             btn.disabled = true;
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i data-lucide="loader-2" style="width: 18px; animation: spin 1s linear infinite;"></i> Processing Redemption...';
             lucide.createIcons();
-            
+
             resultsContainer.innerHTML = '<div style="padding: 10px; color: var(--text-muted); font-size: 0.9rem;">Redeeming codes one by one...</div>';
 
             try {
@@ -2836,7 +2574,7 @@
                         `;
                         resultsContainer.appendChild(div);
                     });
-                    
+
                     showNotification('Redemption process completed');
                     // Refresh stats and codes list
                     loadGiftStats();
@@ -2988,20 +2726,29 @@
             let val = parseInt(lv);
             if (isNaN(val)) return String(lv);
             if (val <= 30) return String(val);
-            
-            // Special mapping for Tier 1
-            if (val === 31) return "1";
-            if (val === 32) return "1-1";
-            if (val === 33) return "1-2";
-            if (val === 34) return "1-4";
-            
-            // 5-level cycle for lvl 35 and above
-            // 35: 2, 36: 2-1, 37: 2-2, 38: 2-3, 39: 2-4, 40: 3
-            const relative = val - 35;
-            const tier = Math.floor(relative / 5) + 2;
-            const stage = relative % 5;
-            
-            if (stage === 0) return tier.toString();
+
+            // Specific requested mapping
+            if (val === 31) return "30-1";
+            if (val === 32) return "30-2";
+            if (val === 33) return "30-3";
+            if (val === 34) return "30-4";
+            if (val === 35) return "1";
+            if (val === 36) return "1-1";
+            if (val === 37) return "1-2";
+            if (val === 38) return "1-3";
+            if (val === 39) return "1-4";
+            if (val === 40) return "2";
+            if (val === 41) return "2-1";
+            if (val === 42) return "2-1";
+            if (val === 43) return "2-1";
+            if (val === 44) return "2-2";
+            if (val === 45) return "3";
+
+            // Default pattern for 46+
+            let relative = val - 45;
+            let tier = Math.floor(relative / 5) + 3;
+            let stage = relative % 5;
+            if (stage === 0) return String(tier);
             return `${tier}-${stage}`;
         }
 
@@ -3088,8 +2835,8 @@
                 if (res.status === 'success' && res.data) {
                     pendingAddMember = res.data;
                     preview.innerHTML = `
-                        <img src="${res.data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" 
-                             class="player-avatar-large" alt="Avatar" 
+                        <img src="${res.data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}"
+                             class="player-avatar-large" alt="Avatar"
                              onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
@@ -3140,8 +2887,10 @@
         }
 
         function openTranslateModal(config = null) {
+            const modal = document.getElementById('translate-modal');
+            const title = document.getElementById('modal-title');
+
             if (config) {
-                document.getElementById('modal-title').textContent = 'Edit Translation Config';
                 document.getElementById('config-id').value = config.config_id || '';
                 document.getElementById('config-name').value = config.name || '';
                 document.getElementById('source-lang').value = config.source_language || 'auto';
@@ -3149,15 +2898,12 @@
                 document.getElementById('source-channel').value = config.source_channel_id || '';
                 document.getElementById('target-channel').value = config.target_channel_id || '';
                 document.getElementById('translate-style').value = config.style || 'webhook';
-                
-                // Extra fields from bot
-                document.getElementById('translate-min-length').value = config.min_text_length || 10;
-                document.getElementById('translate-ignore-target').checked = config.ignore_if_source_is_target !== false;
-                document.getElementById('translate-ignore-not-input').checked = config.ignore_if_source_is_not_input || false;
-                document.getElementById('translate-skip-attachments').checked = config.skip_attachments || false;
-                document.getElementById('translate-delete-original').checked = config.delete_original || false;
+                document.getElementById('translate-delete-original').checked = !!config.delete_original;
+                document.getElementById('translate-ignore-same').checked = config.ignore_if_source_is_target !== false;
+                document.getElementById('translate-disappear').value = config.auto_disappear || 0;
+                document.getElementById('translate-min-len').value = config.min_text_length || 10;
+                title.innerText = 'Edit Translation Config';
             } else {
-                document.getElementById('modal-title').textContent = 'New Translation Config';
                 document.getElementById('config-id').value = '';
                 document.getElementById('config-name').value = '';
                 document.getElementById('source-lang').value = 'auto';
@@ -3165,69 +2911,49 @@
                 document.getElementById('source-channel').value = '';
                 document.getElementById('target-channel').value = '';
                 document.getElementById('translate-style').value = 'webhook';
-                
-                // Defaults
-                document.getElementById('translate-min-length').value = 10;
-                document.getElementById('translate-ignore-target').checked = true;
-                document.getElementById('translate-ignore-not-input').checked = false;
-                document.getElementById('translate-skip-attachments').checked = false;
                 document.getElementById('translate-delete-original').checked = false;
+                document.getElementById('translate-ignore-same').checked = true;
+                document.getElementById('translate-disappear').value = 0;
+                document.getElementById('translate-min-len').value = 10;
+                title.innerText = 'New Translation Config';
             }
-            document.getElementById('translate-modal').style.display = 'flex';
+
+            modal.style.display = 'flex';
+        }
+
+        function editTranslateConfig(id) {
+            const cfg = _translateConfigs.find(c => c.config_id === id);
+            if (cfg) {
+                openTranslateModal(cfg);
+            } else {
+                showNotification('Configuration not found', true);
+            }
         }
 
         function closeTranslateModal() { document.getElementById('translate-modal').style.display = 'none'; }
 
-        async function editTranslateConfig(id) {
-            showLoading(true);
-            try {
-                const configs = await fetchData(`/api/settings/translate/${guildId}`);
-                const config = configs.find(c => c.config_id === id);
-                if (config) {
-                    openTranslateModal(config);
-                }
-            } catch (e) {
-                showNotification('Failed to load config', true);
-            } finally {
-                showLoading(false);
-            }
-        }
-
         async function saveTranslateConfig() {
-            const config_id = document.getElementById('config-id').value;
             const data = {
+                config_id: document.getElementById('config-id').value,
                 name: document.getElementById('config-name').value,
                 source_language: document.getElementById('source-lang').value,
                 target_language: document.getElementById('target-lang').value,
                 source_channel_id: document.getElementById('source-channel').value,
                 target_channel_id: document.getElementById('target-channel').value,
                 style: document.getElementById('translate-style').value,
-                min_text_length: parseInt(document.getElementById('translate-min-length').value),
-                ignore_if_source_is_target: document.getElementById('translate-ignore-target').checked,
-                ignore_if_source_is_not_input: document.getElementById('translate-ignore-not-input').checked,
-                skip_attachments: document.getElementById('translate-skip-attachments').checked,
                 delete_original: document.getElementById('translate-delete-original').checked,
+                ignore_if_source_is_target: document.getElementById('translate-ignore-same').checked,
+                auto_disappear: parseInt(document.getElementById('translate-disappear').value) || 0,
+                min_text_length: parseInt(document.getElementById('translate-min-len').value) || 10,
                 enabled: true
             };
-
-            if (!data.name || !data.source_channel_id || !data.target_channel_id) {
-                showNotification('Please fill all required fields', true);
-                return;
-            }
-
             showLoading(true);
             try {
-                const method = config_id ? 'PATCH' : 'POST';
-                const url = config_id ? `/api/settings/translate/${guildId}/${config_id}` : `/api/settings/translate/${guildId}`;
-                await fetchData(url, { method, body: JSON.stringify(data) });
-                showNotification(config_id ? 'Config updated!' : 'Config created!');
+                await fetchData(`/api/settings/translate/${guildId}`, { method: 'POST', body: JSON.stringify(data) });
+                showNotification('Pipeline saved!');
                 closeTranslateModal();
                 loadTranslateConfigs();
-            } catch (e) {
-                showNotification(e.message || 'Operation failed', true);
-            } finally {
-                showLoading(false);
-            }
+            } catch (e) {} finally { showLoading(false); }
         }
 
         async function deleteTranslateConfig(id) {
@@ -3244,7 +2970,7 @@
             const val = document.getElementById('reminder-recurrence').value;
             document.getElementById('custom-interval-group').style.display = (val === 'custom') ? 'block' : 'none';
         }
-        
+
         function formatDateTimeLocal(dateStr) {
             if (!dateStr) return '';
             const d = new Date(dateStr);
@@ -3260,22 +2986,22 @@
             currentReminderId = reminderId;
             const titleEl = document.querySelector('#reminder-modal h3');
             const submitBtn = document.querySelector('#reminder-modal .btn-primary');
-            
+
             if (reminderId && remindersMap[reminderId]) {
                 const r = remindersMap[reminderId];
                 titleEl.textContent = 'Edit Reminder';
                 submitBtn.textContent = 'Update Reminder';
                 submitBtn.onclick = () => updateReminder(reminderId);
-                
+
                 const d = new Date(r.reminder_time);
                 document.getElementById('reminder-date').value = d.toISOString().split('T')[0];
-                
+
                 let h = d.getHours();
                 const m = String(d.getMinutes()).padStart(2, '0');
                 const s = String(d.getSeconds()).padStart(2, '0');
                 const p = h >= 12 ? 'PM' : 'AM';
                 h = h % 12 || 12;
-                
+
                 setWheelValue(document.getElementById('wheel-hour'), String(h).padStart(2, '0'));
                 setWheelValue(document.getElementById('wheel-min'), m);
                 setWheelValue(document.getElementById('wheel-sec'), s);
@@ -3295,26 +3021,20 @@
                 document.getElementById('reminder-footer').value = r.footer_text || '';
                 document.getElementById('reminder-footer-icon').value = r.footer_icon_url || '';
                 document.getElementById('reminder-author-url').value = r.author_url || '';
-
-                // Clear file inputs when editing
-                document.getElementById('reminder-image-file').value = '';
-                document.getElementById('reminder-thumbnail-file').value = '';
-                document.getElementById('reminder-footer-icon-file').value = '';
-                document.getElementById('reminder-thumbnail-preset').value = '';
             } else {
                 titleEl.textContent = 'New Reminder';
                 submitBtn.textContent = 'Create Reminder';
                 submitBtn.onclick = createReminder;
-                
+
                 document.getElementById('reminder-message').value = '';
                 const now = new Date();
                 document.getElementById('reminder-date').value = now.toISOString().split('T')[0];
-                
+
                 let h = now.getHours();
                 const m = String(now.getMinutes()).padStart(2, '0');
                 const p = h >= 12 ? 'PM' : 'AM';
                 h = h % 12 || 12;
-                
+
                 setWheelValue(document.getElementById('wheel-hour'), String(h).padStart(2, '0'));
                 setWheelValue(document.getElementById('wheel-min'), m);
                 setWheelValue(document.getElementById('wheel-sec'), '00');
@@ -3332,12 +3052,6 @@
                 document.getElementById('reminder-footer').value = '';
                 document.getElementById('reminder-footer-icon').value = '';
                 document.getElementById('reminder-author-url').value = '';
-
-                // Clear file inputs and presets
-                document.getElementById('reminder-image-file').value = '';
-                document.getElementById('reminder-thumbnail-file').value = '';
-                document.getElementById('reminder-footer-icon-file').value = '';
-                document.getElementById('reminder-thumbnail-preset').value = '';
             }
             document.getElementById('reminder-modal').style.display = 'flex';
             updateReminderPreview();
@@ -3347,34 +3061,6 @@
         // ──────────────────────────────────────────────────
         //  Reminders: Preview Engine
         // ──────────────────────────────────────────────────
-        const REMINDER_IMAGES = {
-            'set': 'https://i.postimg.cc/Fzq03CJf/a463d7c7-7fc7-47fc-b24d-1324383ee2ff-removebg-preview.png',
-            'alert': 'https://cdn.discordapp.com/attachments/1424082091750068364/1431246283334619136/Gemini_Generated_Image_dqdcnxdqdcnxdqdc-removebg-preview.png?ex=68fcb779&is=68fb65f9&hm=6afcbee2e3dea071f560ea5e1615dc24a691a1e12e123b02cb3c7f0cba2a33db',
-            'Bear trap': 'https://cdn.discordapp.com/attachments/1435569370389807144/1441474311834832956/0f4d6593f84ba519bd095f077527f9ec-8.gif?ex=69288491&is=69273311&hm=6da152776bc75ea65c0d5ba9f8bbd5bec8baec1c843928df399daf76797382de',
-            'Crazy Joe': 'https://cdn.discordapp.com/attachments/1435569370389807144/1465697260829671687/images__7_-removebg-preview.png?ex=697a0c72&is=6978baf2&hm=d0efd4bfa0374b767a0cc9025abbc6d0c5e59e71cc099cccd423a066be8ceed6'
-        };
-
-        function handleReminderFileSelect(input, targetId) {
-            const file = input.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById(targetId).value = e.target.result; // Temporarily use data URL for preview
-                updateReminderPreview();
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function applyThumbnailPreset(preset) {
-            if (preset && REMINDER_IMAGES[preset]) {
-                document.getElementById('reminder-thumbnail').value = REMINDER_IMAGES[preset];
-            } else {
-                document.getElementById('reminder-thumbnail').value = '';
-            }
-            updateReminderPreview();
-        }
-
         function updateReminderPreview() {
             const message = document.getElementById('reminder-message').value || 'Bear Trap starts now!';
             const body = document.getElementById('reminder-body').value || 'Optional detailed text';
@@ -3390,19 +3076,13 @@
                 mentionEl.style.display = 'none';
             } else {
                 mentionEl.style.display = 'block';
-                if (mention === 'user') {
-                    const userName = document.getElementById('user-name') ? document.getElementById('user-name').textContent : 'User';
-                    mentionEl.innerHTML = `<span class="dc-mention">@${userName}</span>`;
-                } else {
-                    mentionEl.innerHTML = `<span class="dc-mention">@${mention}</span>`;
-                }
+                mentionEl.innerHTML = mention === 'user' ? `<span class="dc-mention">@${document.getElementById('user-name').textContent}</span>` : `<span class="dc-mention">@${mention}</span>`;
             }
 
             // Title & Body
             document.getElementById('reminder-preview-title').textContent = message;
-            const bodyEl = document.getElementById('reminder-preview-body');
-            bodyEl.textContent = body;
-            bodyEl.style.display = (body && body !== 'Optional detailed text') ? 'block' : 'none';
+            document.getElementById('reminder-preview-body').textContent = body;
+            document.getElementById('reminder-preview-body').style.display = body ? 'block' : 'none';
 
             // Thumbnail
             const thumbImg = document.getElementById('reminder-preview-thumbnail');
@@ -3442,14 +3122,14 @@
         }
 
         async function updateReminder(id) {
-            const data = await getReminderFormData();
+            const data = getReminderFormData();
             if (!data) return;
-            
+
             showLoading(true);
             try {
-                await fetchData(`/api/reminders/${guildId}/${id}`, { 
-                    method: 'PATCH', 
-                    body: JSON.stringify(data) 
+                await fetchData(`/api/reminders/${guildId}/${id}`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(data)
                 });
                 showNotification('Reminder updated!');
                 closeReminderModal();
@@ -3459,7 +3139,7 @@
             } finally { showLoading(false); }
         }
 
-        async function getReminderFormData() {
+        function getReminderFormData() {
             const message = document.getElementById('reminder-message').value.trim();
             const date = document.getElementById('reminder-date').value;
             const hour = getWheelValue('wheel-hour');
@@ -3467,59 +3147,22 @@
             const sec = getWheelValue('wheel-sec');
             const ampm = getWheelValue('wheel-ampm');
             const timezone = document.getElementById('reminder-timezone').value;
-            
+
             const recurrence_type = document.getElementById('reminder-recurrence').value;
             const recurrence_interval = parseInt(document.getElementById('reminder-interval').value) || 1;
             const channel_id = document.getElementById('reminder-channel').value;
             const body = document.getElementById('reminder-body').value.trim() || null;
             const mention = document.getElementById('reminder-mention').value;
-            
-            let image_url = document.getElementById('reminder-image').value.trim() || null;
-            let thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
-            let footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
+            const image_url = document.getElementById('reminder-image').value.trim() || null;
+            const thumbnail_url = document.getElementById('reminder-thumbnail').value.trim() || null;
             const footer_text = document.getElementById('reminder-footer').value.trim() || null;
+            const footer_icon_url = document.getElementById('reminder-footer-icon').value.trim() || null;
             const author_url = document.getElementById('reminder-author-url').value.trim() || null;
-            
+
             if (!message || !date || !channel_id) {
                 showNotification('Title, Date, and Channel are required', true);
                 return null;
             }
-
-            // Handle file uploads if any
-            const uploadFile = async (inputId) => {
-                const fileInput = document.getElementById(inputId);
-                if (fileInput && fileInput.files.length > 0) {
-                    const formData = new FormData();
-                    formData.append('file', fileInput.files[0]);
-                    try {
-                        const res = await fetch(`/api/settings/upload`, {
-                            method: 'POST',
-                            body: formData
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            // Prepend origin if URL is relative so Discord can reach it
-                            let url = data.url;
-                            if (url.startsWith('/')) {
-                                url = window.location.origin + url;
-                            }
-                            return url;
-                        }
-                    } catch (e) {
-                        console.error('Upload failed:', e);
-                    }
-                }
-                return null;
-            };
-
-            const uploadedImage = await uploadFile('reminder-image-file');
-            if (uploadedImage) image_url = uploadedImage;
-            
-            const uploadedThumb = await uploadFile('reminder-thumbnail-file');
-            if (uploadedThumb) thumbnail_url = uploadedThumb;
-
-            const uploadedFooterIcon = await uploadFile('reminder-footer-icon-file');
-            if (uploadedFooterIcon) footer_icon_url = uploadedFooterIcon;
 
             // Convert to 24h for target_time
             let h24 = parseInt(hour);
@@ -3528,21 +3171,21 @@
             const target_time = `${date}T${String(h24).padStart(2,'0')}:${min}:${sec}`;
 
             return {
-                message, target_time, timezone, recurrence_type, recurrence_interval, channel_id, 
+                message, target_time, timezone, recurrence_type, recurrence_interval, channel_id,
                 body, mention, image_url, thumbnail_url, footer_text,
                 footer_icon_url, author_url
             };
         }
 
         async function createReminder() {
-            const data = await getReminderFormData();
+            const data = getReminderFormData();
             if (!data) return;
-            
+
             showLoading(true);
             try {
-                await fetchData(`/api/reminders/${guildId}`, { 
-                    method: 'POST', 
-                    body: JSON.stringify(data) 
+                await fetchData(`/api/reminders/${guildId}`, {
+                    method: 'POST',
+                    body: JSON.stringify(data)
                 });
                 showNotification('Reminder created!');
                 closeReminderModal();
@@ -3573,7 +3216,7 @@
                     list.innerHTML = '<div class="empty-state">No active reminders found.</div>';
                     return;
                 }
-                
+
                 list.innerHTML = '';
                 list.className = 'giftcodes-grid'; // Reuse giftcode grid style
                 remindersMap = {};
@@ -3581,10 +3224,10 @@
                     remindersMap[r.id] = r;
                     const div = document.createElement('div');
                     div.className = 'giftcode-card'; // Reuse style
-                    
+
                     const time = new Date(r.reminder_time).toLocaleString();
                     const recurring = r.is_recurring ? '<span class="status-pill active" style="margin-left: 8px; font-size: 0.7rem;">Recurring</span>' : '';
-                    
+
                     div.innerHTML = `
                         <div class="giftcode-top">
                             <div class="giftcode-code" style="font-size: 1.1rem;">${escapeHTML(r.message)} ${recurring}</div>
@@ -3627,15 +3270,15 @@
         async function loadMonitorSettings() {
             try {
                 const settings = await fetchData(`/api/alliance-monitor/status/${guildId}`);
-                
+
                 const channelSelect = document.getElementById('monitor-channel');
                 const toggle = document.getElementById('monitor-enabled');
                 const pill = document.getElementById('monitor-enabled-pill');
 
                 if (channelSelect) channelSelect.value = settings.channel_id || '';
-                
+
                 if (toggle) toggle.checked = settings.enabled;
-                
+
                 if (pill) {
                     if (settings.enabled) {
                         pill.textContent = 'Active';
@@ -3664,8 +3307,8 @@
                 await fetchData('/api/alliance-monitor/settings', {
                     method: 'POST',
                     body: JSON.stringify({
-                        guild_id: parseInt(guildId),
-                        channel_id: parseInt(channel_id),
+                        guild_id: guildId,
+                        channel_id: channel_id,
                         enabled: enabled
                     })
                 });
@@ -3689,25 +3332,6 @@
             }
         }
 
-        function formatFurnaceLevel(lv) {
-            lv = parseInt(lv);
-            if (isNaN(lv)) return '0';
-            if (lv <= 30) return lv.toString();
-            
-            // Special mapping for Tier 1
-            if (lv === 31) return "1";
-            if (lv === 32) return "1-1";
-            if (lv === 33) return "1-2";
-            if (lv === 34) return "1-4";
-            
-            // 5-level cycle for lvl 35 and above
-            const relative = lv - 35;
-            const tier = Math.floor(relative / 5) + 2;
-            const stage = relative % 5;
-            
-            if (stage === 0) return tier.toString();
-            return `${tier}-${stage}`;
-        }
 
         async function loadMonitorHistory() {
             const list = document.getElementById('monitor-history-list');
@@ -3719,7 +3343,7 @@
                     list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No recent changes detected.</div>';
                     return;
                 }
-                
+
                 list.innerHTML = '';
                 history.forEach(event => {
                     const div = document.createElement('div');
@@ -3729,15 +3353,15 @@
                     div.style.display = 'flex';
                     div.style.alignItems = 'center';
                     div.style.gap = '12px';
-                    
+
                     let icon = 'activity';
                     let iconColor = 'var(--primary)';
                     if (event.type === 'furnace') { icon = 'flame'; iconColor = '#f59e0b'; }
                     else if (event.type === 'name') { icon = 'user-check'; iconColor = '#10b981'; }
                     else if (event.type === 'avatar') { icon = 'image'; iconColor = '#3b82f6'; }
-                    
+
                     const time = new Date(event.timestamp).toLocaleString();
-                    
+
                     div.innerHTML = `
                         <div style="background: rgba(255,255,255,0.05); width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
                             <i data-lucide="${icon}" style="width: 16px; color: ${iconColor};"></i>
@@ -3764,12 +3388,12 @@
             try {
                 const members = await fetchData(`/api/alliance-monitor/members/${guildId}`);
                 if (totalEl) totalEl.textContent = `Total: ${members.length} members`;
-                
+
                 if (members.length === 0) {
                     list.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-muted);">No members found. Add players to start monitoring.</div>';
                     return;
                 }
-                
+
                 list.innerHTML = '';
                 members.forEach(m => {
                     const div = document.createElement('div');
@@ -3780,9 +3404,9 @@
                     div.style.flexDirection = 'column';
                     div.style.alignItems = 'center';
                     div.dataset.fid = m.id;
-                    
+
                     const avatar = m.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png';
-                    
+
                     div.innerHTML = `
                         <div class="check-icon" style="top: 5px; right: 5px;"><i data-lucide="check" style="width: 10px;"></i></div>
                         <img src="${avatar}" style="width: 48px; height: 48px; border-radius: 50%; margin-bottom: 8px; border: 2px solid var(--glass-border);">
@@ -3793,13 +3417,13 @@
                             <i data-lucide="trash-2" style="width: 12px;"></i> Remove
                         </button>
                     `;
-                    
+
                     div.onclick = (e) => {
                         if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
                         div.classList.toggle('selected');
                         updateMonitorBatchUI();
                     };
-                    
+
                     list.appendChild(div);
                 });
                 lucide.createIcons();
@@ -3837,9 +3461,9 @@
         async function removeSelectedMonitorMembers() {
             const selected = Array.from(document.querySelectorAll('#monitor-members-list .selectable-code.selected')).map(el => el.dataset.fid);
             if (selected.length === 0) return;
-            
+
             if (!confirm(`Remove ${selected.length} selected players from monitoring?`)) return;
-            
+
             showLoading(true);
             try {
                 await fetchData('/api/alliance-monitor/members/remove-batch', {
@@ -3879,7 +3503,7 @@
 
             const btn = document.getElementById('lookup-monitor-player-btn');
             const preview = document.getElementById('add-monitor-preview');
-            
+
             btn.disabled = true;
             btn.innerHTML = '<i data-lucide="loader-2" style="width: 16px; animation: spin 1s linear infinite;"></i>';
             lucide.createIcons();
@@ -3913,7 +3537,7 @@
 
         async function confirmAddMonitorPlayer() {
             if (!_lastMonitorLookup) return;
-            
+
             const btn = document.getElementById('confirm-add-monitor-player-btn');
             btn.disabled = true;
             btn.innerHTML = '<i data-lucide="loader-2" style="width:15px;animation:spin 1s linear infinite;"></i> Adding...';
@@ -3923,8 +3547,8 @@
                 await fetchData('/api/alliance-monitor/members/add', {
                     method: 'POST',
                     body: JSON.stringify({
-                        guild_id: parseInt(guildId),
-                        fid: _lastMonitorLookup.id,
+                        guild_id: guildId,
+                        fid: String(_lastMonitorLookup.id),
                         nickname: _lastMonitorLookup.nickname,
                         furnace_lv: _lastMonitorLookup.level,
                         avatar_image: _lastMonitorLookup.avatar_image
@@ -3992,6 +3616,5 @@
             lucide.createIcons();
         })();
     </script>
-    <script src="snow-effect.js"></script>
 </body>
 </html>

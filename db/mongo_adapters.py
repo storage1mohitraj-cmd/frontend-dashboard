@@ -2785,6 +2785,24 @@ class AllianceEventsAdapter:
             logging.error(f"Error fetching alliance events: {e}")
             return []
 
+    @staticmethod
+    async def get_global_recent_events_async(limit: int = 80) -> list:
+        """Get recent monitor events across all alliances for the public status feed."""
+        try:
+            db = await _get_db_wos_async()
+            safe_limit = max(1, min(int(limit), 200))
+            cursor = db[AllianceEventsAdapter.COLL].find({}).sort('timestamp', -1).limit(safe_limit)
+            docs = await cursor.to_list(length=None)
+            for doc in docs:
+                doc['id'] = str(doc.get('_id'))
+                doc.pop('_id', None)
+                if isinstance(doc.get('timestamp'), datetime):
+                    doc['timestamp'] = doc['timestamp'].isoformat()
+            return docs
+        except Exception as e:
+            logging.error(f"Error fetching global alliance events: {e}")
+            return []
+
 
 class AllianceMonitoringAdapter:
     COLL = 'alliance_monitoring'
@@ -3956,6 +3974,24 @@ class GiftCodeRedemptionAdapter:
             results.sort(key=lambda x: x['unique_users'], reverse=True)
             return results
         except Exception: return []
+
+    @staticmethod
+    async def get_recent_redemptions_async(limit: int = 80) -> list:
+        """Return recent per-code redemption summaries for the public bot feed."""
+        try:
+            db = await _get_db_main_async()
+            safe_limit = max(1, min(int(limit), 200))
+            cursor = db[GiftCodeRedemptionAdapter.COLL].find({}).sort('last_redeemed_at', -1).limit(safe_limit)
+            docs = await cursor.to_list(length=None)
+            results = []
+            for doc in docs:
+                doc['id'] = str(doc.get('_id'))
+                doc.pop('_id', None)
+                results.append(doc)
+            return results
+        except Exception as e:
+            logger.error(f'Failed to get recent gift code redemptions: {e}')
+            return []
 
 class PersistentViewsAdapter:
     """Adapter for managing persistent views in MongoDB"""

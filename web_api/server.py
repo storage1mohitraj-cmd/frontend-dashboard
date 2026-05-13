@@ -173,6 +173,13 @@ except Exception as e:
     logger.error(f"❌ Failed to load alliance monitor router: {e}")
 
 try:
+    from web_api.routers.bot_feed import router as bot_feed_router
+    app.include_router(bot_feed_router)
+    logger.info("✅ Bot Feed router loaded")
+except Exception as e:
+    logger.error(f"❌ Failed to load bot feed router: {e}")
+
+try:
     from web_api.routers.chat import router as chat_router
     app.include_router(chat_router)
     logger.info("✅ Global Chat router loaded")

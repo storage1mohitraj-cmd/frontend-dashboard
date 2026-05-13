@@ -396,7 +396,13 @@ class ManageGiftCode(commands.Cog):
         while True:
             try:
                 job = await self.auto_redeem_queue.get()
-                guild_id, code, is_recheck = job
+                # Unpack job - handle legacy 3-tuple and new 4-tuple with specific_fid
+                if len(job) == 4:
+                    guild_id, code, is_recheck, specific_fid = job
+                else:
+                    guild_id, code, is_recheck = job
+                    specific_fid = None
+                
                 code_up = str(code).upper()
                 self.current_job = (guild_id, code_up)
                 self.current_jobs[worker_id] = (guild_id, code_up)
@@ -405,7 +411,7 @@ class ManageGiftCode(commands.Cog):
                 
                 try:
                     # Await the actual process (runs sequentially for this worker)
-                    await self.process_auto_redeem(guild_id, code, is_recheck=is_recheck)
+                    await self.process_auto_redeem(guild_id, code, is_recheck=is_recheck, specific_fid=specific_fid)
                 except Exception as e:
                     self.logger.error(f"❌ [WORKER {worker_id}] Error processing guild {guild_id} for code {code_up}: {e}")
                 finally:
@@ -1995,7 +2001,7 @@ class ManageGiftCode(commands.Cog):
             except Exception as e:
                 self.logger.error(f"Error bulk-marking redeemed members for {giftcode}: {e}")
     
-    async def process_auto_redeem(self, guild_id, giftcode, is_recheck=False):
+    async def process_auto_redeem(self, guild_id, giftcode, is_recheck=False, specific_fid=None):
         """
         Process automatic gift code redemption for all members with animation.
         
@@ -2104,6 +2110,14 @@ class ManageGiftCode(commands.Cog):
             # Get all auto-redeem members using MongoDB-first helper
             members_data = await self.AutoRedeemDB.get_members_async(self, guild_id)
             
+            # If a specific FID is provided, only process that one member
+            if specific_fid:
+                self.logger.info(f"🎯 Target-specific redemption: Only processing FID {specific_fid} for guild {guild_id}")
+                members_data = [m for m in members_data if str(m.get('fid')) == str(specific_fid)]
+                if not members_data:
+                    self.logger.warning(f"⚠️ Specific FID {specific_fid} not found in auto-redeem list for guild {guild_id}")
+                    return
+
             if not members_data:
                 self.logger.info(f"No auto-redeem members for guild {guild_id}")
                 await self._publish_redeem_activity(
@@ -3898,7 +3912,7 @@ class ManageGiftCode(commands.Cog):
             self._completion_events[code_up] = asyncio.Event()
             
             for (guild_id,) in pending_guilds:
-                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck))
+                self.auto_redeem_queue.put_nowait((guild_id, code, is_recheck, None))
             
             # Wait for all jobs for THIS code to complete
             await self.wait_for_code_completion(code_up, len(pending_guilds), already_initialized=True)
@@ -4185,7 +4199,7 @@ class ManageGiftCode(commands.Cog):
                                 # this guild only. is_recheck=True so the newly-added member gets
                                 # processed even if the code was previously marked done.
                                 for code in active_codes:
-                                    await self.auto_redeem_queue.put((message.guild.id, code, True))
+                                    await self.auto_redeem_queue.put((message.guild.id, code, True, fid))
                                     self.logger.info(
                                         f"🆕 Queued code {code} for new member {fid} "
                                         f"({player_data['nickname']}) in guild {message.guild.id}"
@@ -5510,7 +5524,7 @@ class ManageGiftCode(commands.Cog):
                             result_embed.add_field(name="📋 Details", value=results_text, inline=False)
                         
                         if len(results) > 20:
-                            self._set_embed_footer(embed, interaction.guild)
+                            self.cog._set_embed_footer(result_embed, modal_interaction.guild)
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                     
@@ -5676,7 +5690,7 @@ class ManageGiftCode(commands.Cog):
                             result_embed.add_field(name="📋 Details", value=results_text, inline=False)
                         
                         if len(results) > 20:
-                            self._set_embed_footer(embed, interaction.guild)
+                            self.cog._set_embed_footer(result_embed, modal_interaction.guild)
                         
                         await modal_interaction.edit_original_response(embed=result_embed)
                         
@@ -6204,7 +6218,7 @@ class ManageGiftCode(commands.Cog):
                             result_embed.add_field(name="📋 Details", value=results_text, inline=False)
                         
                         if len(results) > 20:
-                            self._set_embed_footer(embed, interaction.guild)
+                            self.cog._set_embed_footer(result_embed, remove_interaction.guild)
                         
                         await remove_interaction.edit_original_response(embed=result_embed)
 
@@ -6605,11 +6619,12 @@ class ManageGiftCode(commands.Cog):
                             
                             # Create paginated result view
                             class ResultPaginationView(discord.ui.View):
-                                def __init__(self, results_list, success_cnt, fail_cnt):
+                                def __init__(self, results_list, success_cnt, fail_cnt, cog_instance):
                                     super().__init__(timeout=180)
                                     self.results = results_list
                                     self.success_count = success_cnt
                                     self.fail_count = fail_cnt
+                                    self.cog = cog_instance
                                     self.current_page = 0
                                     self.items_per_page = 20
                                     self.update_buttons()
@@ -6633,7 +6648,7 @@ class ManageGiftCode(commands.Cog):
                                         embed.add_field(name="📋 Details", value=results_text, inline=False)
                                     
                                     if len(self.results) > self.items_per_page:
-                                        self._set_embed_footer(embed, interaction.guild)
+                                        self.cog._set_embed_footer(embed, interaction.guild)
                                     
                                     return embed
                                 
@@ -6674,7 +6689,7 @@ class ManageGiftCode(commands.Cog):
                                         await button_interaction.response.edit_message(embed=self.get_embed(), view=self)
                             
                             # Show paginated results
-                            result_view = ResultPaginationView(results, success_count, fail_count)
+                            result_view = ResultPaginationView(results, success_count, fail_count, self.cog)
                             await add_interaction.edit_original_response(embed=result_view.get_embed(), view=result_view)
                         except Exception as e:
                             self.cog.logger.exception(f"Error in add_selected_members: {e}")
@@ -6907,7 +6922,7 @@ class ManageGiftCode(commands.Cog):
                                 ),
                                 color=0x57F287
                             )
-                            self._set_embed_footer(embed, interaction.guild)
+                            self.cog._set_embed_footer(embed, select_interaction.guild)
                             
                             await select_interaction.response.edit_message(embed=embed, view=None)
                         except Exception as e:
@@ -7069,7 +7084,7 @@ class ManageGiftCode(commands.Cog):
                                 ),
                                 color=0x57F287
                             )
-                            self._set_embed_footer(embed, interaction.guild)
+                            self.cog._set_embed_footer(embed, select_interaction.guild)
                             
                             await select_interaction.response.edit_message(embed=embed, view=None)
                         except Exception as e:

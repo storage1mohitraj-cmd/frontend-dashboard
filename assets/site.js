@@ -118,6 +118,204 @@
       });
   }
 
+  const feedRoot = document.querySelector("[data-spotlight-event]");
+  if (feedRoot) {
+    const els = {
+      state: document.querySelector("[data-feed-state]"),
+      clock: document.querySelector("[data-feed-clock]"),
+      source: document.querySelector("[data-feed-source]"),
+      kind: document.querySelector("[data-event-kind]"),
+      title: document.querySelector("[data-event-title]"),
+      message: document.querySelector("[data-event-message]"),
+      meta: document.querySelector("[data-event-meta]"),
+      avatarCompare: document.querySelector("[data-avatar-compare]"),
+      oldAvatar: document.querySelector("[data-old-avatar]"),
+      newAvatar: document.querySelector("[data-new-avatar]"),
+      queue: document.querySelector("[data-event-queue]"),
+      serverGrid: document.querySelector("[data-server-grid]"),
+      serverCount: document.querySelector("[data-server-count]"),
+      eventCount: document.querySelector("[data-event-count]"),
+      heroState: document.querySelector("[data-hero-feed-state]"),
+      heroTime: document.querySelector("[data-hero-feed-time]"),
+      heroTitle: document.querySelector("[data-hero-feed-title]"),
+      heroMessage: document.querySelector("[data-hero-feed-message]"),
+      heroMeta: document.querySelector("[data-hero-feed-meta]"),
+      heroAvatars: document.querySelector("[data-hero-feed-avatars]"),
+      heroOldAvatar: document.querySelector("[data-hero-old-avatar]"),
+      heroNewAvatar: document.querySelector("[data-hero-new-avatar]")
+    };
+    const fallbackEvents = [
+      {
+        type: "redeem",
+        title: "Gift code redeem",
+        message: "Redeeming code LoveMoM2026 for Magnus ID 720263644 FC4-2 State 3063 at ICe angel server.",
+        player: "Magnus",
+        fid: "720263644",
+        state: "3063",
+        new_value: "LoveMoM2026"
+      },
+      {
+        type: "furnace",
+        title: "Furnace upgrade detected",
+        message: "Magnus State 3063 upgraded FC from FC4-1 to FC4-2.",
+        player: "Magnus",
+        fid: "720263644",
+        old_value: "FC4-1",
+        new_value: "FC4-2"
+      },
+      {
+        type: "avatar",
+        title: "Avatar change detected",
+        message: "Primrose changed her avatar.",
+        player: "Primrose",
+        old_avatar: "https://cdn.discordapp.com/embed/avatars/1.png",
+        new_avatar: "https://cdn.discordapp.com/embed/avatars/4.png"
+      },
+      {
+        type: "name",
+        title: "Name change detected",
+        message: "A monitored player changed name.",
+        player: "ICe angel member",
+        old_value: "Old name",
+        new_value: "New name"
+      }
+    ];
+    let feedEvents = fallbackEvents;
+    let feedIndex = 0;
+
+    const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+    const compactNumber = (value) => {
+      if (typeof value === "string" && value.trim() && Number.isNaN(Number(value))) return value;
+      const number = Number(value || 0);
+      if (number >= 1000000) return `${(number / 1000000).toFixed(number >= 10000000 ? 0 : 1)}M`;
+      if (number >= 1000) return `${(number / 1000).toFixed(number >= 10000 ? 0 : 1)}K`;
+      return String(number);
+    };
+    const setMetric = (name, value) => {
+      document.querySelectorAll(`[data-feed-metric="${name}"]`).forEach((node) => {
+        node.textContent = compactNumber(value);
+      });
+    };
+    const iconLabel = (type) => {
+      const labels = { redeem: "GC", furnace: "FC", avatar: "AV", name: "NM", state: "ST" };
+      return labels[type] || "UP";
+    };
+    const renderEvent = (event) => {
+      els.kind.textContent = (event.type || "update").replace(/_/g, " ");
+      els.title.textContent = event.title || "Bot process update";
+      els.message.textContent = event.message || "A bot workflow completed.";
+      const meta = [
+        event.player,
+        event.fid ? `ID ${event.fid}` : "",
+        event.state ? `State ${event.state}` : "",
+        event.new_value && event.type === "redeem" ? `Code ${event.new_value}` : "",
+        event.old_value && event.new_value && event.type !== "avatar" && event.type !== "redeem" ? `${event.old_value} -> ${event.new_value}` : ""
+      ].filter(Boolean);
+      els.meta.innerHTML = meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+      const hasAvatarPair = event.type === "avatar" && (event.old_avatar || event.old_value) && (event.new_avatar || event.new_value);
+      els.avatarCompare.classList.toggle("is-visible", Boolean(hasAvatarPair));
+      if (hasAvatarPair) {
+        els.oldAvatar.src = event.old_avatar || event.old_value;
+        els.newAvatar.src = event.new_avatar || event.new_value;
+      }
+      renderHeroEvent(event, hasAvatarPair);
+    };
+    const renderHeroEvent = (event, hasAvatarPair) => {
+      if (!els.heroTitle || !els.heroMessage) return;
+      els.heroTitle.textContent = event.title || "Bot process update";
+      els.heroMessage.textContent = event.message || "A bot workflow completed.";
+      const meta = [
+        event.type ? event.type.replace(/_/g, " ") : "update",
+        event.player,
+        event.fid ? `ID ${event.fid}` : "",
+        event.state ? `State ${event.state}` : "",
+        event.new_value && event.type === "redeem" ? `Code ${event.new_value}` : ""
+      ].filter(Boolean);
+      if (els.heroMeta) {
+        els.heroMeta.innerHTML = meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("");
+      }
+      if (els.heroAvatars) {
+        els.heroAvatars.classList.toggle("is-visible", Boolean(hasAvatarPair));
+      }
+      if (hasAvatarPair && els.heroOldAvatar && els.heroNewAvatar) {
+        els.heroOldAvatar.src = event.old_avatar || event.old_value;
+        els.heroNewAvatar.src = event.new_avatar || event.new_value;
+      }
+    };
+    const renderQueue = () => {
+      if (!els.queue) return;
+      els.queue.innerHTML = feedEvents.slice(0, 8).map((event) => `
+        <div class="event-row">
+          <div class="event-icon">${escapeHtml(iconLabel(event.type))}</div>
+          <div><b>${escapeHtml(event.title || "Process update")}</b><span>${escapeHtml(event.message || "")}</span></div>
+        </div>
+      `).join("");
+      if (els.eventCount) els.eventCount.textContent = `${feedEvents.length} cached events`;
+    };
+    const rotate = () => {
+      if (!feedEvents.length) return;
+      renderEvent(feedEvents[feedIndex % feedEvents.length]);
+      feedIndex += 1;
+    };
+    const renderServers = (servers) => {
+      const list = Array.isArray(servers) ? servers : [];
+      if (els.serverCount) els.serverCount.textContent = `${compactNumber(list.length)} servers visible`;
+      if (!els.serverGrid) return;
+      els.serverGrid.innerHTML = list.length
+        ? list.map((server) => `<span class="server-chip">${escapeHtml(server.name)} · ${compactNumber(server.members || 0)}</span>`).join("")
+        : '<span class="server-chip">ICe angel · State 3063</span><span class="server-chip">Demo loop · standby</span>';
+    };
+    const syncFeed = () => {
+      fetch("/api/bot-feed?limit=60", { headers: { Accept: "application/json" } })
+        .then((response) => {
+          if (!response.ok) throw new Error("Feed unavailable");
+          return response.json();
+        })
+        .then((feed) => {
+          feedEvents = Array.isArray(feed.events) && feed.events.length ? feed.events : fallbackEvents;
+          feedIndex = 0;
+          renderQueue();
+          renderServers(feed.servers || []);
+          setMetric("servers", feed.summary?.servers || 0);
+          setMetric("monitors", feed.summary?.active_monitors || 0);
+          setMetric("redeem", feed.summary?.auto_redeem_servers || 0);
+          setMetric("codes", feed.summary?.active_gift_codes || 0);
+          if (els.state) els.state.textContent = feed.status || "online";
+          if (els.heroState) els.heroState.textContent = feed.status === "warming" ? "standby loop" : "live process";
+          if (els.source) els.source.textContent = feed.source === "demo_loop" ? "demo loop" : "live cache";
+          const updatedAt = `updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+          if (els.clock) els.clock.textContent = updatedAt;
+          if (els.heroTime) els.heroTime.textContent = updatedAt;
+          rotate();
+        })
+        .catch(() => {
+          feedEvents = fallbackEvents;
+          renderQueue();
+          renderServers([]);
+          setMetric("servers", "Live");
+          setMetric("monitors", "24/7");
+          setMetric("redeem", "Loop");
+          setMetric("codes", "Ready");
+          if (els.state) els.state.textContent = "standby";
+          if (els.heroState) els.heroState.textContent = "standby loop";
+          if (els.source) els.source.textContent = "cached demo";
+          if (els.heroTime) els.heroTime.textContent = "showing cached activity";
+          rotate();
+        });
+    };
+    renderQueue();
+    rotate();
+    syncFeed();
+    setInterval(rotate, 5200);
+    setInterval(syncFeed, 60000);
+  }
+
   const commandList = document.querySelector("[data-command-list]");
   const categoryWrap = document.querySelector("[data-command-categories]");
   const search = document.querySelector("[data-command-search]");

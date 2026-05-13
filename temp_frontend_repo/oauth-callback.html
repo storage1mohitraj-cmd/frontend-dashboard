@@ -68,8 +68,6 @@
         <p>Please wait while we complete your sign in.</p>
     </div>
     <script>
-        const API_BASE = 'http://140.245.241.54:8080'; // Direct connection to Oracle VM
-
         async function handleCallback() {
             const content = document.getElementById('content');
             try {
@@ -85,7 +83,7 @@
                     return;
                 }
                 // Exchange the code for tokens through your backend
-                const response = await fetch(API_BASE + '/api/auth/exchange', {
+                const response = await fetch('/api/auth/exchange', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

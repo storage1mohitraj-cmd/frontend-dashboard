@@ -227,12 +227,18 @@
       backdrop-filter: blur(10px);
     }
 
+    @media (max-width: 768px) {
+      h1 { font-size: 2.5em; }
+      .hero-card { padding: 40px 20px; }
+      header { padding: 20px; }
+    }
+
     /* Live Feed Styles */
     .live-feed-section {
-      margin-top: 60px;
-      padding: 40px;
+      margin-top: 50px;
+      padding: 32px;
       background: rgba(255, 255, 255, 0.03);
-      border-radius: 24px;
+      border-radius: 20px;
       border: 1px solid var(--glass-border);
       text-align: left;
     }
@@ -241,16 +247,17 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 30px;
+      margin-bottom: 24px;
     }
 
     .feed-title {
       font-family: 'Outfit', sans-serif;
-      font-size: 1.5em;
+      font-size: 1.4em;
       font-weight: 800;
       display: flex;
       align-items: center;
       gap: 12px;
+      color: #fff;
     }
 
     .live-indicator {
@@ -259,6 +266,7 @@
       background: #ff4444;
       border-radius: 50%;
       animation: pulse 1.5s infinite;
+      box-shadow: 0 0 10px rgba(255, 68, 68, 0.5);
     }
 
     @keyframes pulse {
@@ -269,122 +277,131 @@
 
     .feed-container {
       display: grid;
-      grid-template-columns: 1fr 300px;
-      gap: 30px;
+      grid-template-columns: 1fr 280px;
+      gap: 24px;
     }
 
     .active-event {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 30px;
-      border-radius: 20px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 24px;
+      border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.05);
-      min-height: 200px;
+      min-height: 180px;
       display: flex;
       flex-direction: column;
       justify-content: center;
+      position: relative;
+      overflow: hidden;
     }
 
     .event-type {
       text-transform: uppercase;
-      font-size: 0.75em;
+      font-size: 0.7em;
       letter-spacing: 2px;
       color: var(--primary);
       font-weight: 800;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
 
     .event-title {
-      font-size: 1.8em;
+      font-size: 1.6em;
       font-weight: 700;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       font-family: 'Outfit', sans-serif;
+      color: #fff;
     }
 
     .event-message {
       color: var(--text-muted);
-      font-size: 1.1em;
+      font-size: 1rem;
       line-height: 1.5;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     .event-details {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
     .detail-tag {
       background: rgba(255, 255, 255, 0.05);
-      padding: 6px 14px;
-      border-radius: 8px;
-      font-size: 0.85em;
-      color: #ccc;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8em;
+      color: #ddd;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .avatar-compare {
       display: flex;
       align-items: center;
-      gap: 20px;
-      margin-top: 20px;
+      gap: 16px;
+      margin-top: 16px;
     }
 
     .avatar-frame {
       position: relative;
-      width: 64px;
-      height: 64px;
+      width: 54px;
+      height: 54px;
     }
 
     .avatar-frame img {
       width: 100%;
       height: 100%;
-      border-radius: 12px;
+      border-radius: 10px;
       border: 2px solid rgba(255, 255, 255, 0.1);
     }
 
     .avatar-label {
       position: absolute;
-      bottom: -10px;
+      bottom: -8px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--primary);
-      font-size: 0.6em;
-      padding: 2px 6px;
-      border-radius: 4px;
+      color: #fff;
+      font-size: 0.55em;
+      padding: 1px 5px;
+      border-radius: 3px;
       white-space: nowrap;
+      font-weight: 800;
     }
 
     .event-queue {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
 
     .queue-item {
-      padding: 12px 16px;
+      padding: 10px 14px;
       background: rgba(255, 255, 255, 0.02);
-      border-radius: 12px;
+      border-radius: 10px;
       border: 1px solid rgba(255, 255, 255, 0.03);
       display: flex;
       align-items: center;
       gap: 12px;
-      font-size: 0.9em;
-      transition: all 0.3s;
+      font-size: 0.85em;
+      transition: all 0.2s;
     }
 
     .queue-item:hover {
       background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.1);
     }
 
     .queue-icon {
-      width: 32px;
-      height: 32px;
+      width: 30px;
+      height: 30px;
       background: var(--primary);
-      border-radius: 8px;
+      color: #fff;
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-weight: 800;
-      font-size: 0.7em;
+      font-size: 0.65em;
+      flex-shrink: 0;
     }
 
     .queue-text {
@@ -396,8 +413,9 @@
 
     .queue-text b {
       display: block;
-      font-size: 0.85em;
+      font-size: 0.8em;
       color: var(--text-muted);
+      margin-bottom: 2px;
     }
 
     @media (max-width: 900px) {
@@ -411,7 +429,7 @@
 
   <header>
     <div class="brand">
-      <img src="https://cdn.discordapp.com/avatars/1399025185046134866/0b02020a0f6e2c4effffa9e9502f427c.png" alt="Bot Avatar">
+      <img src="/logo.gif" alt="Bot Avatar">
       Whiteout Survival <span class="badge">v2.0</span>
     </div>
     <a href="login.html" class="btn" style="padding: 10px 20px; font-size: 1em; border-radius: 8px;">
@@ -421,7 +439,7 @@
 
   <main class="hero">
     <div class="hero-card">
-      <img src="https://cdn.discordapp.com/avatars/1399025185046134866/0b02020a0f6e2c4effffa9e9502f427c.png"
+      <img src="/logo.gif"
         alt="Bot Avatar" class="bot-avatar">
       
       <h1>The Ultimate Bot for<br>Whiteout Survival</h1>
@@ -435,7 +453,7 @@
         <span class="feature-tag">📊 Live Statistics</span>
         <span class="feature-tag">⚙️ Complete Control Panel</span>
       </div>
-
+      
       <a href="login.html" class="btn">
         <svg class="discord-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
           <path d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09c-.01-.02-.04-.03-.07-.03c-1.5.26-2.93.71-4.27 1.33c-.01 0-.02.01-.03.02c-2.72 4.07-3.47 8.03-3.1 11.95c0 .02.01.04.03.05c1.8 1.32 3.53 2.12 5.24 2.65c.03.01.06 0 .07-.02c.4-.55.76-1.13 1.07-1.74c.02-.04 0-.08-.04-.09c-.57-.22-1.11-.48-1.64-.78c-.04-.02-.04-.08-.01-.11c.11-.08.22-.17.33-.25c.02-.02.05-.02.07-.01c3.44 1.57 7.15 1.57 10.55 0c.02-.01.05-.01.07.01c.11.09.22.17.33.26c.04.03.04.09-.01.11c-.52.31-1.07.56-1.64.78c-.04.01-.05.06-.04.09c.32.61.68 1.19 1.07 1.74c.03.01.06.02.09.01c1.72-.53 3.45-1.33 5.25-2.65c.02-.01.03-.03.03-.05c.44-4.53-.73-8.46-3.1-11.95c-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.84 2.12-1.89 2.12zm6.97 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.83 2.12-1.89 2.12z" />
@@ -455,9 +473,9 @@
 
         <div class="feed-container">
           <div class="active-event" id="active-event">
-            <div class="event-type" id="event-kind">Loading</div>
-            <div class="event-title" id="event-title">Establishing connection</div>
-            <div class="event-message" id="event-message">The bot is currently scanning for live activities across all monitored alliances.</div>
+            <div class="event-type" id="event-kind">Scanning</div>
+            <div class="event-title" id="event-title">Awaiting activity...</div>
+            <div class="event-message" id="event-message">The bot is currently monitoring alliances and gift codes for real-time updates.</div>
             <div class="event-details" id="event-details">
               <!-- Tags injected here -->
             </div>
@@ -467,7 +485,7 @@
                 <img id="old-avatar" src="" alt="Old">
                 <div class="avatar-label">Old</div>
               </div>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5;"><path d="m9 18 6-6-6-6"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.3; color: #fff;"><path d="m9 18 6-6-6-6"/></svg>
               <div class="avatar-frame">
                 <img id="new-avatar" src="" alt="New">
                 <div class="avatar-label">New</div>
@@ -540,6 +558,7 @@
     };
 
     const renderQueue = () => {
+      if (!feedEls.queue) return;
       feedEls.queue.innerHTML = feedEvents.slice(0, 5).map(event => `
         <div class="queue-item">
           <div class="queue-icon">${iconLabel(event.type)}</div>
@@ -562,12 +581,12 @@
         const res = await fetch('/api/bot-feed?limit=20');
         const data = await res.json();
         feedEvents = data.events || [];
-        feedEls.clock.textContent = `updated ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        if (feedEls.clock) feedEls.clock.textContent = `updated ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
         renderQueue();
         if (feedEvents.length && feedIndex === 0) rotate();
       } catch (e) {
         console.error("Feed error:", e);
-        feedEls.clock.textContent = "offline";
+        if (feedEls.clock) feedEls.clock.textContent = "offline";
       }
     };
 

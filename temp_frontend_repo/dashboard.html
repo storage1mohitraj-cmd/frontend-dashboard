@@ -375,7 +375,7 @@
   <div class="bg-animation"></div>
   <header>
     <div class="brand">
-      <img src="https://cdn.discordapp.com/avatars/1399025185046134866/0b02020a0f6e2c4effffa9e9502f427c.png"
+      <img src="/logo.gif"
         alt="Bot Avatar">
       <span>Whiteout Survival Bot</span>
     </div>
@@ -444,7 +444,7 @@
   <script>
     // ─── Config ───────────────────────────────────────────────
     const CONFIG = {
-      API_BASE: 'http://140.245.241.54:8080', // Direct connection to Oracle VM
+      API_BASE: '', // Vercel rewrites handles /api requests to Oracle VM
       BOT_CLIENT_ID: '1399025185046134866',
       DEFAULT_AVATAR: 'https://cdn.discordapp.com/embed/avatars/0.png',
       TIMEOUT_MS: 10000
@@ -645,7 +645,7 @@
             </div>
             <div class="server-body">
               <div class="server-name">${guild.name}</div>
-              <div class="member-count">${guild.approximate_member_count || 'Unknown'} Members</div>
+              <div class="member-count">${guild.approximate_member_count !== undefined ? guild.approximate_member_count : 'Unknown'} Members</div>
               <div class="server-actions">
                 ${botPresence.has(String(guild.id))
               ? `<a href="manage.html?id=${guild.id}" class="btn">Manage Server</a>`

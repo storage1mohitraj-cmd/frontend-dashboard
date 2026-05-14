@@ -68,8 +68,8 @@ async def get_bot_feed(request: Request, limit: int = 40):
     events = [*runtime_events, *events]
     events.sort(key=_event_sort_key, reverse=True)
     events = events[:safe_limit]
-    has_activity = bool(activity_events)
-    has_live_process = has_activity or any(event.get("live") for event in runtime_events)
+    has_activity = any(event.get("live") for event in activity_events)
+    has_live_process = any(event.get("live") for event in events)
 
     payload = {
         "status": _runtime_status(bot, runtime_summary),
@@ -242,6 +242,7 @@ async def _get_redemption_events(limit: int, server_lookup: Dict[str, str]) -> L
         fid = str(latest.get("fid") or "").strip()
         status = str(latest.get("status") or "processed").replace("_", " ")
         server_name = server_lookup.get(guild_id, "a connected server")
+        timestamp = _iso(latest.get("redeemed_at") or doc.get("last_redeemed_at") or doc.get("updated_at"))
         events.append(
             {
                 "id": f"redeem-{doc.get('id')}",
@@ -252,7 +253,8 @@ async def _get_redemption_events(limit: int, server_lookup: Dict[str, str]) -> L
                 "fid": fid,
                 "server": server_name,
                 "new_value": code,
-                "timestamp": _iso(latest.get("redeemed_at") or doc.get("last_redeemed_at") or doc.get("updated_at")),
+                "timestamp": timestamp,
+                "live": _is_recent_iso(timestamp, max_age_seconds=300),
             }
         )
     return events
@@ -266,6 +268,7 @@ def _get_gift_code_events(gift_codes: List[Dict[str, Any]], limit: int) -> List[
             continue
         status = str(item.get("status") or "active")
         auto_processed = bool(item.get("auto_redeem_processed"))
+        timestamp = _iso(item.get("updated_at"))
         events.append(
             {
                 "id": f"gift-code-{code}",
@@ -276,7 +279,8 @@ def _get_gift_code_events(gift_codes: List[Dict[str, Any]], limit: int) -> List[
                 "fid": "",
                 "server": "Global gift-code system",
                 "new_value": code,
-                "timestamp": _iso(item.get("updated_at")),
+                "timestamp": timestamp,
+                "live": _is_recent_iso(timestamp, max_age_seconds=300),
             }
         )
     return events
@@ -813,15 +817,17 @@ def _normalize_event(event: Dict[str, Any]) -> Dict[str, Any]:
         title = "State transfer detected"
         message = f"moved from State {old_value or '?'} to State {new_value or '?'}"
 
+    timestamp = _iso(event.get("timestamp"))
     return {
-        "id": str(event.get("id") or f"{event_type}-{event.get('fid', '')}-{event.get('timestamp', '')}"),
+        "id": str(event.get("id") or f"{event_type}-{event.get('fid', '')}-{timestamp}"),
         "type": event_type,
         "title": title,
         "message": message,
         "player": event.get("nickname") or "Unknown player",
         "fid": str(event.get("fid") or ""),
         "alliance_id": event.get("alliance_id"),
-        "timestamp": _iso(event.get("timestamp")),
+        "timestamp": timestamp,
+        "live": _is_recent_iso(timestamp, max_age_seconds=300),
         "old_value": old_value,
         "new_value": new_value,
         "old_avatar": old_value if event_type == "avatar" else None,

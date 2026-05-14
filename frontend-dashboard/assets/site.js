@@ -320,9 +320,29 @@
           setMetric("redeem", feed.summary?.auto_redeem_servers || 0);
           setMetric("codes", feed.summary?.active_gift_codes || 0);
           const statusLabel = feed.status === "redeeming" ? "redeeming" : (feed.status === "queued" ? "queued" : (feed.status || "online"));
-          if (els.state) els.state.textContent = statusLabel;
-          if (els.heroState) els.heroState.textContent = feed.status === "redeeming" ? "redeeming now" : (feed.source === "idle" ? "waiting for data" : "live process");
-          if (els.source) els.source.textContent = feed.source === "live_process" ? "bot internals" : (feed.source === "idle" ? "idle" : "live cache");
+          if (els.state) {
+            els.state.textContent = statusLabel;
+            // Update pill visual class for state indication
+            els.state.classList.remove("recent", "idle");
+            if (visualState === "recent") els.state.classList.add("recent");
+            else if (visualState === "idle") els.state.classList.add("idle");
+          }
+
+          // Determine visual state: LIVE (live flag set) vs RECENT (events exist but no live) vs IDLE
+          const hasRecentEvents = Array.isArray(feed.events) && feed.events.length > 0;
+          const hasLiveEvent = hasRecentEvents && feed.events.some(e => e.live);
+          const visualState = hasLiveEvent ? "live" : (hasRecentEvents ? "recent" : "idle");
+
+          if (els.heroState) {
+            if (visualState === "live") els.heroState.textContent = "live process";
+            else if (visualState === "recent") els.heroState.textContent = "recent activity";
+            else els.heroState.textContent = feed.status === "redeeming" ? "redeeming now" : "waiting for data";
+          }
+          if (els.source) {
+            if (visualState === "live") els.source.textContent = "live feed";
+            else if (visualState === "recent") els.source.textContent = "stored events";
+            else els.source.textContent = feed.source === "idle" ? "idle" : "api error";
+          }
           const updatedAt = `updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
           if (els.clock) els.clock.textContent = updatedAt;
           if (els.heroTime) els.heroTime.textContent = updatedAt;
@@ -336,7 +356,11 @@
           setMetric("monitors", 0);
           setMetric("redeem", 0);
           setMetric("codes", 0);
-          if (els.state) els.state.textContent = "standby";
+          if (els.state) {
+            els.state.textContent = "standby";
+            els.state.classList.remove("recent", "idle");
+            els.state.classList.add("idle");
+          }
           if (els.heroState) els.heroState.textContent = "waiting for API";
           if (els.source) els.source.textContent = "api unavailable";
           if (els.heroTime) els.heroTime.textContent = "waiting for bot API";

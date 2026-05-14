@@ -25,6 +25,15 @@ except ImportError:
     mongo_enabled = lambda: False
     AllianceEventsAdapter = AllianceMembersAdapter = AllianceMonitoringAdapter = AutoRedeemSettingsAdapter = BotActivityAdapter = GiftCodesAdapter = GiftCodeRedemptionAdapter = None
 
+try:
+    from bot_activity import get_recent_events, get_recent_activity_sqlite
+except ImportError:
+    try:
+        from src.utils.bot_activity import get_recent_events, get_recent_activity_sqlite
+    except ImportError:
+        get_recent_events = lambda limit=100: []
+        get_recent_activity_sqlite = lambda limit=100: []
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/bot-feed", tags=["Bot Feed"])
 
@@ -48,6 +57,10 @@ async def get_bot_feed(request: Request, limit: int = 40):
     members = await _get_recent_members(limit=60)
     monitored_member_count = await _count_monitored_members()
     activity_events = await _get_activity_events(safe_limit)
+    if not activity_events:
+        activity_events = _get_activity_events_inmemory(safe_limit)
+    if not activity_events:
+        activity_events = _get_activity_events_sqlite(safe_limit)
     events = [*activity_events, *await _build_events(safe_limit, server_lookup, gift_codes)]
     monitors = await _get_monitors()
     auto_redeem_enabled = await _get_auto_redeem_enabled()
@@ -93,6 +106,18 @@ async def _get_activity_events(limit: int) -> List[Dict[str, Any]]:
         logger.warning("Unable to load structured bot activity: %s", exc)
         return []
     return [_normalize_activity_event(doc) for doc in docs]
+
+
+def _get_activity_events_inmemory(limit: int) -> List[Dict[str, Any]]:
+    """Read from in-memory circular buffer (fastest, no DB needed)."""
+    raw = get_recent_events(limit)
+    return [_normalize_activity_event(doc) for doc in raw]
+
+
+def _get_activity_events_sqlite(limit: int) -> List[Dict[str, Any]]:
+    """Read from SQLite fallback when MongoDB has no data."""
+    raw = get_recent_activity_sqlite(limit)
+    return [_normalize_activity_event(doc) for doc in raw]
 
 
 def _normalize_activity_event(doc: Dict[str, Any]) -> Dict[str, Any]:

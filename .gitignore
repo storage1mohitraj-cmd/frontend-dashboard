@@ -59,5 +59,14 @@ bot.tar.gz
 bot.zip
 discord_bot_latest.zip
 
-
 frontend-dashboard/
+
+# --- Source Code Structure ---
+# src/ contains:
+#   - src/api/      (FastAPI backend with routers)
+#   - src/bot/      (bot extensions - partial)
+#   - src/utils/    (bot utilities)
+src/
+
+# --- Test Files ---
+tests/

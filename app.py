@@ -4,10 +4,23 @@ import sys
 import subprocess
 from pathlib import Path
 
-# Ensure repository root is on sys.path so modules like `db.mongo_adapters` can be imported
+# Ensure repository root and src subdirectories are on sys.path 
+# so modules moved during migration (like `src/utils/angel_personality.py`) can be imported
 repo_root = str(Path(__file__).resolve().parent)
 if repo_root not in sys.path:
     sys.path.insert(0, repo_root)
+
+src_path = os.path.join(repo_root, "src")
+if os.path.exists(src_path):
+    # Add src to path
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+    # Add subdirectories to path to support legacy direct imports during migration
+    for subdir in ["utils", "api", "bot"]:
+        sub_p = os.path.join(src_path, subdir)
+        if os.path.exists(sub_p) and sub_p not in sys.path:
+            sys.path.insert(0, sub_p)
+
 import importlib
 import time
 

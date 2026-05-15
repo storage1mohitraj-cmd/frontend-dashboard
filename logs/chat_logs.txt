@@ -905,3 +905,81 @@ discord.ext.commands.errors.ExtensionAlreadyLoaded: Extension 'cogs.start_menu' 
 2026-03-03 01:05:13,308 - 🤖 Logged in as Whiteout Survival#3946 (ID: 1399025185046134866)
 2026-03-03 01:05:13,309 - 📊 Connected to 18 guild(s)
 2026-03-03 01:05:13,996 - ✅ Synced 47 commands globally
+2026-05-15 18:42:57,799 - 🚀 Web server task created
+2026-05-15 18:42:57,824 - ✅ Loaded cogs.start_menu
+2026-05-15 18:42:58,768 - ✅ Loaded cogs.alliance
+2026-05-15 18:42:58,882 - ✅ Loaded cogs.alliance_member_operations
+2026-05-15 18:42:58,954 - ✅ Loaded cogs.changes
+2026-05-15 18:42:59,080 - ✅ Loaded cogs.web_search
+2026-05-15 18:42:59,101 - ✅ Loaded cogs.welcome_channel
+2026-05-15 18:42:59,152 - ✅ Loaded cogs.control
+2026-05-15 18:43:00,110 - ✅ Loaded cogs.gift_operations
+2026-05-15 18:43:00,371 - ✅ Loaded cogs.manage_giftcode
+2026-05-15 18:43:00,391 - ✅ Loaded cogs.id_channel
+2026-05-15 18:43:00,912 - ✅ Loaded cogs.bot_operations
+2026-05-15 18:43:01,023 - ✅ Loaded cogs.remote_access
+2026-05-15 18:43:01,053 - ✅ Loaded cogs.fid_commands
+2026-05-15 18:43:01,064 - ✅ Loaded cogs.record_commands
+2026-05-15 18:43:01,148 - ✅ Loaded cogs.bear_trap
+2026-05-15 18:43:01,170 - ✅ Loaded cogs.bear_trap_editor
+2026-05-15 18:43:01,393 - ✅ Loaded cogs.attendance
+2026-05-15 18:43:01,525 - ✅ Loaded cogs.minister_schedule
+2026-05-15 18:43:01,535 - ✅ Loaded cogs.other_features
+2026-05-15 18:43:01,549 - ✅ Loaded cogs.support_operations
+2026-05-15 18:43:01,594 - ✅ Loaded cogs.minister_menu
+2026-05-15 18:43:01,615 - ✅ Loaded cogs.playerinfo
+2026-05-15 18:43:01,632 - ✅ Loaded cogs.reminder_system
+2026-05-15 18:43:02,119 - ✅ Loaded cogs.birthday_system
+2026-05-15 18:43:02,131 - ✅ Loaded cogs.events
+2026-05-15 18:43:02,161 - ✅ Loaded cogs.server_age
+2026-05-15 18:43:02,184 - ✅ Loaded cogs.personalise_chat
+2026-05-15 18:43:02,195 - ✅ Loaded cogs.presence
+2026-05-15 18:43:02,272 - ✅ Loaded cogs.auto_translate
+2026-05-15 18:43:02,346 - ✅ Loaded cogs.message_extractor
+2026-05-15 18:43:02,357 - ✅ Loaded cogs.tictactoe
+2026-05-15 18:43:08,408 - ✅ Loaded cogs.alliance_monitor
+2026-05-15 18:43:08,418 - ✅ Loaded cogs.ai_chat
+2026-05-15 18:43:08,418 - 📦 Cog loading complete: 33 loaded, 0 failed
+2026-05-15 18:43:08,547 - ✅ User profiles loaded successfully
+2026-05-15 18:43:10,025 - ✅ Playlist storage initialized
+2026-05-15 18:43:10,974 - ✅ Music state storage initialized
+2026-05-15 18:43:10,975 - ✅ Keep-alive task started (runs every 5 minutes)
+2026-05-15 18:43:10,976 - ✅ Giftcode auto-poster background task started (5m interval)
+2026-05-15 18:43:11,072 - 🔄 Restoring 5 persistent views from MongoDB...
+2026-05-15 18:43:11,074 - ✅ View restoration complete: 5 restored, 0 failed
+2026-05-15 18:43:11,074 - ✅ Registered GiftCodeView
+2026-05-15 18:43:11,075 - ✅ Registered PersistentHelpView
+2026-05-15 18:43:11,075 - ✅ Registered Pollinate Views
+2026-05-15 18:43:11,076 - ✅ Registered PersistentMemberListView
+2026-05-15 18:43:11,076 - ✅ Registered BirthdayWishView
+2026-05-15 18:43:11,077 - ✅ Registered Record Views
+2026-05-15 18:43:11,077 - ✨ [STARTUP] setup_hook completed successfully
+2026-05-15 18:43:14,910 - 🤖 Logged in as .Whiteout Survival#3946 (ID: 1399025185046134866)
+2026-05-15 18:43:14,910 - 📊 Connected to 26 guild(s)
+2026-05-15 18:43:16,643 - ✅ Synced 34 commands globally
+2026-05-15 18:43:17,272 - ✅ Synced commands to guild: test 2
+2026-05-15 18:43:19,851 - ✅ Synced commands to guild: Server von Yvetteee
+2026-05-15 18:43:22,339 - ✅ Synced commands to guild: Face Swap
+2026-05-15 18:43:24,910 - ✅ Synced commands to guild: test
+2026-05-15 18:43:27,357 - ✅ Synced commands to guild: [LTS] State #2540
+2026-05-15 18:43:29,823 - ✅ Synced commands to guild: [HOE] Home of Eternals
+2026-05-15 18:43:32,264 - ✅ Synced commands to guild: [PRO]Family
+2026-05-15 18:43:34,786 - ✅ Synced commands to guild: CatNap #3063
+2026-05-15 18:43:37,564 - ✅ Synced commands to guild: ICEAɳɠҽʅ
+2026-05-15 18:43:40,075 - ✅ Synced commands to guild: State #3063
+2026-05-15 18:43:42,536 - ✅ Synced commands to guild: CPR
+2026-05-15 18:43:44,994 - ✅ Synced commands to guild: 3063 KOR Alliance
+2026-05-15 18:43:47,503 - ✅ Synced commands to guild: WHITEOUT SURVIVAL BOT
+2026-05-15 18:43:49,956 - ✅ Synced commands to guild: Grumpy's personal server
+2026-05-15 18:43:52,413 - ✅ Synced commands to guild: ᲼᲼᲼᲼᲼᲼᲼᲼᲼'s server
+2026-05-15 18:43:55,137 - ✅ Synced commands to guild: [FOV]Flame Of Vengeance
+2026-05-15 18:43:57,644 - ✅ Synced commands to guild: (SGC) Silent Glacier
+2026-05-15 18:44:00,142 - ✅ Synced commands to guild: Silent Storms 🌀
+2026-05-15 18:44:02,620 - ✅ Synced commands to guild: NEP
+2026-05-15 18:44:05,085 - ✅ Synced commands to guild: GTA giftcode
+2026-05-15 18:44:08,370 - ✅ Synced commands to guild: edfy8dhfoa8903q0709uhf's server
+2026-05-15 18:44:11,099 - ✅ Synced commands to guild: [FFS]FatFingerSyndrom
+2026-05-15 18:44:13,577 - ✅ Synced commands to guild: 4324 STATE
+2026-05-15 18:44:16,032 - ✅ Synced commands to guild: FOVFOV
+2026-05-15 18:44:18,617 - ✅ Synced commands to guild: We are ONE | WOS
+2026-05-15 18:44:21,946 - ✅ Synced commands to guild: Ohana Wos

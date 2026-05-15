@@ -10,4 +10,4 @@ if exist ".venv\Scripts\activate.bat" (
     echo Virtual environment not found. Run install_and_run.ps1 first to create .venv
 )
 
-python main.py
+python app.py

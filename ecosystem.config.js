@@ -48,5 +48,26 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss",
       merge_logs: false,
     },
+    {
+      name: "oracle-keepalive",
+      script: "oracle_keepalive.py",
+      interpreter: "python3",      // Windows: change to "python"
+      cwd: "/home/ubuntu/bot",    // Oracle VM root path
+      
+      // ── Restart policy ──────────────────────────────────────────────────
+      max_restarts: 5,             
+      restart_delay: 10000,       
+      min_uptime: "60s",          
+      
+      // ── Process behaviour ───────────────────────────────────────────────
+      watch: false,
+      autorestart: true,
+      
+      // ── Log files ───────────────────────────────────────────────────────
+      out_file: "/home/ubuntu/bot/keepalive-out.log",
+      error_file: "/home/ubuntu/bot/keepalive-error.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss",
+      merge_logs: false,
+    },
   ],
 };

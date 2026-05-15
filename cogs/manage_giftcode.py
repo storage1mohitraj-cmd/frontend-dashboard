@@ -2127,11 +2127,13 @@ class ManageGiftCode(commands.Cog):
             
             if not channel_id:
                 self.logger.warning(f"No import channel configured for guild {guild_id}")
+                await self._mark_guild_completed(guild_id, code_up)
                 return
             
             channel = self.bot.get_channel(channel_id)
             if not channel:
                 self.logger.warning(f"Import channel {channel_id} not found")
+                await self._mark_guild_completed(guild_id, code_up)
                 return
             
             # Get all auto-redeem members using MongoDB-first helper
@@ -2143,6 +2145,7 @@ class ManageGiftCode(commands.Cog):
                 members_data = [m for m in members_data if str(m.get('fid')) == str(specific_fid)]
                 if not members_data:
                     self.logger.warning(f"⚠️ Specific FID {specific_fid} not found in auto-redeem list for guild {guild_id}")
+                    await self._mark_guild_completed(guild_id, code_up)
                     return
 
             if not members_data:
@@ -2155,6 +2158,7 @@ class ManageGiftCode(commands.Cog):
                     code_up,
                     reason="no_members",
                 )
+                await self._mark_guild_completed(guild_id, code_up)
                 return
             
             
@@ -2661,20 +2665,21 @@ class ManageGiftCode(commands.Cog):
             # ── Record completed job for Live Status history ──────────────────
             try:
                 _live_key = (guild_id, code_up)
-                _snapshot = self._guild_live_stats.pop(_live_key, {})
-                _hist_entry = {
-                    'guild_id':    guild_id,
-                    'code':        code_up,
-                    'success':     _snapshot.get('success', 0),
-                    'already':     _snapshot.get('already', 0),
-                    'failed':      _snapshot.get('failed', 0),
-                    'total':       _snapshot.get('total', 0),
-                    'finished_at': int(datetime.now().timestamp()),
-                }
-                self._last_completed_jobs.append(_hist_entry)
-                # Keep only the last 5 entries
-                if len(self._last_completed_jobs) > 5:
-                    self._last_completed_jobs = self._last_completed_jobs[-5:]
+                _snapshot = self._guild_live_stats.pop(_live_key, None)
+                if _snapshot is not None:
+                    _hist_entry = {
+                        'guild_id':    guild_id,
+                        'code':        code_up,
+                        'success':     _snapshot.get('success', 0),
+                        'already':     _snapshot.get('already', 0),
+                        'failed':      _snapshot.get('failed', 0),
+                        'total':       _snapshot.get('total', 0),
+                        'finished_at': int(datetime.now().timestamp()),
+                    }
+                    self._last_completed_jobs.append(_hist_entry)
+                    # Keep only the last 5 entries
+                    if len(self._last_completed_jobs) > 5:
+                        self._last_completed_jobs = self._last_completed_jobs[-5:]
             except Exception:
                 pass
 

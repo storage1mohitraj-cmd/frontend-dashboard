@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -Command \"Get-Acl 'frontend-dashboard' | Format-List\")",
+      "Bash(powershell -Command \"Copy-Item -Path 'frontend-dashboard' -Destination 'public' -Recurse -Force\")",
+      "Bash(# Move web_api contents up one level *)",
+      "Bash(# There's a nested cogs/cogs - fix this *)",
+      "Bash(cp src/api/routers/* web_api/routers/)",
+      "Bash(cp -r src/api/routers web_api/)",
+      "Bash(mv test_*.py tests/)",
+      "Bash(mv check_*.py scripts/utilities/)",
+      "Bash(mv *_migration*.py scripts/utilities/)",
+      "Bash(mv migrate_*.py scripts/utilities/)",
+      "Bash(rm -f *.bak)",
+      "Bash(# Move backend-related files to src/bot *)"
+    ],
+    "additionalDirectories": [
+      "F:\\Whiteout Survival Bot\\src\\api\\web_api",
+      "F:\\Whiteout Survival Bot\\cogs\\cogs",
+      "F:\\Whiteout Survival Bot"
+    ]
+  }
+}

@@ -1,0 +1,2 @@
+# pyproject.toml intentionally left minimal to avoid triggering build isolation
+# Disabled for Render builds — dependency installation is handled via requirements.txt

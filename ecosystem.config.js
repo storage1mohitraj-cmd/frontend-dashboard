@@ -16,7 +16,7 @@ module.exports = {
     {
       name: "discordbot",
       script: "app.py",
-      interpreter: "./.venv/bin/python3",      // Windows: change to "python"
+      interpreter: "/home/ubuntu/bot/.venv/bin/python3",      // Windows: change to "python"
       cwd: "/home/ubuntu/bot",    // Oracle VM root path (where this app.py lives)
 
       // ── Restart policy ──────────────────────────────────────────────────
@@ -51,7 +51,7 @@ module.exports = {
     {
       name: "oracle-keepalive",
       script: "oracle_keepalive.py",
-      interpreter: "./.venv/bin/python3",      // Windows: change to "python"
+      interpreter: "/home/ubuntu/bot/.venv/bin/python3",      // Windows: change to "python"
       cwd: "/home/ubuntu/bot",    // Oracle VM root path
       
       // ── Restart policy ──────────────────────────────────────────────────

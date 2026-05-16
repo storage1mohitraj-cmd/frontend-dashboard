@@ -180,16 +180,42 @@
       const labels = { redeem: "GC", gift_code: "GC", furnace: "FC", avatar: "AV", name: "NM", state: "ST", monitor: "AM", system: "SYS" };
       return labels[type] || "UP";
     };
+    const formatFurnaceLevel = (furnace_lv) => {
+      const lv = Number(furnace_lv);
+      if (!furnace_lv || Number.isNaN(lv)) return furnace_lv;
+      if (lv <= 30) return String(lv);
+      if (lv === 31) return "30-1";
+      if (lv === 32) return "30-2";
+      if (lv === 33) return "30-3";
+      if (lv === 34) return "30-4";
+      if (lv === 35) return "1";
+      if (lv === 36) return "1-1";
+      if (lv === 37) return "1-2";
+      if (lv === 38) return "1-3";
+      if (lv === 39) return "1-4";
+      if (lv === 40) return "2";
+      if (lv >= 41 && lv <= 43) return "2-1";
+      if (lv === 44) return "2-2";
+      if (lv === 45) return "3";
+      const relative = lv - 45;
+      const tier = Math.floor(relative / 5) + 3;
+      const stage = relative % 5;
+      return stage === 0 ? String(tier) : `${tier}-${stage}`;
+    };
+
     const eventTagValues = (event) => [
       event.player,
       event.fid ? `ID ${event.fid}` : "",
       event.state_id ? `State ${event.state_id}` : (event.state ? `State ${event.state}` : ""),
-      event.fc_lvl ? `FC ${event.fc_lvl}` : "",
+      event.fc_lvl ? `FC ${formatFurnaceLevel(event.fc_lvl)}` : "",
       event.server || event.guild_name,
       event.alliance_name,
       event.gift_code ? `Code ${event.gift_code}` : (event.new_value && (event.type === "redeem" || event.type === "gift_code") ? `Code ${event.new_value}` : ""),
       event.status ? `Status ${String(event.status).replace(/_/g, " ")}` : ""
     ].filter(Boolean);
+
+    const getAvatarFallback = (url) => (typeof url === "string" && url.startsWith("http")) ? url : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z'/%3E%3C/svg%3E";
+
     const renderEvent = (event) => {
       els.kind.textContent = (event.type || "update").replace(/_/g, " ");
       els.title.textContent = event.title || "Bot process update";
@@ -204,8 +230,8 @@
       const hasAvatarPair = (event.type === "avatar" || event.old_avatar || event.new_avatar) && (event.old_avatar || event.old_value) && (event.new_avatar || event.new_value);
       els.avatarCompare.classList.toggle("is-visible", Boolean(hasAvatarPair));
       if (hasAvatarPair) {
-        els.oldAvatar.src = event.old_avatar || event.old_value;
-        els.newAvatar.src = event.new_avatar || event.new_value;
+        els.oldAvatar.src = getAvatarFallback(event.old_avatar || event.old_value);
+        els.newAvatar.src = getAvatarFallback(event.new_avatar || event.new_value);
       }
       renderHeroEvent(event, hasAvatarPair);
     };
@@ -226,8 +252,8 @@
         els.heroAvatars.classList.toggle("is-visible", Boolean(hasAvatarPair));
       }
       if (hasAvatarPair && els.heroOldAvatar && els.heroNewAvatar) {
-        els.heroOldAvatar.src = event.old_avatar || event.old_value;
-        els.heroNewAvatar.src = event.new_avatar || event.new_value;
+        els.heroOldAvatar.src = getAvatarFallback(event.old_avatar || event.old_value);
+        els.heroNewAvatar.src = getAvatarFallback(event.new_avatar || event.new_value);
       }
     };
     const renderQueue = () => {
@@ -251,7 +277,7 @@
       els.queue.innerHTML = feedEvents.slice(0, 15).map((event) => {
         const statusClass = getStatusClass(event.status, event.type);
         const time = formatEventTime(event.timestamp);
-        const tags = eventTagValues(event).slice(0, 4);
+        const tags = eventTagValues(event).slice(0, 8);
         return `
         <div class="dispatch-bubble ${statusClass}">
           <div class="dispatch-bubble-top">

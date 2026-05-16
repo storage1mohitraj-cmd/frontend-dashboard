@@ -242,7 +242,7 @@
       const meta = [
         event.type ? event.type.replace(/_/g, " ") : "update",
         ...eventTagValues(event)
-      ].filter(Boolean).slice(0, 5);
+      ].filter(Boolean).slice(0, 8);
       if (els.heroMeta) {
         els.heroMeta.innerHTML = meta.length
           ? meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")

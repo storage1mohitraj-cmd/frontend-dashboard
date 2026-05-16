@@ -121,6 +121,31 @@
       font-size: 0.76rem;
     }
 
+    .hero-feed-top-left {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .hero-feed-close {
+      display: grid;
+      place-items: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 0;
+      border-radius: 0.35rem;
+      background: transparent;
+      color: rgba(232, 240, 247, 0.5);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      margin-left: auto;
+    }
+
+    .hero-feed-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+
     .hero-feed-top b {
       display: inline-flex;
       align-items: center;
@@ -705,10 +730,15 @@
             <a class="button" href="https://discord.com/oauth2/authorize?client_id=1399025185046134866&permissions=8&integration_type=0&scope=bot" target="_blank" rel="noopener noreferrer">Add to Discord <svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
             <a class="button secondary" href="commands.html">View commands <svg viewBox="0 0 24 24"><path d="m4 17 5-5-5-5"/><path d="M12 19h8"/></svg></a>
           </div>
-          <div class="hero-live-feed" aria-label="Current bot process status">
+          <div class="hero-live-feed" aria-label="Current bot process status" id="hero-live-feed">
             <div class="hero-feed-top">
-              <b data-hero-feed-state>live process</b>
-              <span data-hero-feed-time>syncing feed</span>
+              <div class="hero-feed-top-left">
+                <b data-hero-feed-state>live process</b>
+                <span data-hero-feed-time>syncing feed</span>
+              </div>
+              <button type="button" class="hero-feed-close" aria-label="Close live feed" onclick="document.getElementById('hero-live-feed').style.display = 'none';">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
             </div>
             <div class="hero-feed-body">
               <div class="hero-feed-copy">

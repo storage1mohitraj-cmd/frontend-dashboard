@@ -314,7 +314,7 @@
       height: 84px;
       border-radius: 24px;
       position: absolute;
-      bottom: -42px;
+      top: 78px;
       left: 32px;
       border: 6px solid var(--bg-dark);
       background: var(--bg-dark);
@@ -505,7 +505,7 @@
 
   <footer>
     <div style="margin-bottom: 8px; font-weight: 700; color: #fff;">Whiteout Survival</div>
-    &copy; 2026 • Crafted with passion for the community.
+    &copy; 2026 • Created for Wos Community.
   </footer>
 
   <script>
@@ -630,17 +630,16 @@
           const isBotPresent = botPresence.has(String(guild.id));
 
           card.innerHTML = `
-            <div class="server-banner">
-              <div class="server-icon">
-                <img src="${icon}" alt="${guild.name}" onerror="this.src='${CONFIG.DEFAULT_AVATAR}'">
-              </div>
+            <div class="server-banner"></div>
+            <div class="server-icon">
+              <img src="${icon}" alt="${guild.name}" onerror="this.src='${CONFIG.DEFAULT_AVATAR}'">
             </div>
             <div class="server-body">
               <div class="server-name">${guild.name}</div>
               <div class="member-count">${guild.approximate_member_count || '0'} Total Members</div>
               <div class="server-actions">
                 ${isBotPresent
-                  ? `<a href="manage.html?id=${guild.id}" class="btn">Configure Settings</a>`
+                  ? `<a href="manage.html?id=${guild.id}" class="btn">Manage Server</a>`
                   : `<a href="https://discord.com/api/oauth2/authorize?client_id=${CONFIG.BOT_CLIENT_ID}&permissions=8&scope=bot%20applications.commands&guild_id=${guild.id}" class="btn" style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); color:#fff;">Setup Bot</a>`
                 }
               </div>

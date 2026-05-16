@@ -705,6 +705,25 @@
             border-top: 1px solid var(--glass-border);
         }
 
+        /* Discord Channel Preview */
+        .dc-preview-mini {
+            display: inline-flex; align-items: center; gap: 5px;
+            font-size: 0.73rem; color: var(--primary);
+            cursor: pointer; padding: 4px 8px;
+            border-radius: 6px; background: rgba(139,92,246,0.08);
+            border: 1px solid rgba(139,92,246,0.2);
+            transition: all 0.15s; margin-top: 4px;
+            user-select: none;
+        }
+        .dc-preview-mini:hover { background: rgba(139,92,246,0.18); border-color: rgba(139,92,246,0.4); }
+        .dc-preview-popup {
+            margin-top: 10px; border-radius: 10px;
+            overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+            animation: fadeIn 0.2s ease-out;
+        }
+        @media(max-width: 1200px) { .ar-config-grid[style*="1fr 1fr 1fr"] { grid-template-columns: 1fr 1fr !important; } }
+        @media(max-width: 700px) { .ar-config-grid[style*="1fr 1fr 1fr"] { grid-template-columns: 1fr !important; } }
+
         /* Add Member Modal */
         .add-member-lookup {
             background: rgba(0,0,0,0.2);
@@ -1343,30 +1362,133 @@
                     </div>
 
                     <!-- Channel Configuration -->
-                    <div class="ar-config-grid">
+                    <div class="ar-config-grid" style="grid-template-columns: 1fr 1fr 1fr;">
+                        <!-- Card 1: Auto-Redeem Log Channel -->
                         <div class="ar-config-card">
                             <div class="ar-config-label">
-                                <i data-lucide="hash"></i>
+                                <i data-lucide="clipboard-list"></i>
                                 Auto-Redeem Log Channel
                             </div>
-                            <select id="ar-log-channel" class="guild-channels">
-                                <option value="">Select a channel</option>
-                            </select>
+                            <select id="ar-log-channel" class="guild-channels"></select>
                             <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
-                                Redemption results will be posted to this channel
+                                Redemption results will be posted here after each auto-redeem run.
                             </p>
+                            <!-- Discord Preview -->
+                            <div class="dc-preview-mini" onclick="toggleChannelPreview('preview-log')">
+                                <i data-lucide="eye" style="width:13px;"></i> Preview in Discord
+                            </div>
+                            <div id="preview-log" class="dc-preview-popup" style="display:none;">
+                                <div class="dc-chat" style="background:#313338; border-radius:8px; padding:12px; font-size:0.8rem;">
+                                    <div class="dc-message">
+                                        <img src="logo.png" class="dc-bot-avatar" style="width:34px;height:34px;" alt="Bot">
+                                        <div class="dc-message-body">
+                                            <div class="dc-message-header">
+                                                <span class="dc-bot-name" style="font-size:0.82rem;">Whiteout Survival</span>
+                                                <span class="dc-bot-tag" style="font-size:0.58rem;">APP</span>
+                                                <span class="dc-timestamp">Today at 11:41 AM</span>
+                                            </div>
+                                            <div style="background:#2b2d31;border-left:4px solid #5865f2;border-radius:4px;padding:10px 12px;max-width:300px;">
+                                                <div style="color:#fff;font-weight:700;margin-bottom:6px;">🎁 Auto-Redeem Complete</div>
+                                                <div style="background:#1e2030;border-radius:4px;padding:6px 10px;margin-bottom:8px;font-family:monospace;color:#a5f3fc;">Gift Code: FE5BY8</div>
+                                                <div style="color:#dbdee1;font-size:0.78rem;line-height:1.8;">
+                                                    ✅ Success: <strong>25</strong><br>
+                                                    ℹ️ Already Redeemed: <strong>0</strong><br>
+                                                    ❌ Failed: <strong>0</strong><br>
+                                                    ⏱️ Completed: <strong>just now</strong>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+                        <!-- Card 2: Player Registration Channel -->
                         <div class="ar-config-card">
                             <div class="ar-config-label">
                                 <i data-lucide="user-plus"></i>
                                 Player Registration Channel
                             </div>
-                            <select id="ar-register-channel" class="guild-channels">
-                                <option value="">Select a channel</option>
-                            </select>
+                            <select id="ar-register-channel" class="guild-channels"></select>
                             <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
-                                Players write their FID here to register for auto-redeem
+                                Players send their FID here to register for auto-redeem.
                             </p>
+                            <!-- Discord Preview -->
+                            <div class="dc-preview-mini" onclick="toggleChannelPreview('preview-register')">
+                                <i data-lucide="eye" style="width:13px;"></i> Preview in Discord
+                            </div>
+                            <div id="preview-register" class="dc-preview-popup" style="display:none;">
+                                <div class="dc-chat" style="background:#313338; border-radius:8px; padding:12px; font-size:0.8rem;">
+                                    <div style="color:#72767d;font-size:0.7rem;margin-bottom:8px;">ICE sent 343149472</div>
+                                    <div class="dc-message">
+                                        <img src="logo.png" class="dc-bot-avatar" style="width:34px;height:34px;" alt="Bot">
+                                        <div class="dc-message-body">
+                                            <div class="dc-message-header">
+                                                <span class="dc-bot-name" style="font-size:0.82rem;">Whiteout Survival</span>
+                                                <span class="dc-bot-tag" style="font-size:0.58rem;">APP</span>
+                                                <span class="dc-timestamp">Today at 1:02 PM</span>
+                                            </div>
+                                            <div style="background:#2b2d31;border-left:4px solid #57f287;border-radius:4px;padding:10px 12px;max-width:300px;">
+                                                <div style="color:#fff;font-weight:700;margin-bottom:4px;">✨ Auto-Redeem Complete</div>
+                                                <div style="color:#57f287;font-size:0.78rem;margin-bottom:8px;">✅ Player is now enrolled for automated gift codes.</div>
+                                                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.76rem;color:#dbdee1;">
+                                                    <div><div style="color:#72767d;font-size:0.68rem;">Player ID</div>343149472</div>
+                                                    <div><div style="color:#72767d;font-size:0.68rem;">Furnace</div>FC 8</div>
+                                                </div>
+                                                <div style="color:#dbdee1;font-size:0.74rem;margin-top:8px;">🚀 Redemption Results<br>✅ Success: 0 &nbsp; ℹ️ Already Claimed: 2 &nbsp; ❌ Failed: 0</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Card 3: Latest Code Notification Channel -->
+                        <div class="ar-config-card">
+                            <div class="ar-config-label">
+                                <i data-lucide="bell"></i>
+                                New Code Notification Channel
+                            </div>
+                            <select id="ar-poster-channel" class="guild-channels"></select>
+                            <p style="font-size: 0.78rem; color: var(--text-muted); line-height: 1.4;">
+                                Bot will announce newly detected gift codes to this channel.
+                            </p>
+                            <!-- Discord Preview -->
+                            <div class="dc-preview-mini" onclick="toggleChannelPreview('preview-poster')">
+                                <i data-lucide="eye" style="width:13px;"></i> Preview in Discord
+                            </div>
+                            <div id="preview-poster" class="dc-preview-popup" style="display:none;">
+                                <div class="dc-chat" style="background:#313338; border-radius:8px; padding:12px; font-size:0.8rem;">
+                                    <div class="dc-message">
+                                        <img src="logo.png" class="dc-bot-avatar" style="width:34px;height:34px;" alt="Bot">
+                                        <div class="dc-message-body">
+                                            <div class="dc-message-header">
+                                                <span class="dc-bot-name" style="font-size:0.82rem;">Whiteout Survival</span>
+                                                <span class="dc-bot-tag" style="font-size:0.58rem;">APP</span>
+                                                <span class="dc-timestamp">Today at 6:43 PM</span>
+                                            </div>
+                                            <div style="background:#2b2d31;border-left:4px solid #fbbf24;border-radius:4px;padding:10px 12px;max-width:300px;">
+                                                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                                                    <div>
+                                                        <div style="color:#fff;font-weight:700;margin-bottom:2px;">✨ New Whiteout Survival Gift Codes ✨</div>
+                                                        <div style="color:#72767d;font-size:0.7rem;margin-bottom:8px;">Last updated: 2026-05-15 13:13:19 UTC</div>
+                                                        <div style="color:#72767d;font-size:0.72rem;margin-bottom:2px;">🎫 Code:</div>
+                                                        <div style="background:#1e2030;border-radius:4px;padding:6px 10px;font-family:monospace;color:#a5f3fc;font-size:0.85rem;margin-bottom:6px;">WOSFAMILY26</div>
+                                                        <div style="color:#dbdee1;font-size:0.74rem;"><em>Rewards:</em> Rewards not specified<br><em>Expires:</em> Unknown</div>
+                                                        <div style="color:#72767d;font-size:0.7rem;margin-top:6px;">Use /giftcode to see all active codes!</div>
+                                                    </div>
+                                                    <div style="font-size:1.8rem;">🎁</div>
+                                                </div>
+                                                <div style="display:flex;gap:6px;margin-top:10px;">
+                                                    <span style="background:#5865f2;color:#fff;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">Copy Code</span>
+                                                    <span style="background:#57f287;color:#000;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">Redeem</span>
+                                                    <span style="background:#4f545c;color:#fff;padding:4px 10px;border-radius:4px;font-size:0.72rem;cursor:pointer;">Refresh Codes</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1961,7 +2083,7 @@
         async function loadChannels() {
             try {
                 const channels = await fetchData(`/api/guilds/${guildId}/channels`);
-                const selects = document.querySelectorAll('#welcome-channel, .guild-channels, #birthday-channel, #source-channel, #target-channel, #ar-log-channel, #ar-register-channel');
+                const selects = document.querySelectorAll('#welcome-channel, .guild-channels, #birthday-channel, #source-channel, #target-channel, #ar-log-channel, #ar-register-channel, #ar-poster-channel');
                 selects.forEach(select => {
                     select.innerHTML = '<option value="">Select a channel</option>';
                     channels.forEach(ch => {
@@ -2502,7 +2624,7 @@
                         <img src="${res.data.avatar_image || 'https://cdn.discordapp.com/embed/avatars/0.png'}" class="player-avatar-large" alt="Avatar">
                         <div class="player-meta">
                             <h4>${escapeHTML(res.data.nickname)}</h4>
-                            <p>FID: ${res.data.fid} • ${res.data.furnace_lv_formatted}</p>
+                            <p>FID: ${res.data.id} • ${res.data.furnace_lv_formatted}</p>
                         </div>
                     `;
                     updateRedeemButtonState();
@@ -2536,7 +2658,7 @@
                 const res = await fetchData('/api/giftcodes/redeem', {
                     method: 'POST',
                     body: JSON.stringify({
-                        fid: currentPlayer.fid,
+                        id: currentPlayer.id,
                         codes: codesArray,
                         guild_id: guildId
                     })
@@ -2595,6 +2717,15 @@
         // ──────────────────────────────────────────────────
         let pendingAddMember = null;
 
+        function toggleChannelPreview(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const isVisible = el.style.display !== 'none';
+            // Close all other previews
+            document.querySelectorAll('.dc-preview-popup').forEach(p => p.style.display = 'none');
+            if (!isVisible) el.style.display = 'block';
+        }
+
         function onAutoRedeemToggle(cb) {
             const badge = document.getElementById('ar-status-badge');
             if (cb.checked) {
@@ -2619,6 +2750,9 @@
                 if (settings.registration_channel_id) {
                     document.getElementById('ar-register-channel').value = settings.registration_channel_id;
                 }
+                if (settings.latest_code_channel_id) {
+                    document.getElementById('ar-poster-channel').value = settings.latest_code_channel_id;
+                }
             } catch (e) {
                 console.warn('Failed to load auto-redeem settings:', e);
             }
@@ -2637,7 +2771,7 @@
                         auto_redeem_enabled: document.getElementById('ar-enabled-toggle').checked,
                         auto_redeem_channel_id: document.getElementById('ar-log-channel').value || null,
                         registration_channel_id: document.getElementById('ar-register-channel').value || null,
-                        latest_code_channel_id: null
+                        latest_code_channel_id: document.getElementById('ar-poster-channel').value || null
                     })
                 });
                 showNotification('✅ Auto-Redeem settings saved!');

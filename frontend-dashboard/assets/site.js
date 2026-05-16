@@ -320,6 +320,11 @@
           setMetric("redeem", feed.summary?.auto_redeem_servers || 0);
           setMetric("codes", feed.summary?.active_gift_codes || 0);
           const statusLabel = feed.status === "redeeming" ? "redeeming" : (feed.status === "queued" ? "queued" : (feed.status || "online"));
+          // Determine visual state: LIVE (live flag set) vs RECENT (events exist but no live) vs IDLE
+          const hasRecentEvents = Array.isArray(feed.events) && feed.events.length > 0;
+          const hasLiveEvent = hasRecentEvents && feed.events.some(e => e.live);
+          const visualState = hasLiveEvent ? "live" : (hasRecentEvents ? "recent" : "idle");
+
           if (els.state) {
             els.state.textContent = statusLabel;
             // Update pill visual class for state indication
@@ -327,11 +332,6 @@
             if (visualState === "recent") els.state.classList.add("recent");
             else if (visualState === "idle") els.state.classList.add("idle");
           }
-
-          // Determine visual state: LIVE (live flag set) vs RECENT (events exist but no live) vs IDLE
-          const hasRecentEvents = Array.isArray(feed.events) && feed.events.length > 0;
-          const hasLiveEvent = hasRecentEvents && feed.events.some(e => e.live);
-          const visualState = hasLiveEvent ? "live" : (hasRecentEvents ? "recent" : "idle");
 
           if (els.heroState) {
             if (visualState === "live") els.heroState.textContent = "live process";
@@ -860,8 +860,8 @@
     };
 
     const insertEmoji = (emoji) => {
-      const start = chat.input.selectionStart || chat.input.value.length;
-      const end = chat.input.selectionEnd || chat.input.value.length;
+      const start = typeof chat.input.selectionStart === "number" ? chat.input.selectionStart : chat.input.value.length;
+      const end = typeof chat.input.selectionEnd === "number" ? chat.input.selectionEnd : chat.input.value.length;
       chat.input.value = `${chat.input.value.slice(0, start)}${emoji}${chat.input.value.slice(end)}`;
       chat.input.focus();
       chat.input.selectionStart = chat.input.selectionEnd = start + emoji.length;

@@ -2103,13 +2103,31 @@
         let _discordUsername = null;
 
         // Load Discord user info from localStorage (set during OAuth)
-        function _loadDiscordUser() {
+        async function _loadDiscordUser() {
             try {
                 const raw = localStorage.getItem('discord_user');
                 if (raw) {
                     const u = JSON.parse(raw);
                     _discordUserId = u.id || null;
                     _discordUsername = u.username || u.global_name || 'Unknown';
+                }
+                
+                // Fallback: If missing but we have a token (user logged in before our update), fetch it
+                if (!_discordUserId) {
+                    const token = localStorage.getItem('discord_access_token');
+                    if (token) {
+                        try {
+                            const res = await fetch('/api/auth/me', {
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (res.ok) {
+                                const u = await res.json();
+                                _discordUserId = u.id || null;
+                                _discordUsername = u.username || u.global_name || 'Unknown';
+                                localStorage.setItem('discord_user', JSON.stringify(u));
+                            }
+                        } catch(e) {}
+                    }
                 }
             } catch(e) {}
         }

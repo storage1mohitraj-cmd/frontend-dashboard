@@ -1013,4 +1013,26 @@
       }
     });
   }
+
+  /* ── Theme Toggle ──────────────────────────────────────────────────────── */
+  const themeToggle = document.getElementById("theme-toggle");
+  if (themeToggle) {
+    // Ensure the HTML attribute matches whatever the inline script set at load
+    const initTheme = document.documentElement.getAttribute("data-theme") || "dark";
+    if (initTheme !== "light") {
+      document.documentElement.removeAttribute("data-theme");
+    }
+
+    themeToggle.addEventListener("click", () => {
+      const isLight = document.documentElement.getAttribute("data-theme") === "light";
+      if (isLight) {
+        document.documentElement.removeAttribute("data-theme");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.documentElement.setAttribute("data-theme", "light");
+        localStorage.setItem("theme", "light");
+      }
+    });
+  }
 })();
+

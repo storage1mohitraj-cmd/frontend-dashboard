@@ -5,6 +5,12 @@ import httpx
 import os
 import logging
 
+try:
+    from db.mongo_adapters import ServerAllianceAdapter, mongo_enabled
+except ImportError:
+    mongo_enabled = lambda: False
+    ServerAllianceAdapter = None
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -67,3 +73,23 @@ async def get_current_user(request: Request):
         if r.status_code != 200:
             raise HTTPException(status_code=401, detail="Invalid token")
         return r.json()
+
+class VerifyPasswordRequest(BaseModel):
+    guild_id: int
+    password: str
+
+@router.post("/verify-password")
+async def verify_server_password(request: VerifyPasswordRequest):
+    """Verifies the server management password for a specific guild."""
+    if not mongo_enabled() or not ServerAllianceAdapter:
+        raise HTTPException(status_code=500, detail="Database not available")
+        
+    stored_password = ServerAllianceAdapter.get_password(request.guild_id)
+    if not stored_password:
+        raise HTTPException(status_code=403, detail="No password configured for this server. Set it via bot first.")
+        
+    is_valid = ServerAllianceAdapter.verify_password(request.guild_id, request.password)
+    if is_valid:
+        return {"success": True}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid access code")

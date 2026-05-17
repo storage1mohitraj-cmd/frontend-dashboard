@@ -1886,6 +1886,39 @@
         </div>
     </div>
 
+    <!-- Access Code Modal -->
+    <div id="access-code-modal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                    <div class="ar-icon-box purple" style="width: 32px; height: 32px;">
+                        <i data-lucide="lock" style="width: 16px;"></i>
+                    </div>
+                    Access Required
+                </h3>
+                <button onclick="closeAccessCodeModal()" style="background:none;border:none;color:var(--text-muted);cursor:pointer;">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+                    Please enter the access code to unlock this feature for 1 week.
+                </p>
+                <div class="form-group">
+                    <label>Access Code</label>
+                    <input type="password" id="access-code-input" placeholder="Enter code..." onkeydown="if(event.key === 'Enter') verifyAccessCode()">
+                    <div id="access-code-error" style="color: #ef4444; font-size: 0.8rem; margin-top: 8px; display: none;">Invalid access code.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAccessCodeModal()" class="btn btn-secondary">Cancel</button>
+                <button onclick="verifyAccessCode()" class="btn btn-primary">
+                    <i data-lucide="unlock" style="width: 15px;"></i> Unlock
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="loading" class="loading-overlay"><div class="spinner"></div></div>
     <div id="notification" class="notification">Action completed</div>
 
@@ -1905,7 +1938,63 @@
 
         lucide.createIcons();
 
+        let pendingTabToUnlock = null;
+
+        function openAccessCodeModal(targetTab) {
+            pendingTabToUnlock = targetTab;
+            document.getElementById('access-code-input').value = '';
+            document.getElementById('access-code-error').style.display = 'none';
+            document.getElementById('access-code-modal').classList.add('active');
+        }
+
+        function closeAccessCodeModal() {
+            pendingTabToUnlock = null;
+            document.getElementById('access-code-modal').classList.remove('active');
+        }
+
+        async function verifyAccessCode() {
+            const input = document.getElementById('access-code-input').value;
+            if (!input) return;
+            
+            try {
+                const response = await fetch('/api/auth/verify-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ guild_id: parseInt(guildId), password: input })
+                });
+
+                if (response.ok) {
+                    // Unlock for 1 week (7 days * 24 hours * 60 minutes * 60 seconds * 1000 ms)
+                    const unlockTime = Date.now() + (7 * 24 * 60 * 60 * 1000);
+                    localStorage.setItem(`premium_unlocked_until_${guildId}`, unlockTime.toString());
+                    closeAccessCodeModal();
+                    showNotification("Successfully unlocked for 1 week!");
+                    if (pendingTabToUnlock) {
+                        switchTab(pendingTabToUnlock);
+                    }
+                } else {
+                    const err = await response.json();
+                    const errEl = document.getElementById('access-code-error');
+                    errEl.innerText = err.detail || "Invalid access code.";
+                    errEl.style.display = 'block';
+                }
+            } catch (err) {
+                console.error("Error verifying code:", err);
+                const errEl = document.getElementById('access-code-error');
+                errEl.innerText = "Error connecting to server.";
+                errEl.style.display = 'block';
+            }
+        }
+
         function switchTab(tabName) {
+            if (tabName === 'alliance' || tabName === 'giftcodes') {
+                const unlockedUntil = localStorage.getItem(`premium_unlocked_until_${guildId}`);
+                if (!unlockedUntil || Date.now() > parseInt(unlockedUntil)) {
+                    openAccessCodeModal(tabName);
+                    return;
+                }
+            }
+
             document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
             const activeNav = document.querySelector(`.nav-item[onclick*="${tabName}"]`);
             if (activeNav) activeNav.classList.add('active');

@@ -625,7 +625,87 @@
       }
     }
 
+    .live-process-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 2rem;
+      margin-bottom: 2.5rem;
+      padding-bottom: 2rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .live-process-intro {
+      max-width: 48rem;
+    }
+
+    .live-process-intro h2 {
+      margin-top: 0.75rem;
+      font-size: clamp(2rem, 4vw, 3.25rem);
+      line-height: 1.1;
+      font-weight: 600;
+    }
+
+    .live-process-intro .section-copy {
+      margin-top: 1.25rem;
+      color: rgba(232, 240, 247, 0.76);
+      font-size: 1.05rem;
+      line-height: 1.65;
+    }
+
+    .live-process-checks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+      margin-top: 2rem;
+      align-items: center;
+    }
+
+    .live-process-checks span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(141, 232, 255, 0.06);
+      border: 1px solid rgba(141, 232, 255, 0.15);
+      border-radius: 999px;
+      padding: 0.4rem 0.8rem;
+      color: #bdf2ff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .live-process-checks span:hover {
+      background: rgba(141, 232, 255, 0.12);
+      border-color: rgba(141, 232, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .live-process-checks svg {
+      color: #48e0a7;
+      width: 1.1rem;
+      height: 1.1rem;
+    }
+
+    .live-process-controls {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 1rem;
+      flex-shrink: 0;
+    }
+
     @media (max-width: 1024px) {
+      .live-process-header {
+        flex-direction: column;
+      }
+      
+      .live-process-controls {
+        align-items: flex-start;
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+      }
       .header-inner {
         justify-content: space-between;
       }
@@ -773,40 +853,24 @@
       <div class="feature-grid" data-feature-grid></div>
     </section>
 
-    <section class="operation-band">
-      <div class="container operation-grid">
-        <div>
-          <p class="section-kicker">Operations</p>
-          <h2>Automate the busywork between events.</h2>
-          <p class="section-copy">Keep leadership focused on timing, growth, and coordination while the bot handles recurring reminders, translation bridges, cache refreshes, and gift code workflows.</p>
-          <div class="check-grid">
-            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Gift code scan completed</span>
-            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>3 active codes detected</span>
-            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Alliance reminder queued</span>
-            <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Cache synced from remote source</span>
-          </div>
-        </div>
-        <div class="log-panel">
-          <div class="log-top"><span>live-operation.log</span><b>online</b></div>
-          <div class="log-rows">
-            <div><span>01</span>Gift code scan completed</div>
-            <div><span>02</span>3 active codes detected</div>
-            <div><span>03</span>Alliance reminder queued</div>
-            <div><span>04</span>Cache synced from remote source</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
     <section class="section live-command-center" id="live-process" aria-label="Live bot process status">
       <div class="container">
-        <div class="section-heading split">
-          <div>
-            <p>Live Bot Process</p>
-            <h2>Every bot workflow visible in one live control menu.</h2>
+        <div class="live-process-header">
+          <div class="live-process-intro">
+            <p class="section-kicker">Live Bot Process</p>
+            <h2>Automate the busywork between events.</h2>
+            <p class="section-copy">Keep leadership focused on timing, growth, and coordination while the bot handles recurring reminders, translation bridges, cache refreshes, and gift code workflows.</p>
+            
+            <div class="live-process-checks">
+              <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Gift code scan completed</span>
+              <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>3 active codes detected</span>
+              <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Alliance reminder queued</span>
+              <span><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>Cache synced from remote</span>
+            </div>
           </div>
-          <div class="live-actions">
-            <button class="live-refresh" type="button" data-feed-refresh>Refresh</button>
+          
+          <div class="live-actions live-process-controls">
+            <button class="live-refresh" type="button" data-feed-refresh>Refresh Feed</button>
             <span class="live-pill" data-feed-state>syncing</span>
           </div>
         </div>

@@ -1331,13 +1331,13 @@ async def check_server_lock(interaction: discord.Interaction) -> bool:
                     
                 # If server is feature locked, block only specific commands
                 if is_feature_locked and interaction.command:
-                    blocked_commands = ["manage", "alliancemonitor"]
+                    blocked_commands = ["alliancemonitor"]
                     if interaction.command.name in blocked_commands:
                         embed = discord.Embed(
                             title="🔏 Feature Locked",
                             description=(
                                 "**This feature is currently locked for this server.**\n\n"
-                                "You cannot use the `/manage` or Alliance Monitor features until they are unlocked by the Global Administrator.\n\n"
+                                "You cannot use the Alliance Monitor feature until it is unlocked by the Global Administrator.\n\n"
                                 "If you believe this is an error, please contact the server administrators."
                             ),
                             color=0xE67E22

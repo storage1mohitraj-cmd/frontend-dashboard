@@ -168,16 +168,16 @@ class Alliance(commands.Cog):
         try:
             print(f"\U0001f512 [AUTO-LOCK] Bot joined server: {guild.name} ({guild.id}). Applying default locks...")
             
-            # 1. Lock the bot (/manage and alliance monitor) via server_locks table (Partial Lock)
+            # 1. Ensure the bot is unlocked by default via server_locks table
             try:
                 self.c_settings.execute(
-                    "INSERT OR REPLACE INTO server_locks (guild_id, locked, feature_locked, locked_by, locked_at) VALUES (?, 0, 1, ?, CURRENT_TIMESTAMP)",
+                    "INSERT OR IGNORE INTO server_locks (guild_id, locked, feature_locked, locked_by, locked_at) VALUES (?, 0, 0, ?, CURRENT_TIMESTAMP)",
                     (guild.id, self.bot.user.id)
                 )
                 self.conn_settings.commit()
-                print(f"   \u2705 Partial/Feature lock applied for {guild.name}")
+                print(f"   \u2705 Server unlocked by default for {guild.name}")
             except Exception as e:
-                print(f"   \u274c Failed to lock /manage for {guild.name}: {e}")
+                print(f"   \u274c Failed to unlock for {guild.name}: {e}")
             
             # 2. Lock alliance monitor + set default redeem limit (100) via ServerLimitsAdapter
             try:
@@ -2060,7 +2060,7 @@ class Alliance(commands.Cog):
                                         "```\n"
                                         "**Select a server to lock or unlock the bot**\n\n"
                                         "🔒 **Locked**: Bot will not respond to commands\n"
-                                        "🔏 **Feature Locked**: Locks `/manage` and Alliance Monitor\n"
+                                        "🔏 **Feature Locked**: Locks Alliance Monitor\n"
                                         "🔓 **Unlocked**: Bot functions normally\n\n"
                                         f"{server_list}"
                                     ),
@@ -2158,7 +2158,7 @@ class Alliance(commands.Cog):
                                     
                                     success_embed = discord.Embed(
                                         title="🔏 Feature Locked",
-                                        description=(f"**Server:** {guild.name}\n**Status:** 🔏 Feature Locked\n\nSpecific features like `/manage` are now locked."),
+                                        description=(f"**Server:** {guild.name}\n**Status:** 🔏 Feature Locked\n\nSpecific features like Alliance Monitor are now locked."),
                                         color=0xE67E22
                                     )
                                     success_embed.set_footer(text=f"Feature Locked by {btn_interaction.user.display_name}", icon_url=btn_interaction.user.display_avatar.url)

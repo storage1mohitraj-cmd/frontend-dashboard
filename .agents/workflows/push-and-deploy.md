@@ -8,20 +8,24 @@ This workflow MUST be run automatically after every session where code changes a
 
 ## Pre-conditions
 - Working directory: `f:\Whiteout Survival Bot`
-- Git remote: `origin` → `https://github.com/storage1mohitraj-cmd/WOS-BOT-1.git`
+- Main Bot git remote: `origin` → `https://github.com/storage1mohitraj-cmd/WOS-BOT-1.git`
+- Frontend Dashboard git remote: `origin` → `https://github.com/magnus-1234/frontend-dashboard.git`
 - GitHub Actions auto-deploys to Oracle VM on every push to `main`
 
 ---
 
 ## Steps
 
-### 1. Check git status
+### 1. Check git status for both repos
 // turbo
-```
-cd "f:\Whiteout Survival Bot" && git status
+```powershell
+cd "f:\Whiteout Survival Bot"; git status
+if (Test-Path "f:\Whiteout Survival Bot\frontend-dashboard\.git") {
+    cd "f:\Whiteout Survival Bot\frontend-dashboard"; git status
+}
 ```
 
-### 2. Stage all changes
+### 2. Stage all changes in both repos
 // turbo
 ```powershell
 cd "f:\Whiteout Survival Bot" && git add -A
@@ -37,7 +41,7 @@ Use a commit message that describes the actual change made:
 cd "f:\Whiteout Survival Bot"
 git commit -m "feat: <description>"
 
-# Commit for dashboard (if needed)
+# Commit for dashboard
 if (Test-Path "f:\Whiteout Survival Bot\frontend-dashboard\.git") {
     cd "f:\Whiteout Survival Bot\frontend-dashboard"
     git commit -m "feat: <description>"
@@ -45,31 +49,28 @@ if (Test-Path "f:\Whiteout Survival Bot\frontend-dashboard\.git") {
 ```
 If nothing to commit (clean tree), skip steps 3 and 4.
 
-### 4. Push to GitHub (triggers auto-deploy to Oracle VM)
+### 4. Push to GitHub for both repos (triggers auto-deploy to Oracle VM)
 // turbo
 ```powershell
 # Push main bot repo
 cd "f:\Whiteout Survival Bot" && git push origin main
 
-# Push frontend-dashboard repo (if it exists and has changes)
+# Push frontend-dashboard repo
 if (Test-Path "f:\Whiteout Survival Bot\frontend-dashboard\.git") {
-    cd "f:\Whiteout Survival Bot\frontend-dashboard"
-    git add -A
-    git commit -m "chore: sync with main repo changes"
-    git push origin main
+    cd "f:\Whiteout Survival Bot\frontend-dashboard" && git push origin main
 }
 ```
 
-### 5. Instant Deploy via SSH
+### 5. Instant Deploy via SSH (Updates both bot and frontend on the VM)
 Bypasses the 2-minute GitHub Actions wait by pushing directly to the VM.
 // turbo
-```
-ssh -i "C:\Users\mohit\.ssh\oracle_vm_key" -o StrictHostKeyChecking=no ubuntu@140.245.241.54 "cd bot && git pull && pm2 restart discordbot"
+```powershell
+ssh -i "C:\Users\mohit\.ssh\oracle_vm_key" -o StrictHostKeyChecking=no ubuntu@140.245.241.54 "cd bot && git pull && cd frontend-dashboard && git pull && pm2 restart discordbot"
 ```
 
 ### 6. Confirm Deployment
 After a successful SSH restart:
-- ✅ Changes pushed to GitHub
-- 🚀 Instant SSH Deploy successful
+- ✅ Changes pushed to GitHub (both Main Bot and Frontend Dashboard)
+- 🚀 Instant SSH Deploy successful (both repositories pulled on VM)
 - 🔄 Bot restarted on Oracle VM (Ubuntu)
-- The bot is now LIVE with the new changes!
+- The bot and frontend dashboard are now LIVE with the new changes!

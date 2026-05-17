@@ -945,6 +945,7 @@ async def setup_hook():
         "cogs.tictactoe",  # Tic-Tac-Toe game
         "cogs.alliance_monitor",  # Alliance online status monitoring
         "cogs.ai_chat",  # AI Chat functionality on mentions/DMs
+        "cogs.registration_admin",  # Self-service server registration review (global admin)
         # NOTE: cogs.start_menu removed from here — it was duplicated (also at top of list)
         # "cogs.debug_mongo_cog",  # Removed — debug tools moved to /settings button
     ]

@@ -113,6 +113,10 @@
                     return;
                 }
                 localStorage.setItem('discord_access_token', data.token || data.access_token);
+                // Save Discord user info for features like the registration wizard
+                if (data.user) {
+                    localStorage.setItem('discord_user', JSON.stringify(data.user));
+                }
                 window.location.href = 'dashboard.html';
             } catch (error) {
                 content.innerHTML = `

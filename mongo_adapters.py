@@ -4137,3 +4137,144 @@ class ServerLimitsAdapter:
             return False
 
 
+class PendingConfigAdapter:
+    """Adapter for managing pending server self-registration requests.
+    
+    Stores: guild_id, guild_name, alliance_name, access_code, discord_user_id,
+    discord_username, status (pending/approved/denied).
+    One request per guild; one approved/pending per user globally.
+    """
+    COLL = 'pending_configs'
+
+    @staticmethod
+    async def submit_async(guild_id: int, guild_name: str, alliance_name: str,
+                           access_code: str, discord_user_id: int,
+                           discord_username: str) -> bool:
+        """Submit a new pending config request."""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[PendingConfigAdapter.COLL].update_one(
+                {'guild_id': str(guild_id)},
+                {
+                    '$set': {
+                        'guild_id': str(guild_id),
+                        'guild_name': str(guild_name),
+                        'alliance_name': str(alliance_name),
+                        'access_code': str(access_code),
+                        'discord_user_id': str(discord_user_id),
+                        'discord_username': str(discord_username),
+                        'status': 'pending',
+                        'submitted_at': now,
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            logger.info(f'Pending config submitted for guild {guild_id} by user {discord_user_id}')
+            return True
+        except Exception as e:
+            logger.error(f'Failed to submit pending config for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def get_by_guild_async(guild_id: int) -> Optional[Dict[str, Any]]:
+        """Get the pending/approved config request for a guild."""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[PendingConfigAdapter.COLL].find_one({'guild_id': str(guild_id)})
+            return doc
+        except Exception as e:
+            logger.error(f'Failed to get pending config for guild {guild_id}: {e}')
+            return None
+
+    @staticmethod
+    async def get_by_user_async(discord_user_id: int) -> Optional[Dict[str, Any]]:
+        """Check if a user already has a pending/approved request on any server."""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[PendingConfigAdapter.COLL].find_one({
+                'discord_user_id': str(discord_user_id),
+                'status': {'$in': ['pending', 'approved']}
+            })
+            return doc
+        except Exception as e:
+            logger.error(f'Failed to get pending config for user {discord_user_id}: {e}')
+            return None
+
+    @staticmethod
+    async def get_all_pending_async() -> list:
+        """Get all pending requests for admin review."""
+        try:
+            db = await _get_db_main_async()
+            cursor = db[PendingConfigAdapter.COLL].find({'status': 'pending'})
+            docs = await cursor.to_list(length=None)
+            return docs
+        except Exception as e:
+            logger.error(f'Failed to get all pending configs: {e}')
+            return []
+
+    @staticmethod
+    async def approve_async(guild_id: int, admin_user_id: int) -> bool:
+        """Approve request: apply access code + alliance name to server_alliances collection."""
+        try:
+            db = await _get_db_main_async()
+            doc = await db[PendingConfigAdapter.COLL].find_one(
+                {'guild_id': str(guild_id), 'status': 'pending'}
+            )
+            if not doc:
+                return False
+            now = datetime.utcnow().isoformat()
+            # Apply the access code to server_alliances
+            await db[ServerAllianceAdapter.COLL].update_one(
+                {'_id': str(guild_id)},
+                {
+                    '$set': {
+                        'id': int(guild_id),
+                        'alliance_name': doc['alliance_name'],
+                        'member_list_password': doc['access_code'],
+                        'password_set_by': int(admin_user_id),
+                        'password_set_at': now,
+                        'updated_at': now
+                    },
+                    '$setOnInsert': {'created_at': now}
+                },
+                upsert=True
+            )
+            # Mark as approved
+            await db[PendingConfigAdapter.COLL].update_one(
+                {'guild_id': str(guild_id)},
+                {'$set': {
+                    'status': 'approved',
+                    'approved_by': int(admin_user_id),
+                    'approved_at': now,
+                    'updated_at': now
+                }}
+            )
+            logger.info(f'Approved pending config for guild {guild_id} by admin {admin_user_id}')
+            return True
+        except Exception as e:
+            logger.error(f'Failed to approve pending config for guild {guild_id}: {e}')
+            return False
+
+    @staticmethod
+    async def deny_async(guild_id: int, admin_user_id: int) -> bool:
+        """Deny a pending config request."""
+        try:
+            db = await _get_db_main_async()
+            now = datetime.utcnow().isoformat()
+            await db[PendingConfigAdapter.COLL].update_one(
+                {'guild_id': str(guild_id)},
+                {'$set': {
+                    'status': 'denied',
+                    'denied_by': int(admin_user_id),
+                    'denied_at': now,
+                    'updated_at': now
+                }}
+            )
+            logger.info(f'Denied pending config for guild {guild_id} by admin {admin_user_id}')
+            return True
+        except Exception as e:
+            logger.error(f'Failed to deny pending config for guild {guild_id}: {e}')
+            return False

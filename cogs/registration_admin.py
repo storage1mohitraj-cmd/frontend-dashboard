@@ -99,9 +99,41 @@ async def _do_approve(interaction, guild_id: str, guild_name: str,
                                 row = ac_cursor.fetchone()
                                 if row:
                                     alliance_id = row[0]
+                                else:
+                                    ac_cursor.execute("INSERT INTO alliance_list (name, discord_server_id) VALUES (?, ?)", (alliance_name, int(guild_id)))
+                                    alliance_id = ac_cursor.lastrowid
+                                    alliance_db.commit()
+                                    try:
+                                        from db.mongo_adapters import AlliancesAdapter, mongo_enabled
+                                        if mongo_enabled() and hasattr(AlliancesAdapter, 'upsert_async'):
+                                            await AlliancesAdapter.upsert_async(alliance_id, alliance_name, int(guild_id))
+                                        elif mongo_enabled() and hasattr(AlliancesAdapter, 'upsert'):
+                                            AlliancesAdapter.upsert(alliance_id, alliance_name, int(guild_id))
+                                    except Exception as mongo_err:
+                                        logger.error(f"Error saving new alliance to mongo: {mongo_err}")
                         except Exception as e:
-                            logger.error(f"Error finding alliance_id for {alliance_name}: {e}")
+                            logger.error(f"Error finding/creating alliance_id for {alliance_name}: {e}")
                             
+                        if alliance_id:
+                            try:
+                                from db.mongo_adapters import ServerAllianceAdapter
+                                if mongo_enabled():
+                                    if hasattr(ServerAllianceAdapter, 'set_alliance_async'):
+                                        await ServerAllianceAdapter.set_alliance_async(int(guild_id), alliance_id, int(submitter_id))
+                                    else:
+                                        ServerAllianceAdapter.set_alliance(int(guild_id), alliance_id, int(submitter_id))
+                            except Exception as e:
+                                logger.error(f"Failed to set server alliance for {guild_id}: {e}")
+
+                            try:
+                                with sqlite3.connect('db/settings.sqlite', timeout=10) as sdb:
+                                    sc = sdb.cursor()
+                                    sc.execute("INSERT OR IGNORE INTO admin (id, is_initial) VALUES (?, 0)", (int(submitter_id),))
+                                    sc.execute("INSERT OR IGNORE INTO adminserver (admin, alliances_id) VALUES (?, ?)", (int(submitter_id), alliance_id))
+                                    sdb.commit()
+                            except Exception as e:
+                                logger.error(f"Failed to update sqlite adminserver for {submitter_id}: {e}")
+
                         with sqlite3.connect('db/id_channel.sqlite', timeout=10) as db:
                             cursor = db.cursor()
                             cursor.execute('''CREATE TABLE IF NOT EXISTS id_channels

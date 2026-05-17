@@ -719,3 +719,62 @@ async def redeem_giftcodes_api(request: Request):
     except Exception as e:
         logger.error(f"Error redeeming giftcodes: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/trigger-server-redeem")
+async def trigger_server_redeem_api(request: Request):
+    """Trigger background auto-redeem process for a specific guild and code."""
+    try:
+        body = await request.json()
+        guild_id = body.get("guild_id")
+        code = body.get("code")
+        
+        if not guild_id or not code:
+            raise HTTPException(status_code=400, detail="guild_id and code are required")
+            
+        bot = getattr(request.app.state, "bot", None)
+        if bot is None:
+             raise HTTPException(status_code=503, detail="Bot instance not available")
+             
+        manage_cog = bot.get_cog("ManageGiftCode")
+        if manage_cog is None:
+             raise HTTPException(status_code=503, detail="Gift Code management module not available")
+
+        # Initiate the process in the background
+        asyncio.create_task(
+            manage_cog.trigger_auto_redeem_for_new_codes(
+                new_codes=[(code, "")],
+                is_recheck=True,
+                specific_guild_id=int(guild_id)
+            )
+        )
+        
+        return {
+            "status": "success",
+            "message": f"Auto-redeem triggered for server {guild_id} with code {code}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error triggering server redeem: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/{guild_id}/history")
+async def get_giftcode_history(guild_id: str):
+    if not mongo_enabled():
+        return {"history": []}
+    try:
+        from db.mongo_adapters import _get_db
+        db = _get_db()
+        cursor = db["auto_redeemed_codes"].find({"guild_id": int(guild_id)}).sort("redeemed_at", -1).limit(40)
+        history = []
+        for doc in cursor:
+            history.append({
+                "code": doc.get("giftcode"),
+                "fid": doc.get("fid"),
+                "status": doc.get("status"),
+                "redeemed_at": doc.get("redeemed_at")
+            })
+        return {"history": history}
+    except Exception as e:
+        logger.error(f"Failed to get history: {e}")
+        return {"history": []}

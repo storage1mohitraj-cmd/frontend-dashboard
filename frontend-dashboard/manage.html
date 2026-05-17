@@ -1524,6 +1524,22 @@
                     <div id="ar-members-list" class="ar-members-grid">
                         <div class="ar-empty-members">Loading members...</div>
                     </div>
+                    </div>
+                </div>
+
+                <div class="auto-redeem-section" id="giftcode-history-section" style="margin-bottom: 32px; padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 16px; margin-bottom: 16px;">
+                        <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 10px;">
+                            <i data-lucide="history" style="width: 18px; color: var(--accent);"></i>
+                            Recent Redemption History
+                        </h3>
+                        <button onclick="loadGiftCodeHistory()" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;">
+                            <i data-lucide="refresh-cw" style="width: 14px;"></i> Refresh History
+                        </button>
+                    </div>
+                    <div id="giftcode-history-list" style="max-height: 250px; overflow-y: auto; display: grid; gap: 8px;">
+                        <div class="empty-state">Loading history...</div>
+                    </div>
                 </div>
 
                 <h3 style="font-family: 'Outfit', sans-serif; font-size: 1.1rem; font-weight: 700; margin: 32px 0 16px 0; display: flex; align-items: center; gap: 10px;">
@@ -2440,7 +2456,79 @@
             return false;
         }
 
+        async function triggerServerRedeem(code, buttonElement) {
+            const originalHtml = buttonElement.innerHTML;
+            buttonElement.disabled = true;
+            buttonElement.innerHTML = '<i data-lucide="loader-2" style="width:14px;height:14px; animation: spin 1s linear infinite;"></i> Redeeming...';
+            lucide.createIcons();
+
+            try {
+                const res = await fetchData('/api/giftcodes/trigger-server-redeem', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        guild_id: currentGuildId,
+                        code: code
+                    })
+                });
+
+                if (res.status === 'success') {
+                    showNotification(`Triggered redeem for ${code} on this server!`);
+                    buttonElement.innerHTML = '<i data-lucide="check" style="width:14px;height:14px;"></i> Queued';
+                    buttonElement.style.background = 'rgba(16, 185, 129, 0.15)';
+                    buttonElement.style.color = '#34d399';
+                    buttonElement.style.borderColor = 'rgba(52, 211, 153, 0.3)';
+                    lucide.createIcons();
+                } else {
+                    throw new Error(res.message || 'Unknown error');
+                }
+            } catch (err) {
+                showNotification(err.message, true);
+                buttonElement.innerHTML = originalHtml;
+                buttonElement.disabled = false;
+                lucide.createIcons();
+            }
+        }
+
+        async function loadGiftCodeHistory() {
+            const list = document.getElementById('giftcode-history-list');
+            if(!list) return;
+            
+            list.innerHTML = '<div class="empty-state">Loading history...</div>';
+            try {
+                const res = await fetchData(`/api/giftcodes/${currentGuildId}/history`);
+                const history = res.history || [];
+                
+                if (history.length === 0) {
+                    list.innerHTML = '<div class="empty-state" style="padding: 20px;">No recent redemptions found for this server.</div>';
+                    return;
+                }
+                
+                list.innerHTML = history.map(item => {
+                    const statusClass = item.status === 'valid' ? 'success' : (item.status === 'already_redeemed' ? 'already' : 'failed');
+                    const statusText = item.status === 'valid' ? 'Success' : (item.status === 'already_redeemed' ? 'Already Redeemed' : 'Failed');
+                    const timeStr = item.redeemed_at ? new Date(item.redeemed_at).toLocaleString() : 'Unknown';
+                    
+                    return `
+                        <div class="result-item ${statusClass}" style="display: flex; justify-content: space-between; background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: 8px; font-size: 0.85rem;">
+                            <div>
+                                <strong style="color: #fff; font-family: monospace; font-size: 0.95rem;">${escapeHTML(item.code || 'UNKNOWN')}</strong>
+                                <span style="color: var(--text-muted); margin-left: 8px;">FID: ${escapeHTML(item.fid || 'Unknown')}</span>
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <span style="font-weight: 600;" class="${statusClass === 'success' ? 'text-green' : (statusClass === 'failed' ? 'text-red' : 'text-purple')}">${statusText}</span>
+                                <span style="color: var(--text-muted); font-size: 0.75rem;">${timeStr}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch(e) {
+                list.innerHTML = '<div class="empty-state">Failed to load history.</div>';
+            }
+        }
+
         async function loadGiftCodes(forceRefresh = false) {
+            loadGiftCodeHistory(); // Load history when we load giftcodes
+            
             const list = document.getElementById('giftcodes-list');
             const meta = document.getElementById('giftcodes-meta');
             list.innerHTML = '<div class="empty-state">Loading active codes...</div>';
@@ -2468,12 +2556,17 @@
                 }[data.source] || data.source || 'live source';
 
                 meta.innerHTML = `
-                    <i data-lucide="radio" style="width:15px;height:15px;"></i>
-                    <span>${activeCodes.length} active ${activeCodes.length === 1 ? 'code' : 'codes'} from <strong style="color:var(--text-main)">${escapeHTML(sourceLabel)}</strong>${data.last_updated ? ` &mdash; updated ${formatGiftDate(data.last_updated)}` : ''}</span>
+                    <div style="display: flex; align-items: center; gap: 8px; color: var(--accent); font-weight: 600;">
+                        <i data-lucide="sparkles" style="width:16px;height:16px;"></i>
+                        <span>${activeCodes.length} active ${activeCodes.length === 1 ? 'code' : 'codes'}</span>
+                        <span style="color: var(--text-muted); font-weight: 400; font-size: 0.85rem; margin-left: 6px;">
+                            ${data.last_updated ? `updated ${formatGiftDate(data.last_updated)}` : ''}
+                        </span>
+                    </div>
                 `;
 
                 if (activeCodes.length === 0) {
-                    list.innerHTML = '<div class="empty-state">No active gift codes found right now. The bot may still be scraping — try refreshing.</div>';
+                    list.innerHTML = '<div class="empty-state">No active gift codes found right now.</div>';
                     lucide.createIcons();
                     return;
                 }
@@ -2484,49 +2577,38 @@
                     const codeText      = normalizeGiftValue(code.code, 'Unknown code');
                     const rewards       = normalizeGiftValue(code.rewards || code.description, 'Not specified');
                     const expiry        = formatGiftDate(code.expiry);
-                    const codeSource    = normalizeGiftValue(code.source, data.source || 'bot');
-                    const rawDateAdded  = String(code.date_added || code.date || '').trim();
-                    const dateAdded     = rawDateAdded && rawDateAdded.toLowerCase() !== 'unknown' ? formatGiftDate(rawDateAdded) : '';
-
+                    
                     const status        = String(code.validation_status || code.status || '').trim().toLowerCase();
                     const statusLabel   = status === 'pending' ? 'Pending' : status === 'valid' ? 'Valid' : 'Active';
                     const statusClass   = status === 'pending' ? 'pending' : status === 'valid' ? 'valid' : 'active';
 
-                    const autoRedeemed  = code.auto_redeem_processed === true;
-
                     const div = document.createElement('div');
                     div.className = 'giftcode-card';
+                    div.style.border = '1px solid rgba(245, 158, 11, 0.2)';
+                    div.style.background = 'linear-gradient(145deg, rgba(245, 158, 11, 0.05) 0%, #16191f 100%)';
+                    
                     div.innerHTML = `
                         <div class="giftcode-top">
-                            <div class="giftcode-code">${escapeHTML(codeText)}</div>
+                            <div class="giftcode-code" style="color: #fbbf24; text-shadow: 0 0 10px rgba(251,191,36,0.2);">${escapeHTML(codeText)}</div>
                             <span class="status-pill ${statusClass}">${statusLabel}</span>
                         </div>
                         <div class="giftcode-detail">
                             <div class="giftcode-detail-row">
-                                <i data-lucide="gift"></i>
+                                <i data-lucide="gift" style="color: var(--accent);"></i>
                                 <span><strong>Rewards</strong>${escapeHTML(rewards)}</span>
                             </div>
                             <div class="giftcode-detail-row">
-                                <i data-lucide="calendar-clock"></i>
+                                <i data-lucide="calendar-clock" style="color: var(--accent);"></i>
                                 <span><strong>Expiry</strong>${escapeHTML(expiry)}</span>
                             </div>
-                            ${dateAdded ? `
-                            <div class="giftcode-detail-row">
-                                <i data-lucide="clock"></i>
-                                <span><strong>Added</strong>${escapeHTML(dateAdded)}</span>
-                            </div>` : ''}
-                            ${autoRedeemed ? `
-                            <div class="giftcode-detail-row">
-                                <i data-lucide="check-circle-2"></i>
-                                <span style="color:#a78bfa;"><strong>Auto-Redeem</strong>Processed by bot ✓</span>
-                            </div>` : ''}
                         </div>
-                        <div class="giftcode-actions">
-                            <span class="giftcode-source" title="${escapeAttribute(codeSource)}">
-                                ${escapeHTML(sourceLabel)}
-                            </span>
-                            <button class="btn btn-secondary copy-giftcode" data-code="${escapeAttribute(codeText)}" style="padding:8px 12px;">
-                                <i data-lucide="copy" style="width:15px;height:15px;"></i>
+                        <div class="giftcode-actions" style="margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
+                            <button class="btn trigger-redeem" data-code="${escapeAttribute(codeText)}" style="padding:8px 12px; background: rgba(245, 158, 11, 0.15); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.8rem;">
+                                <i data-lucide="zap" style="width:14px;height:14px;"></i>
+                                Force Redeem
+                            </button>
+                            <button class="btn btn-secondary copy-giftcode" data-code="${escapeAttribute(codeText)}" style="padding:8px 12px; font-size: 0.8rem;">
+                                <i data-lucide="copy" style="width:14px;height:14px;"></i>
                                 Copy
                             </button>
                         </div>
@@ -2537,6 +2619,11 @@
                 document.querySelectorAll('.copy-giftcode').forEach(button => {
                     button.addEventListener('click', () => copyGiftCode(button.dataset.code));
                 });
+                
+                document.querySelectorAll('.trigger-redeem').forEach(button => {
+                    button.addEventListener('click', () => triggerServerRedeem(button.dataset.code, button));
+                });
+                
                 lucide.createIcons();
                 
                 // Also update the selectable codes for manual redemption

@@ -1944,12 +1944,12 @@
             pendingTabToUnlock = targetTab;
             document.getElementById('access-code-input').value = '';
             document.getElementById('access-code-error').style.display = 'none';
-            document.getElementById('access-code-modal').classList.add('active');
+            document.getElementById('access-code-modal').style.display = 'flex';
         }
 
         function closeAccessCodeModal() {
             pendingTabToUnlock = null;
-            document.getElementById('access-code-modal').classList.remove('active');
+            document.getElementById('access-code-modal').style.display = 'none';
         }
 
         async function verifyAccessCode() {
@@ -1960,7 +1960,7 @@
                 const response = await fetch('/api/auth/verify-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ guild_id: parseInt(guildId), password: input })
+                    body: JSON.stringify({ guild_id: guildId, password: input })
                 });
 
                 if (response.ok) {

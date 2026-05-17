@@ -67,6 +67,104 @@ async def _do_approve(interaction, guild_id: str, guild_name: str,
             return
         ok = await PendingConfigAdapter.approve_async(int(guild_id), interaction.user.id)
         if ok:
+            # Create auto-channels
+            try:
+                guild = interaction.client.get_guild(int(guild_id))
+                if guild:
+                    # player-ids channel
+                    player_ids_channel = discord.utils.get(guild.text_channels, name="🆔┃player-ids")
+                    if not player_ids_channel:
+                        player_ids_channel = await guild.create_text_channel("🆔┃player-ids")
+                        
+                    # giftcode channel
+                    giftcode_channel = discord.utils.get(guild.text_channels, name="🎁┃𝐠𝐢𝐟𝐭𝐜𝐨𝐝𝐞")
+                    if not giftcode_channel:
+                        giftcode_channel = await guild.create_text_channel("🎁┃𝐠𝐢𝐟𝐭𝐜𝐨𝐝𝐞")
+                        
+                    # welcome channel
+                    welcome_channel = discord.utils.get(guild.text_channels, name="🎉┃welcome")
+                    if not welcome_channel:
+                        welcome_channel = await guild.create_text_channel("🎉┃welcome")
+                    
+                    import sqlite3
+                    from datetime import datetime
+                    
+                    # 1. Player IDs config
+                    try:
+                        alliance_id = 0
+                        try:
+                            with sqlite3.connect('db/alliance.sqlite', timeout=10) as alliance_db:
+                                ac_cursor = alliance_db.cursor()
+                                ac_cursor.execute("SELECT alliance_id FROM alliance_list WHERE name = ?", (alliance_name,))
+                                row = ac_cursor.fetchone()
+                                if row:
+                                    alliance_id = row[0]
+                        except Exception as e:
+                            logger.error(f"Error finding alliance_id for {alliance_name}: {e}")
+                            
+                        with sqlite3.connect('db/id_channel.sqlite', timeout=10) as db:
+                            cursor = db.cursor()
+                            cursor.execute('''CREATE TABLE IF NOT EXISTS id_channels
+                                         (guild_id INTEGER, alliance_id INTEGER, channel_id INTEGER, created_at TEXT, created_by INTEGER, UNIQUE(guild_id, channel_id))''')
+                            cursor.execute("INSERT OR REPLACE INTO id_channels (guild_id, alliance_id, channel_id, created_at, created_by) VALUES (?, ?, ?, ?, ?)",
+                                         (int(guild_id), alliance_id, player_ids_channel.id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), interaction.user.id))
+                            db.commit()
+                            
+                        try:
+                            from db.mongo_adapters import IDChannelsAdapter
+                            if mongo_enabled() and hasattr(IDChannelsAdapter, 'set_channel_async'):
+                                await IDChannelsAdapter.set_channel_async(int(guild_id), player_ids_channel.id, alliance_id)
+                        except Exception:
+                            pass
+                            
+                        await player_ids_channel.send(
+                            "This channel has been configured for auto redeem, alliance members can write their player id here to get registered for fastest redeem."
+                        )
+                    except Exception as e:
+                        logger.error(f"Failed to setup player_ids channel: {e}")
+
+                    # 2. Giftcode Channel config
+                    try:
+                        try:
+                            from db.mongo_adapters import AutoRedeemChannelsAdapter, AutoRedeemSettingsAdapter
+                            if mongo_enabled():
+                                if hasattr(AutoRedeemChannelsAdapter, 'set_channel_async'):
+                                    await AutoRedeemChannelsAdapter.set_channel_async(int(guild_id), giftcode_channel.id, 0)
+                                elif hasattr(AutoRedeemChannelsAdapter, 'set_channel'):
+                                    AutoRedeemChannelsAdapter.set_channel(int(guild_id), giftcode_channel.id, 0)
+                                    
+                                if hasattr(AutoRedeemSettingsAdapter, 'update_settings_async'):
+                                    await AutoRedeemSettingsAdapter.update_settings_async(int(guild_id), {'enabled': True})
+                        except Exception:
+                            pass
+                        
+                        with sqlite3.connect('db/giftcode.sqlite', timeout=10) as gcdb:
+                            g_cursor = gcdb.cursor()
+                            g_cursor.execute("CREATE TABLE IF NOT EXISTS auto_redeem_channels (guild_id INTEGER, channel_id INTEGER, role_id INTEGER, PRIMARY KEY (guild_id))")
+                            g_cursor.execute("INSERT OR REPLACE INTO auto_redeem_channels (guild_id, channel_id, role_id) VALUES (?, ?, ?)", (int(guild_id), giftcode_channel.id, 0))
+                            
+                            g_cursor.execute("CREATE TABLE IF NOT EXISTS auto_redeem_settings (guild_id INTEGER PRIMARY KEY, enabled INTEGER DEFAULT 0, priority INTEGER DEFAULT 999, updated_by INTEGER, updated_at TEXT)")
+                            g_cursor.execute("INSERT OR REPLACE INTO auto_redeem_settings (guild_id, enabled, updated_by, updated_at) VALUES (?, 1, ?, ?)", (int(guild_id), interaction.user.id, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                            gcdb.commit()
+                    except Exception as e:
+                        logger.error(f"Failed to setup giftcode channel: {e}")
+                        
+                    # 3. Welcome Channel config
+                    try:
+                        try:
+                            from db.mongo_adapters import WelcomeChannelAdapter
+                            if mongo_enabled():
+                                if hasattr(WelcomeChannelAdapter, 'set_async'):
+                                    await WelcomeChannelAdapter.set_async(int(guild_id), welcome_channel.id, enabled=True)
+                                elif hasattr(WelcomeChannelAdapter, 'set'):
+                                    WelcomeChannelAdapter.set(int(guild_id), welcome_channel.id, enabled=True)
+                        except Exception:
+                            pass
+                    except Exception as e:
+                        logger.error(f"Failed to setup welcome channel: {e}")
+            except Exception as e:
+                logger.error(f"Error creating auto-channels for {guild_id}: {e}")
+
             # Notify submitter
             try:
                 user = await interaction.client.fetch_user(int(submitter_id))

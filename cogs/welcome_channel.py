@@ -398,64 +398,79 @@ class WelcomeChannel(commands.Cog):
             text_x = 300
             max_text_width = width - text_x - 30  # 30px padding on the right
             
-            # Determine which font path to use
+            # Detect if text needs unifont fallback for non-Latin / CJK (Emojis handled by Pilmoji)
+            def needs_unifont(text):
+                # Emojis are usually > 0x1F000, Pilmoji replaces them.
+                # We fallback to Unifont if we see characters between 0x0300 and 0x1F000 (CJK, Cyrillic, Arabic)
+                return any(0x0300 <= ord(c) < 0x1F000 for c in text)
+                
+            use_unifont = needs_unifont(welcome_text) or needs_unifont(count_text)
+
             current_font_path = None
             try:
-                font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'VarelaRound.ttf')
-                if os.path.exists(font_path):
-                    current_font_path = font_path
+                # Prioritize Unifont if CJK/Foreign text is detected
+                if use_unifont:
+                    unifont_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'unifont-16.0.04.otf')
+                    if os.path.exists(unifont_path):
+                        current_font_path = unifont_path
+                    else:
+                        raise Exception("Unifont not found")
                 else:
-                    raise Exception("VarelaRound not found")
+                    font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'VarelaRound.ttf')
+                    if os.path.exists(font_path):
+                        current_font_path = font_path
+                    else:
+                        raise Exception("VarelaRound not found")
             except Exception as e:
-                logger.warning(f"Failed to load VarelaRound: {e}")
+                logger.warning(f"Failed to load desired font: {e}")
                 try:
                     current_font_path = "arialbd.ttf"
                     ImageFont.truetype(current_font_path, 48)  # Test load
                 except Exception:
-                    try:
-                        font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'unifont-16.0.04.otf')
-                        if os.path.exists(font_path):
-                            current_font_path = font_path
-                    except:
-                        current_font_path = None
+                    current_font_path = None
 
             font_large, font_medium = None, None
             w1, h1, w2, h2 = 0, 0, 0, 0
+            
+            try:
+                from pilmoji import Pilmoji
+                pilmoji_available = True
+            except ImportError:
+                pilmoji_available = False
+            
+            # Use Pilmoji to get accurate sizes if available (to account for emojis)
+            if pilmoji_available:
+                p_sizer = Pilmoji(img)
+                def get_text_size(text, font):
+                    return p_sizer.getsize(text, font=font)
+            else:
+                def get_text_size(text, font):
+                    try:
+                        bbox = draw.textbbox((0, 0), text, font=font)
+                        return bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    except AttributeError:
+                        return draw.textsize(text, font=font)
             
             if current_font_path:
                 # Dynamically scale large font (Line 1)
                 for size in range(48, 16, -2):
                     font_large = ImageFont.truetype(current_font_path, size)
-                    try:
-                        bbox = draw.textbbox((0, 0), welcome_text, font=font_large)
-                        w1, h1 = bbox[2] - bbox[0], bbox[3] - bbox[1]
-                    except AttributeError:
-                        w1, h1 = draw.textsize(welcome_text, font=font_large)
+                    w1, h1 = get_text_size(welcome_text, font_large)
                     if w1 <= max_text_width:
                         break
                         
                 # Dynamically scale medium font (Line 2)
                 for size in range(42, 14, -2):
                     font_medium = ImageFont.truetype(current_font_path, size)
-                    try:
-                        bbox = draw.textbbox((0, 0), count_text, font=font_medium)
-                        w2, h2 = bbox[2] - bbox[0], bbox[3] - bbox[1]
-                    except AttributeError:
-                        w2, h2 = draw.textsize(count_text, font=font_medium)
+                    w2, h2 = get_text_size(count_text, font_medium)
                     if w2 <= max_text_width:
                         break
             else:
                 logger.warning("All font loading failed, using default font")
                 font_large = ImageFont.load_default()
                 font_medium = ImageFont.load_default()
-                try:
-                    bbox1 = draw.textbbox((0, 0), welcome_text, font=font_large)
-                    bbox2 = draw.textbbox((0, 0), count_text, font=font_medium)
-                    w1, h1 = bbox1[2] - bbox1[0], bbox1[3] - bbox1[1]
-                    w2, h2 = bbox2[2] - bbox2[0], bbox2[3] - bbox2[1]
-                except AttributeError:
-                    w1, h1 = draw.textsize(welcome_text, font=font_large)
-                    w2, h2 = draw.textsize(count_text, font=font_medium)
+                w1, h1 = get_text_size(welcome_text, font_large)
+                w2, h2 = get_text_size(count_text, font_medium)
 
             # Enhanced text styling
             text_color = (255, 255, 255)  # Pure white
@@ -465,8 +480,14 @@ class WelcomeChannel(commands.Cog):
                 x, y = xy
                 # Dynamically adjust stroke width based on scaled font size
                 stroke_width = max(2, int(getattr(font, 'size', 32) * 0.08)) if current_font_path else 2
-                draw.text((x, y), text, fill=text_color, font=font,
-                         stroke_width=stroke_width, stroke_fill=(0, 0, 0))
+                
+                if pilmoji_available:
+                    with Pilmoji(img) as pilmoji:
+                        pilmoji.text((x, y), text, fill=text_color, font=font,
+                                     stroke_width=stroke_width, stroke_fill=(0, 0, 0))
+                else:
+                    draw.text((x, y), text, fill=text_color, font=font,
+                             stroke_width=stroke_width, stroke_fill=(0, 0, 0))
 
             spacing = 15
             total_text_height = h1 + h2 + spacing

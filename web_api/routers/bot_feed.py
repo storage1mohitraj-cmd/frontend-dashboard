@@ -563,18 +563,34 @@ def _get_auto_redeem_runtime_events(cog: Any, server_lookup: Dict[str, str]) -> 
 def _get_alliance_runtime_events(cog: Any) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     task = getattr(cog, "monitor_alliances", None)
     running = bool(task and getattr(task, "is_running", lambda: False)())
-    current = getattr(cog, "_current_scanning_alliance", None)
+    raw_current = getattr(cog, "_current_scanning_alliance", None)
     stats = getattr(cog, "_last_cycle_stats", {})
-    
+
+    # Normalise: new code stores a list; old code stored a dict or None
+    if isinstance(raw_current, list):
+        active_scans: list = raw_current          # list of scan-entry dicts
+    elif isinstance(raw_current, dict):
+        active_scans = [raw_current]              # backwards-compat: single dict
+    else:
+        active_scans = []
+
+    # For the summary field keep the legacy shape (first entry or None)
+    current = active_scans[0] if active_scans else None
+
     events: List[Dict[str, Any]] = []
-    
+
     if running:
         title = "Alliance monitor active"
-        message = "Monitoring alliances for profile changes"
-        if current:
-            alliance_name = current.get("name") or f"ID {current.get('id')}"
-            message = f"Currently scanning alliance: {alliance_name}"
-            
+        if active_scans:
+            count = len(active_scans)
+            names = ", ".join(
+                s.get("name") or f"ID {s.get('id')}" for s in active_scans[:5]
+            )
+            suffix = f" (+{count - 5} more)" if count > 5 else ""
+            message = f"Scanning {count} alliance(s) concurrently: {names}{suffix}"
+        else:
+            message = "Monitoring alliances for profile changes"
+
         events.append(
             {
                 "id": "alliance-monitor-running",
@@ -592,6 +608,7 @@ def _get_alliance_runtime_events(cog: Any) -> tuple[List[Dict[str, Any]], Dict[s
     summary = {
         "alliance_monitor_running": running,
         "alliance_monitor_current": current,
+        "alliance_monitor_active_scans": len(active_scans),
         "alliance_monitor_last_start": _iso(stats.get("start")),
         "alliance_monitor_last_end": _iso(stats.get("end")),
     }

@@ -130,8 +130,10 @@ class Alliance(commands.Cog):
         # Check API availability and enable dual-API mode if both are available
         # This will be called asynchronously when the monitoring task starts
         self._api_check_done = False
-        self._current_scanning_alliance = None
+        self._current_scanning_alliance = []   # list of dicts — one per concurrent scan
         self._last_cycle_stats = {"start": None, "end": None, "alliances": 0, "changes": 0}
+        self._scan_semaphore = None             # created lazily inside the async task
+        self._scan_stats_lock = None            # asyncio.Lock for safe stat mutation
         
         # Level mapping for furnace levels
         self.level_mapping = get_level_mapping()
@@ -3829,90 +3831,128 @@ class Alliance(commands.Cog):
     
     @tasks.loop(minutes=4)
     async def monitor_alliances(self):
-        """Background task that monitors alliances for changes"""
+        """Background task that monitors alliances for changes.
+
+        Alliances are scanned CONCURRENTLY (up to 10 at a time) instead of
+        sequentially so a large number of servers doesn't cause delay build-up.
+        A semaphore keeps API pressure reasonable; each coroutine has its own
+        per-alliance sleep buffer to stay polite to the upstream game API.
+        """
+        # Lazily create async primitives (must happen inside a running loop)
+        if self._scan_semaphore is None:
+            self._scan_semaphore = asyncio.Semaphore(10)   # max 10 parallel scans
+        if self._scan_stats_lock is None:
+            self._scan_stats_lock = asyncio.Lock()
+
         try:
             self.log_message("Starting alliance monitoring cycle")
-            
+
             monitored = await self._get_monitored_alliances()
-            
+
             if not monitored:
                 self.log_message("No alliances being monitored")
                 return
-            
-            self.log_message(f"Monitoring {len(monitored)} alliance(s)")
-            
-            # Start cycle activity
+
+            self.log_message(f"Monitoring {len(monitored)} alliance(s) concurrently (batch size ≤10)")
+
+            # Reset cycle stats
             from bot_activity import publish_bot_activity
             self._last_cycle_stats["start"] = datetime.utcnow()
             self._last_cycle_stats["alliances"] = len(monitored)
             self._last_cycle_stats["changes"] = 0
-            
+            self._current_scanning_alliance = []   # reset active-scan list
+
             await publish_bot_activity(
                 workflow="alliance_monitor",
                 event_type="cycle_started",
                 status="processing",
-                message=f"Starting scan of {len(monitored)} alliance(s)"
+                message=f"Starting concurrent scan of {len(monitored)} alliance(s)"
             )
-            
-            for config in monitored:
-                # Check if this guild's monitor is locked
+
+            async def _scan_one(config: dict) -> None:
+                """Scan a single alliance, guarded by the shared semaphore."""
                 guild_id = config['guild_id']
+
+                # Skip locked guilds
                 try:
                     if await ServerLimitsAdapter.is_monitor_locked_async(guild_id):
-                        self.log_message(f"🔒 Skipping alliance monitor for guild {guild_id} (locked by admin)")
-                        continue
+                        self.log_message(f"🔒 Skipping guild {guild_id} (monitor locked)")
+                        return
                 except Exception:
-                    pass  # On error, proceed with monitoring (fail-open)
-                
-                # Get alliance name for activity
+                    pass  # fail-open
+
+                # Resolve alliance name for the activity feed
                 alliance_name = "Unknown Alliance"
                 try:
                     with get_db_connection('alliance.sqlite') as alliance_db:
-                        cursor = alliance_db.cursor()
-                        cursor.execute("SELECT name FROM alliance_list WHERE alliance_id = ?", (config['alliance_id'],))
-                        result = cursor.fetchone()
-                        if result:
-                            alliance_name = result[0]
+                        cur = alliance_db.cursor()
+                        cur.execute(
+                            "SELECT name FROM alliance_list WHERE alliance_id = ?",
+                            (config['alliance_id'],)
+                        )
+                        row = cur.fetchone()
+                        if row:
+                            alliance_name = row[0]
                 except Exception:
                     pass
 
-                self._current_scanning_alliance = {
+                scan_entry = {
                     "id": config['alliance_id'],
                     "name": alliance_name,
                     "guild_id": guild_id,
                     "started_at": datetime.utcnow()
                 }
 
-                # Individual alliance scan activity
-                await publish_bot_activity(
-                    workflow="alliance_monitor",
-                    event_type="scan_started",
-                    status="processing",
-                    message=f"Scanning alliance: {alliance_name}",
-                    guild_id=guild_id,
-                    alliance_id=config['alliance_id'],
-                    alliance_name=alliance_name
-                )
+                # Register this scan in the active-scan list (thread-safe via lock)
+                async with self._scan_stats_lock:
+                    self._current_scanning_alliance.append(scan_entry)
 
-                await self._check_alliance_changes(
-                    config['alliance_id'],
-                    config['channel_id'],
-                    config['guild_id']
-                )
-                
-                # Add delay between alliances
-                await asyncio.sleep(5)
-            
-            self._current_scanning_alliance = None
+                try:
+                    await publish_bot_activity(
+                        workflow="alliance_monitor",
+                        event_type="scan_started",
+                        status="processing",
+                        message=f"Scanning alliance: {alliance_name}",
+                        guild_id=guild_id,
+                        alliance_id=config['alliance_id'],
+                        alliance_name=alliance_name
+                    )
+
+                    async with self._scan_semaphore:
+                        await self._check_alliance_changes(
+                            config['alliance_id'],
+                            config['channel_id'],
+                            config['guild_id']
+                        )
+                        # Short per-scan delay — keeps API polite without blocking others
+                        await asyncio.sleep(1)
+
+                except Exception as scan_err:
+                    self.log_message(
+                        f"Error scanning alliance {config['alliance_id']} "
+                        f"({alliance_name}): {scan_err}"
+                    )
+                finally:
+                    # Always remove from active list when done
+                    async with self._scan_stats_lock:
+                        try:
+                            self._current_scanning_alliance.remove(scan_entry)
+                        except ValueError:
+                            pass
+
+            # Launch all scans concurrently; gather waits for all to finish
+            await asyncio.gather(*[_scan_one(cfg) for cfg in monitored])
+
+            self._current_scanning_alliance = []
             self._last_cycle_stats["end"] = datetime.utcnow()
             self.log_message("Alliance monitoring cycle completed")
             await publish_bot_activity(
                 workflow="alliance_monitor",
                 event_type="cycle_completed",
                 status="success",
-                message=f"Completed scan of {len(monitored)} alliance(s)"
+                message=f"Completed concurrent scan of {len(monitored)} alliance(s)"
             )
-            
+
         except Exception as e:
             self.log_message(f"Error in monitoring task: {e}")
             try:

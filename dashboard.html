@@ -432,6 +432,130 @@
       }
       #profile-name { font-size: 2em; }
     }
+
+    /* Live Bot Processing Widget */
+    .live-bot-widget {
+      position: fixed;
+      bottom: 32px;
+      right: 32px;
+      width: 320px;
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(8px);
+      cursor: grab;
+      z-index: 99;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .live-bot-widget:active {
+      cursor: grabbing;
+    }
+
+    .live-bot-widget.dragging {
+      box-shadow: 0 12px 40px rgba(99, 102, 241, 0.4);
+    }
+
+    .live-bot-widget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .live-bot-widget-title {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+    }
+
+    .live-bot-widget-title i {
+      width: 18px;
+      height: 18px;
+      color: var(--primary);
+      animation: pulse-icon 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-icon {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .live-bot-close-btn {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #f87171;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .live-bot-close-btn:hover {
+      background: rgba(239, 68, 68, 0.4);
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .live-bot-close-btn i {
+      width: 16px;
+      height: 16px;
+    }
+
+    .live-bot-widget-content {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      max-height: 200px;
+      overflow-y: auto;
+      line-height: 1.5;
+    }
+
+    .live-bot-widget-content::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .live-bot-widget-content::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .live-bot-widget-content::-webkit-scrollbar-thumb {
+      background: rgba(139, 92, 246, 0.3);
+      border-radius: 2px;
+    }
+
+    .live-bot-status-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
+
+    .live-bot-status-line:last-child {
+      border-bottom: none;
+    }
+
+    .live-bot-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #34d399;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(52, 211, 153, 0.5);
+    }
   </style>
 </head>
 
@@ -502,6 +626,33 @@
       </div>
     </div>
   </main>
+
+  <!-- Live Bot Processing Widget -->
+  <div id="live-bot-widget" class="live-bot-widget" style="display:none;">
+    <div class="live-bot-widget-header">
+      <div class="live-bot-widget-title">
+        <i data-lucide="zap"></i>
+        <span>Live Bot Processing</span>
+      </div>
+      <button class="live-bot-close-btn" onclick="closeLiveBotWidget()" title="Close">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <div class="live-bot-widget-content" id="live-bot-content">
+      <div class="live-bot-status-line">
+        <div class="live-bot-status-dot"></div>
+        <span>Bot is online and processing requests</span>
+      </div>
+      <div class="live-bot-status-line">
+        <div class="live-bot-status-dot"></div>
+        <span>Ready to redeem gift codes</span>
+      </div>
+      <div class="live-bot-status-line">
+        <div class="live-bot-status-dot"></div>
+        <span>Monitoring server activity</span>
+      </div>
+    </div>
+  </div>
 
   <footer>
     <div style="margin-bottom: 8px; font-weight: 700; color: #fff;">Whiteout Survival</div>
@@ -697,7 +848,93 @@
       Debug.log('Debug active. Check console for detailed network logs.');
     }
 
-    window.addEventListener('DOMContentLoaded', checkAuth);
+    // ── Live Bot Processing Widget ──────────────────────────────────────
+    let _liveBotWidgetPos = { x: 0, y: 0 };
+    let _isDragging = false;
+    let _dragOffset = { x: 0, y: 0 };
+
+    function initLiveBotWidget() {
+      const widget = document.getElementById('live-bot-widget');
+      if (!widget) return;
+
+      // Load saved position from localStorage
+      const savedPos = localStorage.getItem('live-bot-widget-pos');
+      if (savedPos) {
+        try {
+          _liveBotWidgetPos = JSON.parse(savedPos);
+          widget.style.bottom = _liveBotWidgetPos.y + 'px';
+          widget.style.right = _liveBotWidgetPos.x + 'px';
+        } catch (e) {
+          // Use default position
+        }
+      }
+
+      // Show widget (hidden by default in HTML)
+      widget.style.display = 'block';
+      
+      // Render the lucide icons
+      lucide.createIcons();
+
+      // Add drag handlers
+      widget.addEventListener('mousedown', startDragWidget);
+      document.addEventListener('mousemove', dragWidget);
+      document.addEventListener('mouseup', stopDragWidget);
+    }
+
+    function startDragWidget(e) {
+      // Don't drag if clicking on close button or other interactive elements
+      if (e.target.closest('.live-bot-close-btn')) return;
+      
+      _isDragging = true;
+      const widget = document.getElementById('live-bot-widget');
+      
+      _dragOffset.x = e.clientX - widget.getBoundingClientRect().right + widget.offsetWidth;
+      _dragOffset.y = e.clientY - widget.getBoundingClientRect().bottom + widget.offsetHeight;
+      
+      widget.classList.add('dragging');
+    }
+
+    function dragWidget(e) {
+      if (!_isDragging) return;
+      
+      const widget = document.getElementById('live-bot-widget');
+      const x = window.innerWidth - e.clientX - _dragOffset.x;
+      const y = window.innerHeight - e.clientY - _dragOffset.y;
+      
+      // Constrain to viewport
+      const constrainedX = Math.max(0, Math.min(x, window.innerWidth - widget.offsetWidth));
+      const constrainedY = Math.max(0, Math.min(y, window.innerHeight - widget.offsetHeight));
+      
+      widget.style.right = constrainedX + 'px';
+      widget.style.bottom = constrainedY + 'px';
+      
+      _liveBotWidgetPos = { x: constrainedX, y: constrainedY };
+    }
+
+    function stopDragWidget() {
+      if (!_isDragging) return;
+      _isDragging = false;
+      
+      const widget = document.getElementById('live-bot-widget');
+      widget.classList.remove('dragging');
+      
+      // Save position to localStorage
+      localStorage.setItem('live-bot-widget-pos', JSON.stringify(_liveBotWidgetPos));
+    }
+
+    function closeLiveBotWidget() {
+      const widget = document.getElementById('live-bot-widget');
+      widget.style.display = 'none';
+      localStorage.setItem('live-bot-widget-closed', 'true');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkAuth();
+      // Show widget only if not previously closed
+      if (!localStorage.getItem('live-bot-widget-closed')) {
+        initLiveBotWidget();
+      }
+    });
   </script>
 </body>
 </html>

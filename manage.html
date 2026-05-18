@@ -130,6 +130,30 @@
 
         .nav-item i { width: 20px; height: 20px; opacity: 0.7; }
         .nav-item.active i { opacity: 1; }
+        
+        .nav-lock-badge {
+            width: 16px;
+            height: 16px;
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: auto;
+            color: #f87171;
+            font-size: 10px;
+        }
+        
+        .nav-lock-badge i {
+            width: 12px;
+            height: 12px;
+            opacity: 1;
+        }
+        
+        .nav-item.configured-ok .nav-lock-badge {
+            display: none;
+        }
 
         /* Main Container */
         .main-container {
@@ -882,9 +906,12 @@
                     <i data-lucide="party-popper"></i>
                     <span>Welcome</span>
                 </button>
-                <button class="nav-item" onclick="switchTab('alliance')">
+                <button class="nav-item" id="nav-alliance" onclick="switchTab('alliance')">
                     <i data-lucide="shield"></i>
                     <span>Alliance Monitor</span>
+                    <div class="nav-lock-badge" title="Not configured">
+                        <i data-lucide="lock"></i>
+                    </div>
                 </button>
             </div>
 
@@ -898,9 +925,12 @@
                     <i data-lucide="cake"></i>
                     <span>Birthday Settings</span>
                 </button>
-                <button class="nav-item" onclick="switchTab('giftcodes')">
+                <button class="nav-item" id="nav-giftcodes" onclick="switchTab('giftcodes')">
                     <i data-lucide="ticket"></i>
                     <span>Gift Codes</span>
+                    <div class="nav-lock-badge" title="Not configured">
+                        <i data-lucide="lock"></i>
+                    </div>
                 </button>
                 <button class="nav-item" onclick="switchTab('reminders')">
                     <i data-lucide="clock"></i>
@@ -1536,7 +1566,6 @@
                     <div id="ar-members-list" class="ar-members-grid">
                         <div class="ar-empty-members">Loading members...</div>
                     </div>
-                    </div>
                 </div>
 
                 <div class="auto-redeem-section" id="giftcode-history-section" style="margin-bottom: 32px; padding: 24px;">
@@ -2133,7 +2162,41 @@
         }
         _loadDiscordUser();
 
-        // ── Smart switchTab: check registration status first ──────────────────
+        // ── Update lock status on nav items ──────────────────────────────────────
+        async function updateNavLockStatus() {
+            try {
+                const res = await fetch(`/api/register/status?guild_id=${guildId}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                const status = data.status;
+                
+                const navAlliance = document.getElementById('nav-alliance');
+                const navGiftcodes = document.getElementById('nav-giftcodes');
+                
+                if (status === 'approved') {
+                    if (navAlliance) navAlliance.classList.add('configured-ok');
+                    if (navGiftcodes) navGiftcodes.classList.add('configured-ok');
+                } else {
+                    if (navAlliance) {
+                        navAlliance.classList.remove('configured-ok');
+                        const lockBadge = navAlliance.querySelector('.nav-lock-badge');
+                        if (lockBadge) lockBadge.style.display = '';
+                    }
+                    if (navGiftcodes) {
+                        navGiftcodes.classList.remove('configured-ok');
+                        const lockBadge = navGiftcodes.querySelector('.nav-lock-badge');
+                        if (lockBadge) lockBadge.style.display = '';
+                    }
+                }
+                lucide.createIcons();
+            } catch(e) {
+                console.log('Could not fetch registration status:', e);
+            }
+        }
+        
+        // Update lock status on page load and every 5 seconds
+        updateNavLockStatus();
+        setInterval(updateNavLockStatus, 5000);
         async function switchTab(tabName) {
             if (tabName === 'alliance' || tabName === 'giftcodes') {
                 // Already unlocked in session?

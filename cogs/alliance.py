@@ -3339,36 +3339,50 @@ class Alliance(commands.Cog):
         return ""
     
     async def _get_monitoring_members(self, alliance_id: int) -> list:
-        """Get all members of an alliance from database"""
-        members = []
-        try:
-            if mongo_enabled() and AllianceMembersAdapter is not None:
-                docs = await AllianceMembersAdapter.get_all_members_async() or []
-                res = []
+        """Get all members of an alliance from database.
+        
+        Uses a targeted MongoDB query (not full-collection scan) and merges with
+        SQLite so members added/removed via bot commands are auto-reflected on the
+        next monitoring cycle without any manual refresh.
+        """
+        mongo_fids: set = set()
+        res: list = []
+
+        # --- MongoDB: targeted query by alliance_id ---
+        if mongo_enabled() and AllianceMembersAdapter is not None:
+            try:
+                docs = await AllianceMembersAdapter.get_members_by_alliance_async(alliance_id)
                 for d in docs:
                     try:
-                        if int(d.get('alliance') or d.get('alliance_id') or 0) != int(alliance_id):
+                        fid = str(d.get('fid') or d.get('id') or d.get('_id') or '').strip()
+                        if not fid:
                             continue
-                        fid = str(d.get('fid') or d.get('id') or d.get('_id'))
-                        nickname = d.get('nickname') or d.get('name') or ''
+                        nickname   = d.get('nickname') or d.get('name') or ''
                         furnace_lv = int(d.get('furnace_lv') or d.get('furnaceLevel') or d.get('furnace', 0) or 0)
-                        state_id = str(d.get('state_id') or d.get('kid') or '')
+                        state_id   = str(d.get('state_id') or d.get('kid') or '')
                         res.append((fid, nickname, furnace_lv, state_id))
+                        mongo_fids.add(fid)
                     except Exception:
                         continue
-                if res:
-                    return res
-        except Exception:
-            pass
+            except Exception as e:
+                self.log_message(f"[Monitor] Error querying MongoDB members for alliance {alliance_id}: {e}")
 
-        # SQLite fallback
+        # --- SQLite: always check to pick up newly added members not yet in MongoDB ---
         try:
             with get_db_connection('users.sqlite') as users_db:
                 cursor = users_db.cursor()
-                cursor.execute("SELECT fid, nickname, furnace_lv, kid FROM users WHERE alliance = ?", (alliance_id,))
-                return cursor.fetchall()
-        except Exception:
-            return []
+                cursor.execute(
+                    "SELECT fid, nickname, furnace_lv, kid FROM users WHERE alliance = ?",
+                    (alliance_id,)
+                )
+                for row in cursor.fetchall():
+                    fid = str(row[0]).strip()
+                    if fid and fid not in mongo_fids:
+                        res.append((fid, row[1] or '', int(row[2] or 0), str(row[3] or '')))
+        except Exception as e:
+            self.log_message(f"[Monitor] Error querying SQLite members for alliance {alliance_id}: {e}")
+
+        return res
     
     async def _get_monitored_alliances(self) -> List[Dict]:
         """Get all alliances that are being monitored"""
@@ -4363,6 +4377,23 @@ class AllianceMonitorView(discord.ui.View):
                     # Save to MongoDB
                     if mongo_enabled():
                         AllianceMonitoringAdapter.upsert_monitor(interaction.guild_id, alliance_id, channel_id, enabled=1)
+                        # ✅ Auto-unlock the alliance monitor for this guild.
+                        # By default, on_guild_join locks it for all new servers.
+                        # When the user explicitly configures monitoring, they intend
+                        # to use it — so unlock it now.
+                        try:
+                            ServerLimitsAdapter.set(interaction.guild_id, {
+                                'alliance_monitor_locked': False,
+                                'updated_by': 0  # 0 = system auto-unlock on user setup
+                            })
+                            self.cog.log_message(
+                                f"[Monitor] Auto-unlocked alliance monitor for guild {interaction.guild_id}"
+                            )
+                        except Exception as unlock_err:
+                            self.cog.log_message(
+                                f"[Monitor] Warning: Could not auto-unlock monitor for guild "
+                                f"{interaction.guild_id}: {unlock_err}"
+                            )
                     
                     # Initialize member history
                     if members:
@@ -4498,13 +4529,9 @@ class AllianceMonitorView(discord.ui.View):
                     if result:
                         alliance_name = result[0]
                 
-                # Get member count from history
-                with get_db_connection('settings.sqlite') as conn:
-                    cursor = conn.cursor()
-                    cursor.execute("""
-                        SELECT COUNT(*) FROM member_history WHERE alliance_id = ?
-                    """, (alliance_id,))
-                    member_count = cursor.fetchone()[0]
+                # Get live member count (merges MongoDB + SQLite so it's always accurate)
+                live_members = await self.cog._get_monitoring_members(alliance_id)
+                member_count = len(live_members)
             except Exception:
                 pass
             
@@ -4633,6 +4660,15 @@ class AllianceMonitorView(discord.ui.View):
 
                 if mongo_enabled():
                     AllianceMonitoringAdapter.upsert_monitor(interaction.guild_id, alliance_id, channel_id, enabled=new_status)
+                    # Auto-unlock the monitor lock whenever the user re-enables monitoring
+                    if new_status == 1:
+                        try:
+                            ServerLimitsAdapter.set(interaction.guild_id, {
+                                'alliance_monitor_locked': False,
+                                'updated_by': 0
+                            })
+                        except Exception:
+                            pass
                 
                 # Create appropriate embed based on new status
                 if new_status == 1:

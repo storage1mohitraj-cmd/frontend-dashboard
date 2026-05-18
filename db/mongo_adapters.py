@@ -684,6 +684,29 @@ class AllianceMembersAdapter:
             return 0
 
     @staticmethod
+    async def get_members_by_alliance_async(alliance_id: int) -> list:
+        """Get all members for a specific alliance directly by alliance_id (targeted query).
+        
+        Checks both 'alliance' and 'alliance_id' field names to handle legacy documents.
+        This is far more efficient than get_all_members_async() + Python filtering.
+        """
+        try:
+            db = await _get_db_wos_async()
+            cursor = db[AllianceMembersAdapter.COLL].find({
+                '$or': [
+                    {'alliance': int(alliance_id)},
+                    {'alliance_id': int(alliance_id)}
+                ]
+            })
+            docs = await cursor.to_list(length=None)
+            for doc in docs:
+                doc.pop('_id', None)
+            return docs
+        except Exception as e:
+            logger.error(f'Failed to get alliance members for alliance {alliance_id} (async) from Mongo: {e}')
+            return []
+
+    @staticmethod
     async def get_recent_members_async(limit: int = 80) -> list:
         """Get recently checked/updated members for the public status feed."""
         try:

@@ -259,7 +259,19 @@
     const renderEvent = (event) => {
       els.kind.textContent = (event.type || "update").replace(/_/g, " ");
       els.title.textContent = event.title || "Bot process update";
-      els.message.textContent = event.message || "A bot workflow completed.";
+      
+      let msg = event.message || "A bot workflow completed.";
+      if (event.type === "furnace" || msg.includes("moved from ")) {
+        msg = msg.replace(/moved from ([\w-]+) to ([\w-]+)/i, (match, p1, p2) => {
+          if (p1.toLowerCase().includes("state") || p2.toLowerCase().includes("state") || event.type === "state") return match;
+          return `upgraded it's fc lvl from ${p1} to ${p2.replace(/a$/i, "")}`;
+        });
+        msg = msg.replace(/upgraded FC from ([\w-]+) to ([\w-]+)/i, (match, p1, p2) => {
+          return `upgraded it's fc lvl from ${p1} to ${p2.replace(/a$/i, "")}`;
+        });
+      }
+      els.message.textContent = msg;
+      
       const meta = [
         ...eventTagValues(event),
         event.old_value && event.new_value && event.type !== "avatar" && event.type !== "redeem" && event.type !== "gift_code" ? `${event.old_value} -> ${event.new_value}` : ""
@@ -267,18 +279,41 @@
       els.meta.innerHTML = meta.length
         ? meta.map((item) => `<span>${escapeHtml(item)}</span>`).join("")
         : "<span>real bot data only</span><span>waiting for events</span>";
-      const hasAvatarPair = (event.type === "avatar" || event.old_avatar || event.new_avatar) && (event.old_avatar || event.old_value) && (event.new_avatar || event.new_value);
+      const hasAvatarPair = (event.type === "avatar" || event.old_avatar || event.new_avatar) && (event.old_avatar || event.old_value) && (event.new_avatar || event.new_value) && event.type === "avatar";
+      const hasSingleImage = !hasAvatarPair && (event.new_avatar || event.avatar_image || event.old_avatar);
+      
       els.avatarCompare.classList.toggle("is-visible", Boolean(hasAvatarPair));
+      const singleImageEl = document.querySelector("[data-single-image]");
+      if (singleImageEl) {
+         singleImageEl.style.display = hasSingleImage ? "block" : "none";
+         const img = singleImageEl.querySelector("img");
+         if (img && hasSingleImage) {
+            img.src = getAvatarFallback(event.new_avatar || event.avatar_image || event.old_avatar);
+         }
+      }
+      
       if (hasAvatarPair) {
         els.oldAvatar.src = getAvatarFallback(event.old_avatar || event.old_value);
         els.newAvatar.src = getAvatarFallback(event.new_avatar || event.new_value);
       }
-      renderHeroEvent(event, hasAvatarPair);
+      renderHeroEvent(event, hasAvatarPair, hasSingleImage);
     };
-    const renderHeroEvent = (event, hasAvatarPair) => {
+    const renderHeroEvent = (event, hasAvatarPair, hasSingleImage) => {
       if (!els.heroTitle || !els.heroMessage) return;
       els.heroTitle.textContent = event.title || "Bot process update";
-      els.heroMessage.textContent = event.message || "A bot workflow completed.";
+      
+      let msg = event.message || "A bot workflow completed.";
+      if (event.type === "furnace" || msg.includes("moved from ")) {
+        msg = msg.replace(/moved from ([\w-]+) to ([\w-]+)/i, (match, p1, p2) => {
+          if (p1.toLowerCase().includes("state") || p2.toLowerCase().includes("state") || event.type === "state") return match;
+          return `upgraded it's fc lvl from ${p1} to ${p2.replace(/a$/i, "")}`;
+        });
+        msg = msg.replace(/upgraded FC from ([\w-]+) to ([\w-]+)/i, (match, p1, p2) => {
+          return `upgraded it's fc lvl from ${p1} to ${p2.replace(/a$/i, "")}`;
+        });
+      }
+      els.heroMessage.textContent = msg;
+      
       const meta = [
         event.type ? event.type.replace(/_/g, " ") : "update",
         ...eventTagValues(event)
@@ -291,6 +326,15 @@
       if (els.heroAvatars) {
         els.heroAvatars.classList.toggle("is-visible", Boolean(hasAvatarPair));
       }
+      const singleHeroEl = document.querySelector("[data-hero-feed-single]");
+      if (singleHeroEl) {
+        singleHeroEl.style.display = hasSingleImage ? "block" : "none";
+        const img = singleHeroEl.querySelector("img");
+        if (img && hasSingleImage) {
+          img.src = getAvatarFallback(event.new_avatar || event.avatar_image || event.old_avatar);
+        }
+      }
+      
       if (hasAvatarPair && els.heroOldAvatar && els.heroNewAvatar) {
         els.heroOldAvatar.src = getAvatarFallback(event.old_avatar || event.old_value);
         els.heroNewAvatar.src = getAvatarFallback(event.new_avatar || event.new_value);
@@ -323,7 +367,7 @@
           <div class="dispatch-bubble-top">
             <div class="dispatch-bubble-title">
               <span class="dispatch-type">${iconLabel(event.type)}</span>
-              <span class="dispatch-bubble-actor">${escapeHtml(event.title || "Dispatch")}</span>
+              <span class="dispatch-bubble-actor">${escapeHtml(event.title || (event.type === 'avatar' ? (event.player || 'Player') : "Dispatch"))}</span>
             </div>
             <span class="dispatch-bubble-time">${time}</span>
           </div>
@@ -409,7 +453,8 @@
             else if (visualState === "recent") els.source.textContent = "stored events";
             else els.source.textContent = feed.source === "idle" ? "idle" : "api error";
           }
-          const updatedAt = `updated ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+          const dt = (feed.events && feed.events.length && feed.events[0].timestamp) ? new Date(feed.events[0].timestamp) : new Date();
+          const updatedAt = (Number.isNaN(dt.getTime()) ? new Date() : dt).toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) + ' UTC';
           if (els.clock) els.clock.textContent = updatedAt;
           if (els.heroTime) els.heroTime.textContent = updatedAt;
           rotate();

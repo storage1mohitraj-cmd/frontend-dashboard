@@ -59,8 +59,13 @@ async def get_bot_feed(request: Request, limit: int = 40):
     activity_events = await _get_activity_events(safe_limit)
     if not activity_events:
         activity_events = _get_activity_events_inmemory(safe_limit)
-    if not activity_events:
-        activity_events = _get_activity_events_sqlite(safe_limit)
+        sqlite_events = _get_activity_events_sqlite(safe_limit)
+        # Merge them by ID to avoid duplicates and ensure we show all
+        seen_ids = {e.get("id") for e in activity_events}
+        for e in sqlite_events:
+            if e.get("id") not in seen_ids:
+                activity_events.append(e)
+                seen_ids.add(e.get("id"))
     events = [*activity_events, *await _build_events(safe_limit, server_lookup, gift_codes)]
     monitors = await _get_monitors()
     auto_redeem_enabled = await _get_auto_redeem_enabled()
@@ -137,7 +142,7 @@ def _normalize_activity_event(doc: Dict[str, Any]) -> Dict[str, Any]:
         "workflow": workflow,
         "event_type": event_type,
         "status": status,
-        "title": title,
+        "title": title if title != "Avatar updated" else "",
         "message": doc.get("message") or title,
         "player": doc.get("nickname"),
         "fid": str(doc.get("fid") or ""),
@@ -811,7 +816,7 @@ def _normalize_event(event: Dict[str, Any]) -> Dict[str, Any]:
         title = "Name change detected"
         message = f"changed name from {old_value or 'Unknown'} to {new_value or 'Unknown'}"
     elif event_type == "avatar":
-        title = "Avatar change detected"
+        title = ""
         message = "changed avatar"
     elif event_type == "state":
         title = "State transfer detected"

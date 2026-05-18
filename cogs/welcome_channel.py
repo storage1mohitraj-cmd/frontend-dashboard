@@ -340,60 +340,33 @@ class WelcomeChannel(commands.Cog):
                 async with session.get(avatar_url) as resp:
                     if resp.status == 200:
                         avatar_data = await resp.read()
-                        avatar = Image.open(io.BytesIO(avatar_data))
-                        avatar = avatar.resize((220, 220))
+                        avatar = Image.open(io.BytesIO(avatar_data)).convert('RGBA')
                         
-                        # Create circular mask
-                        mask = Image.new('L', (220, 220), 0)
+                        # Use anti-aliasing via supersampling for high-quality circles
+                        scale = 3
+                        
+                        # 1. Prepare Avatar (220x220)
+                        avatar_large = avatar.resize((220 * scale, 220 * scale), Image.Resampling.LANCZOS)
+                        mask = Image.new('L', (220 * scale, 220 * scale), 0)
                         mask_draw = ImageDraw.Draw(mask)
-                        mask_draw.ellipse((0, 0, 220, 220), fill=255)
+                        mask_draw.ellipse((0, 0, 220 * scale, 220 * scale), fill=255)
                         
-                        # Create white circle background
-                        circle_bg = Image.new('RGB', (240, 240), (255, 255, 255))
-                        circle_mask = Image.new('L', (240, 240), 0)
-                        circle_draw = ImageDraw.Draw(circle_mask)
-                        circle_draw.ellipse((0, 0, 240, 240), fill=255)
+                        avatar_large.putalpha(mask)
+                        avatar_scaled = avatar_large.resize((220, 220), Image.Resampling.LANCZOS)
+                        
+                        # 2. Prepare Border (240x240)
+                        border = Image.new('RGBA', (240 * scale, 240 * scale), (255, 255, 255, 0))
+                        border_draw = ImageDraw.Draw(border)
+                        border_draw.ellipse((0, 0, 240 * scale, 240 * scale), fill=(255, 255, 255, 255))
+                        border_scaled = border.resize((240, 240), Image.Resampling.LANCZOS)
                         
                         # Paste white circle onto main image
-                        img.paste(circle_bg, (40, 30), circle_mask)
+                        img.paste(border_scaled, (40, 30), border_scaled)
                         
-                        # Paste avatar
-                        avatar_rgb = avatar.convert('RGB')
-                        img.paste(avatar_rgb, (50, 40), mask)
+                        # Paste avatar over it
+                        img.paste(avatar_scaled, (50, 40), avatar_scaled)
             
-            # Load modern fonts with better styling
-            try:
-                # Try to load the VarelaRound font which matches the reference image
-                font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'VarelaRound.ttf')
-                font_large = ImageFont.truetype(font_path, 48)  # Large main text
-                font_medium = ImageFont.truetype(font_path, 42)  # Secondary text
-                font_small = ImageFont.truetype(font_path, 32)
-            except Exception as e:
-                logger.warning(f"Failed to load VarelaRound, trying Arial Bold: {e}")
-                try:
-                    # Fallback to arial
-                    font_large = ImageFont.truetype("arialbd.ttf", 48)
-                    font_medium = ImageFont.truetype("arialbd.ttf", 42)
-                    font_small = ImageFont.truetype("arial.ttf", 32)
-                except Exception as e2:
-                    logger.warning(f"Failed to load Arial, trying project font: {e2}")
-                    try:
-                        # Try project font as last resort before default
-                        font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'unifont-16.0.04.otf')
-                        font_large = ImageFont.truetype(font_path, 48)
-                        font_medium = ImageFont.truetype(font_path, 42)
-                        font_small = ImageFont.truetype(font_path, 32)
-                    except:
-                        # Fallback to default font
-                        logger.warning("All font loading failed, using default font")
-                        font_large = ImageFont.load_default()
-                        font_medium = ImageFont.load_default()
-                        font_small = ImageFont.load_default()
-            
-            # Prepare text content - 2 line layout
-            text_x = 300
-            
-            # ── Pull custom text from DB settings ──────────────────────
+            # Prepare text content
             def _resolve_img(template: str) -> str:
                 ordinal_sfx = lambda n: f"{n}{'th' if 10<=n%100<=20 else {1:'st',2:'nd',3:'rd'}.get(n%10,'th')}"
                 return (template
@@ -406,17 +379,75 @@ class WelcomeChannel(commands.Cog):
             raw_title = settings.get('embed_title') if settings else None
             raw_subtitle = settings.get('embed_subtitle') if settings else None
             
-            # Default to the 2-line layout seen in the reference image
             if not raw_title:
                 raw_title = 'Welcome {username} to {server}'
             if not raw_subtitle:
                 raw_subtitle = 'you are the {member_count} member!'
 
-            # Line 1: Welcome username to Server
             welcome_text = _resolve_img(raw_title)
-            
-            # Line 2: Member count
             count_text = _resolve_img(raw_subtitle)
+
+            text_x = 300
+            max_text_width = width - text_x - 30  # 30px padding on the right
+            
+            # Determine which font path to use
+            current_font_path = None
+            try:
+                font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'VarelaRound.ttf')
+                if os.path.exists(font_path):
+                    current_font_path = font_path
+                else:
+                    raise Exception("VarelaRound not found")
+            except Exception as e:
+                logger.warning(f"Failed to load VarelaRound: {e}")
+                try:
+                    current_font_path = "arialbd.ttf"
+                    ImageFont.truetype(current_font_path, 48)  # Test load
+                except Exception:
+                    try:
+                        font_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'fonts', 'unifont-16.0.04.otf')
+                        if os.path.exists(font_path):
+                            current_font_path = font_path
+                    except:
+                        current_font_path = None
+
+            font_large, font_medium = None, None
+            w1, h1, w2, h2 = 0, 0, 0, 0
+            
+            if current_font_path:
+                # Dynamically scale large font (Line 1)
+                for size in range(48, 16, -2):
+                    font_large = ImageFont.truetype(current_font_path, size)
+                    try:
+                        bbox = draw.textbbox((0, 0), welcome_text, font=font_large)
+                        w1, h1 = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    except AttributeError:
+                        w1, h1 = draw.textsize(welcome_text, font=font_large)
+                    if w1 <= max_text_width:
+                        break
+                        
+                # Dynamically scale medium font (Line 2)
+                for size in range(42, 14, -2):
+                    font_medium = ImageFont.truetype(current_font_path, size)
+                    try:
+                        bbox = draw.textbbox((0, 0), count_text, font=font_medium)
+                        w2, h2 = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    except AttributeError:
+                        w2, h2 = draw.textsize(count_text, font=font_medium)
+                    if w2 <= max_text_width:
+                        break
+            else:
+                logger.warning("All font loading failed, using default font")
+                font_large = ImageFont.load_default()
+                font_medium = ImageFont.load_default()
+                try:
+                    bbox1 = draw.textbbox((0, 0), welcome_text, font=font_large)
+                    bbox2 = draw.textbbox((0, 0), count_text, font=font_medium)
+                    w1, h1 = bbox1[2] - bbox1[0], bbox1[3] - bbox1[1]
+                    w2, h2 = bbox2[2] - bbox2[0], bbox2[3] - bbox2[1]
+                except AttributeError:
+                    w1, h1 = draw.textsize(welcome_text, font=font_large)
+                    w2, h2 = draw.textsize(count_text, font=font_medium)
 
             # Enhanced text styling
             text_color = (255, 255, 255)  # Pure white
@@ -424,23 +455,11 @@ class WelcomeChannel(commands.Cog):
             # Helper function to draw text with heavy stroke
             def draw_text_with_effects(xy, text, font):
                 x, y = xy
-                
-                # Draw thick black stroke for readability on any background
-                stroke_width = 4
+                # Dynamically adjust stroke width based on scaled font size
+                stroke_width = max(2, int(getattr(font, 'size', 32) * 0.08)) if current_font_path else 2
                 draw.text((x, y), text, fill=text_color, font=font,
                          stroke_width=stroke_width, stroke_fill=(0, 0, 0))
 
-            # Calculate text height for vertical centering
-            try:
-                bbox1 = draw.textbbox((0, 0), welcome_text, font=font_large)
-                bbox2 = draw.textbbox((0, 0), count_text, font=font_medium)
-                h1 = bbox1[3] - bbox1[1]
-                h2 = bbox2[3] - bbox2[1]
-            except AttributeError:
-                # Fallback for older Pillow versions
-                w1, h1 = draw.textsize(welcome_text, font=font_large)
-                w2, h2 = draw.textsize(count_text, font=font_medium)
-                
             spacing = 15
             total_text_height = h1 + h2 + spacing
             

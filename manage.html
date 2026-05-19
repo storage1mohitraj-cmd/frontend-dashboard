@@ -4339,7 +4339,13 @@
                     
                     grid.innerHTML = REMINDER_PRESETS.map(p => `
                         <div class="preset-card">
-                            <div class="preset-thumb"><img src="${escapeAttribute(p.thumbnail_url || p.image_url || 'logo.png')}" alt="" onerror="this.onerror=null;this.src='logo.png';"></div>
+                            <div class="preset-thumb">
+                                <img src="${escapeAttribute(getReminderThumbnail({ thumbnail_url: p.thumbnail_url || p.image_url, message: p.title }))}" 
+                                     alt="" 
+                                     data-message="${escapeAttribute(p.title || '')}" 
+                                     data-thumbnail="${escapeAttribute(p.thumbnail_url || p.image_url || '')}" 
+                                     onerror="handleThumbnailError(this)">
+                            </div>
                             <div class="preset-body">
                                 <div class="preset-title">
                                     <strong>${escapeHTML(p.title)}</strong>
@@ -4647,7 +4653,18 @@
             if (bodyEl) { bodyEl.textContent = body; bodyEl.style.display = body ? 'block' : 'none'; }
 
             const thumbImg = document.getElementById('reminder-preview-thumbnail');
-            if (thumbImg) { if (thumbnail) { thumbImg.src = thumbnail; thumbImg.style.display = 'block'; thumbImg.onerror = () => { thumbImg.style.display='none'; }; } else thumbImg.style.display = 'none'; }
+            if (thumbImg) {
+                const resolvedThumbnail = getReminderThumbnail({ thumbnail_url: thumbnail, message: message });
+                if (resolvedThumbnail && resolvedThumbnail !== 'logo.png') {
+                    thumbImg.src = resolvedThumbnail;
+                    thumbImg.style.display = 'block';
+                    thumbImg.setAttribute('data-message', message);
+                    thumbImg.setAttribute('data-thumbnail', thumbnail);
+                    thumbImg.onerror = () => { handleThumbnailError(thumbImg); };
+                } else {
+                    thumbImg.style.display = 'none';
+                }
+            }
 
             const mainImg = document.getElementById('reminder-preview-image');
             if (mainImg) { if (image) { mainImg.src = image; mainImg.style.display = 'block'; mainImg.onerror = () => { mainImg.style.display='none'; }; } else mainImg.style.display = 'none'; }
@@ -4847,6 +4864,68 @@
             `;
         }
 
+        function getReminderThumbnail(r) {
+            if (!r) return 'logo.png';
+            const url = r.thumbnail_url || '';
+            const msg = (r.message || '').toLowerCase();
+            
+            // 1. Local upload URL
+            if (url.includes('/api/reminders/uploads/')) {
+                return url;
+            }
+            
+            // 2. Known presets mapping based on hashes or messages
+            if (url.includes('0f4d6593f84ba519bd095f077527f9ec-8') || msg.includes('bear')) {
+                return 'https://i.postimg.cc/Xq0GQvXM/bear-event.png';
+            }
+            if (url.includes('images__7_') || msg.includes('joe') || msg.includes('crazy')) {
+                return 'https://i.postimg.cc/Jz0Tz3Ht/crazy-joe-event.png';
+            }
+            if (url.includes('95eab350caae2ac1') || msg.includes('arena')) {
+                return 'https://i.postimg.cc/QMnDnzGH/alliance-championship.png';
+            }
+            if (msg.includes('castle') || msg.includes('sunfire')) {
+                return 'https://i.postimg.cc/QCpGRRKP/foundry-event.png';
+            }
+            if (msg.includes('mobilization')) {
+                return 'https://i.postimg.cc/Pf9Hs0Ld/alliance-mobilization.png';
+            }
+            
+            // 3. Fallback to raw thumbnail
+            if (url) return url;
+            return 'logo.png';
+        }
+
+        function handleThumbnailError(imgElement) {
+            imgElement.onerror = null; // prevent loops
+            const message = imgElement.getAttribute('data-message') || '';
+            const originalUrl = imgElement.getAttribute('data-thumbnail') || '';
+            const msg = message.toLowerCase();
+            const url = originalUrl || '';
+            
+            if (url.includes('0f4d6593f84ba519bd095f077527f9ec-8') || msg.includes('bear')) {
+                imgElement.src = 'https://i.postimg.cc/Xq0GQvXM/bear-event.png';
+                return;
+            }
+            if (url.includes('images__7_') || msg.includes('joe') || msg.includes('crazy')) {
+                imgElement.src = 'https://i.postimg.cc/Jz0Tz3Ht/crazy-joe-event.png';
+                return;
+            }
+            if (url.includes('95eab350caae2ac1') || msg.includes('arena')) {
+                imgElement.src = 'https://i.postimg.cc/QMnDnzGH/alliance-championship.png';
+                return;
+            }
+            if (msg.includes('castle') || msg.includes('sunfire')) {
+                imgElement.src = 'https://i.postimg.cc/QCpGRRKP/foundry-event.png';
+                return;
+            }
+            if (msg.includes('mobilization')) {
+                imgElement.src = 'https://i.postimg.cc/Pf9Hs0Ld/alliance-mobilization.png';
+                return;
+            }
+            imgElement.src = 'logo.png';
+        }
+
         function renderReminders() {
             const list = document.getElementById('reminders-list');
             const search = (document.getElementById('reminder-search')?.value || '').trim().toLowerCase();
@@ -4876,13 +4955,18 @@
                 const id = String(r.id);
                 const d = parseReminderDate(r.reminder_time);
                 const time = d ? d.toLocaleString() : 'Unknown time';
-                const image = r.thumbnail_url || 'logo.png';
+                const image = getReminderThumbnail(r);
                 const recurring = r.is_recurring ? '<span class="status-pill active">Recurring</span>' : '<span class="status-pill pending">One-time</span>';
                 const div = document.createElement('div');
                 div.className = 'reminder-card';
                 div.innerHTML = `
                     <div class="reminder-card-top">
-                        <img class="reminder-card-thumb" src="${escapeAttribute(image)}" alt="" onerror="this.onerror=null;this.src='logo.png';">
+                        <img class="reminder-card-thumb" 
+                             src="${escapeAttribute(image)}" 
+                             alt="" 
+                             data-message="${escapeAttribute(r.message || '')}" 
+                             data-thumbnail="${escapeAttribute(r.thumbnail_url || '')}" 
+                             onerror="handleThumbnailError(this)">
                         <div>
                             <div class="reminder-card-title">${escapeHTML(r.message || 'Untitled reminder')}</div>
                             <div class="reminder-card-body">${escapeHTML(r.body || 'No description added.')}</div>

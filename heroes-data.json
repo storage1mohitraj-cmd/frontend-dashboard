@@ -1,0 +1,124 @@
+{
+  "heroes": [
+    {
+      "id": 1,
+      "name": "Edd",
+      "type": "attacker",
+      "rarity": "legendary"
+    },
+    {
+      "id": 2,
+      "name": "Kimberly",
+      "type": "support",
+      "rarity": "legendary"
+    },
+    {
+      "id": 3,
+      "name": "Cliff",
+      "type": "tank",
+      "rarity": "legendary"
+    },
+    {
+      "id": 4,
+      "name": "Nikola",
+      "type": "healer",
+      "rarity": "legendary"
+    },
+    {
+      "id": 5,
+      "name": "Hank",
+      "type": "attacker",
+      "rarity": "epic"
+    },
+    {
+      "id": 6,
+      "name": "Naida",
+      "type": "support",
+      "rarity": "epic"
+    },
+    {
+      "id": 7,
+      "name": "Baker",
+      "type": "tank",
+      "rarity": "epic"
+    },
+    {
+      "id": 8,
+      "name": "Nancy",
+      "type": "healer",
+      "rarity": "epic"
+    },
+    {
+      "id": 9,
+      "name": "Sally",
+      "type": "attacker",
+      "rarity": "rare"
+    },
+    {
+      "id": 10,
+      "name": "Curt",
+      "type": "support",
+      "rarity": "rare"
+    },
+    {
+      "id": 11,
+      "name": "Hugo",
+      "type": "tank",
+      "rarity": "rare"
+    },
+    {
+      "id": 12,
+      "name": "Alice",
+      "type": "healer",
+      "rarity": "rare"
+    },
+    {
+      "id": 13,
+      "name": "Tom",
+      "type": "attacker",
+      "rarity": "common"
+    },
+    {
+      "id": 14,
+      "name": "Jerry",
+      "type": "support",
+      "rarity": "common"
+    },
+    {
+      "id": 15,
+      "name": "Tim",
+      "type": "tank",
+      "rarity": "common"
+    },
+    {
+      "id": 16,
+      "name": "Debby",
+      "type": "healer",
+      "rarity": "common"
+    },
+    {
+      "id": 17,
+      "name": "Bella",
+      "type": "attacker",
+      "rarity": "legendary"
+    },
+    {
+      "id": 18,
+      "name": "Rose",
+      "type": "support",
+      "rarity": "epic"
+    },
+    {
+      "id": 19,
+      "name": "Morgan",
+      "type": "tank",
+      "rarity": "epic"
+    },
+    {
+      "id": 20,
+      "name": "Jessica",
+      "type": "healer",
+      "rarity": "epic"
+    }
+  ]
+}

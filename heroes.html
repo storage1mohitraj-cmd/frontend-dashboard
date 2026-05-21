@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script>
+    const savedTheme = localStorage.getItem('theme') || 'cartoon';
+    if (savedTheme && savedTheme !== 'dark') {
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heroes - Whiteout Survival Bot</title>
+  <meta name="description" content="Explore all Whiteout Survival heroes with detailed information">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-glow: rgba(99, 102, 241, 0.5);
+      --accent: #f43f5e;
+      --bg-dark: #030712;
+      --card-bg: rgba(17, 24, 39, 0.7);
+      --glass-border: rgba(255, 255, 255, 0.05);
+      --text-main: #f9fafb;
+      --text-muted: #9ca3af;
+      --gradient-brand: linear-gradient(135deg, #fff 0%, #9ca3af 100%);
+    }
+
+    [data-theme="light"] {
+      --bg-dark: #f3f4f6;
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --glass-border: rgba(0, 0, 0, 0.08);
+      --text-main: #111827;
+      --text-muted: #4b5563;
+      --gradient-brand: linear-gradient(135deg, #111827 0%, #4b5563 100%);
+    }
+
+    [data-theme="high-contrast"] {
+      --radius: 0;
+      --bg-dark: #000000;
+      --card-bg: #0c0c0e;
+      --glass-border: #ffffff;
+      --text-main: #ffffff;
+      --text-muted: #e0e0e0;
+      --primary: #00f0ff;
+      --gradient-brand: linear-gradient(135deg, #fff 0%, #00f0ff 100%);
+    }
+
+    [data-theme="hacker"] {
+      --radius: 0;
+      --bg-dark: #010602;
+      --card-bg: #041006;
+      --glass-border: rgba(0, 255, 65, 0.3);
+      --text-main: #33ff33;
+      --text-muted: #11aa11;
+      --primary: #00ff66;
+      --gradient-brand: linear-gradient(135deg, #00ff66 0%, #33ff33 100%);
+    }
+
+    [data-theme="cartoon"] {
+      --radius: 18px;
+      --bg-dark: #f6fbff;
+      --card-bg: rgba(255, 255, 255, 0.92);
+      --glass-border: rgba(23, 32, 51, 0.14);
+      --text-main: #172033;
+      --text-muted: #5b6478;
+      --primary: #ff5f8f;
+      --primary-glow: rgba(0, 184, 217, 0.35);
+      --gradient-brand: linear-gradient(135deg, #172033 0%, #ff5f8f 45%, #00a7c7 100%);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+    }
+
+    header {
+      background: rgba(3, 7, 18, 0.8);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--glass-border);
+      padding: 16px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .brand img {
+      height: 42px;
+      width: 42px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px var(--primary-glow);
+    }
+
+    .brand-text {
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1.6em;
+      letter-spacing: -1px;
+      background: var(--gradient-brand);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-transform: uppercase;
+    }
+
+    .account-area {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 700;
+      text-decoration: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .theme-toggle {
+      background: transparent;
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--primary);
+    }
+
+    .theme-toggle svg {
+      width: 1.2rem;
+      height: 1.2rem;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    .theme-toggle .sun-icon { display: block; }
+    .theme-toggle .moon-icon,
+    .theme-toggle .contrast-icon,
+    .theme-toggle .hacker-icon,
+    .theme-toggle .cartoon-icon { display: none; }
+
+    [data-theme="light"] .theme-toggle .sun-icon { display: none; }
+    [data-theme="light"] .theme-toggle .moon-icon { display: block; }
+
+    [data-theme="high-contrast"] .theme-toggle .sun-icon { display: none; }
+    [data-theme="high-contrast"] .theme-toggle .contrast-icon { display: block !important; }
+
+    [data-theme="hacker"] .theme-toggle .sun-icon { display: none; }
+    [data-theme="hacker"] .theme-toggle .hacker-icon { display: block !important; }
+
+    [data-theme="cartoon"] .theme-toggle .sun-icon { display: none; }
+    [data-theme="cartoon"] .theme-toggle .cartoon-icon { display: block !important; }
+
+    main {
+      max-width: 90rem;
+      margin: 0 auto;
+      padding: 60px 24px;
+      width: 100%;
+    }
+
+    .page-header {
+      margin-bottom: 60px;
+    }
+
+    .page-header h1 {
+      font-size: 2.5em;
+      font-family: 'Outfit', sans-serif;
+      margin-bottom: 16px;
+    }
+
+    .page-header p {
+      color: var(--text-muted);
+      font-size: 1.1em;
+    }
+
+    .filter-controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 40px;
+      flex-wrap: wrap;
+    }
+
+    .filter-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      color: var(--text-main);
+      padding: 10px 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .filter-btn:hover,
+    .filter-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .heroes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+
+    .hero-card {
+      background: var(--card-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .hero-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .hero-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--primary);
+      box-shadow: 0 12px 32px rgba(99, 102, 241, 0.2);
+    }
+
+    .hero-card:hover::before {
+      opacity: 1;
+    }
+
+    .hero-icon {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-name {
+      font-weight: 700;
+      font-size: 1.1em;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-type {
+      font-size: 0.85em;
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-rarity {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      font-weight: 600;
+      position: relative;
+      z-index: 1;
+      margin-top: 8px;
+    }
+
+    .rarity-legendary {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 140, 0, 0.2));
+      color: #ffa500;
+    }
+
+    .rarity-epic {
+      background: linear-gradient(135deg, rgba(147, 51, 234, 0.2), rgba(99, 102, 241, 0.2));
+      color: #9333ea;
+    }
+
+    .rarity-rare {
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(59, 130, 246, 0.2));
+      color: #22c55e;
+    }
+
+    .rarity-common {
+      background: rgba(156, 163, 175, 0.2);
+      color: #9ca3af;
+    }
+
+    .hero-tooltip {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: rgba(0, 0, 0, 0.95);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.95em;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 10;
+    }
+
+    .hero-card:hover .hero-tooltip {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-20px);
+    }
+
+    footer {
+      border-top: 1px solid var(--glass-border);
+      padding: 40px 24px;
+      text-align: center;
+      color: var(--text-muted);
+      margin-top: 60px;
+    }
+
+    @media (max-width: 768px) {
+      header {
+        padding: 16px 24px;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .brand-text {
+        font-size: 1.2em;
+      }
+
+      .page-header h1 {
+        font-size: 1.8em;
+      }
+
+      .heroes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 16px;
+      }
+
+      .filter-controls {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <a href="/" class="brand">
+      <img src="/logo.gif" alt="Bot Logo">
+      <span class="brand-text">Whiteout Survival</span>
+    </a>
+
+    <div class="account-area">
+      <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme">
+        <svg class="sun-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="contrast-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+        <svg class="hacker-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m18 16 4-4-4-4M6 8l-4 4 4 4M14.5 4l-5 16" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <svg class="cartoon-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke-width="2"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <a class="btn" href="dashboard.html">Back to Dashboard</a>
+    </div>
+  </header>
+
+  <main>
+    <div class="page-header">
+      <h1>Heroes</h1>
+      <p>Explore all available heroes in Whiteout Survival</p>
+    </div>
+
+    <div class="filter-controls">
+      <button class="filter-btn active" onclick="filterHeroes('all')">All Heroes</button>
+      <button class="filter-btn" onclick="filterHeroes('attacker')">Attackers</button>
+      <button class="filter-btn" onclick="filterHeroes('tank')">Tanks</button>
+      <button class="filter-btn" onclick="filterHeroes('healer')">Healers</button>
+      <button class="filter-btn" onclick="filterHeroes('support')">Support</button>
+      <button class="filter-btn" onclick="filterRarity('legendary')">Legendary</button>
+      <button class="filter-btn" onclick="filterRarity('epic')">Epic</button>
+      <button class="filter-btn" onclick="filterRarity('rare')">Rare</button>
+    </div>
+
+    <div class="heroes-grid" id="heroes-grid"></div>
+  </main>
+
+  <footer>
+    <p>&copy; 2024 Whiteout Survival Bot. All rights reserved.</p>
+  </footer>
+
+  <script>
+    let heroesData = [];
+    let currentFilter = 'all';
+    let currentRarityFilter = null;
+
+    async function loadHeroes() {
+      try {
+        const response = await fetch('heroes-data.json');
+        const data = await response.json();
+        heroesData = data.heroes;
+        renderHeroes(heroesData);
+      } catch (error) {
+        console.error('Failed to load heroes:', error);
+      }
+    }
+
+    function renderHeroes(heroes) {
+      const grid = document.getElementById('heroes-grid');
+      grid.innerHTML = '';
+
+      heroes.forEach(hero => {
+        const card = document.createElement('div');
+        card.className = 'hero-card';
+        const iconEmoji = getHeroEmoji(hero.type);
+        const rarityClass = `rarity-${hero.rarity}`;
+
+        card.innerHTML = `
+          <div class="hero-icon">${iconEmoji}</div>
+          <div class="hero-name">${hero.name}</div>
+          <div class="hero-type">${capitalizeFirst(hero.type)}</div>
+          <div class="hero-rarity ${rarityClass}">${capitalizeFirst(hero.rarity)}</div>
+          <div class="hero-tooltip">${hero.name}</div>
+        `;
+
+        grid.appendChild(card);
+      });
+    }
+
+    function filterHeroes(type) {
+      currentFilter = type;
+      currentRarityFilter = null;
+      applyFilters();
+      updateFilterButtons();
+    }
+
+    function filterRarity(rarity) {
+      currentRarityFilter = rarity;
+      applyFilters();
+      updateFilterButtons();
+    }
+
+    function applyFilters() {
+      let filtered = heroesData;
+
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(h => h.type === currentFilter);
+      }
+
+      if (currentRarityFilter) {
+        filtered = filtered.filter(h => h.rarity === currentRarityFilter);
+      }
+
+      renderHeroes(filtered);
+    }
+
+    function updateFilterButtons() {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      document.querySelectorAll('.filter-btn')[0].classList.add('active');
+    }
+
+    function getHeroEmoji(type) {
+      const emojis = {
+        'attacker': '⚔️',
+        'tank': '🛡️',
+        'healer': '✨',
+        'support': '🌟'
+      };
+      return emojis[type] || '👤';
+    }
+
+    function capitalizeFirst(str) {
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      loadHeroes();
+
+      const themeToggle = document.getElementById('theme-toggle');
+      if (themeToggle) {
+        const themes = ['cartoon', 'dark', 'light', 'high-contrast', 'hacker'];
+        themeToggle.addEventListener('click', () => {
+          const currentTheme = localStorage.getItem('theme') || 'cartoon';
+          const currentIndex = themes.indexOf(currentTheme);
+          const nextIndex = ((currentIndex === -1 ? 0 : currentIndex) + 1) % themes.length;
+          const nextTheme = themes[nextIndex];
+
+          localStorage.setItem('theme', nextTheme);
+          if (nextTheme === 'dark') {
+            document.documentElement.removeAttribute('data-theme');
+          } else {
+            document.documentElement.setAttribute('data-theme', nextTheme);
+          }
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>

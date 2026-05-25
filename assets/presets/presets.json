@@ -1,0 +1,49 @@
+{
+  "presets": [
+    {
+      "id": "wos",
+      "title": "WOS",
+      "description": "Whiteout Survival brand icon",
+      "image_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1507347649408532520/new-icon.png?ex=6a14de24&is=6a138ca4&hm=9af7a0382eeb6ef837b479ea36c4f0a54121c542c24ab221c515039cfd5521a5",
+      "thumbnail_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1507347649408532520/new-icon.png",
+      "badge": "Game",
+      "footer_text": "Whiteout Survival"
+    },
+    {
+      "id": "crazy-joe",
+      "title": "Crazy Joe",
+      "description": "Crazy Joe avatar",
+      "image_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1465697260829671687/images__7_-removebg-preview.png?ex=6a14f4b2&is=6a13a332&hm=ebe8ca159dd9a120fa5ff6b8a1095019e968155ec0523ad03790f1d6f93740cf",
+      "thumbnail_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1465697260829671687/images__7_-removebg-preview.png",
+      "badge": "Event",
+      "footer_text": "Crazy Joe"
+    },
+    {
+      "id": "arena",
+      "title": "Arena",
+      "description": "Arena background",
+      "image_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1438668192372490331/95eab350caae2ac1.png?ex=6a14d7aa&is=6a13862a&hm=267c2b44c7d5d4fe6ce35d8851253b625a07680fb533f9fa92bd790390ebe582",
+      "thumbnail_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1438668192372490331/95eab350caae2ac1.png",
+      "badge": "Location",
+      "footer_text": "Arena"
+    },
+    {
+      "id": "sunfire-castle",
+      "title": "Sunfire Castle",
+      "description": "Sunfire Castle image",
+      "image_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1441753704867827954/e6e3d1fb5943666f.png?ex=6a14dc85&is=6a138b05&hm=8ba4980891151b8fb09702259b4adb2d625f480763f9e424e56c32a64c03467d",
+      "thumbnail_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1441753704867827954/e6e3d1fb5943666f.png",
+      "badge": "Location",
+      "footer_text": "Sunfire Castle"
+    },
+    {
+      "id": "bear-trap",
+      "title": "Bear Trap",
+      "description": "Animated bear trap GIF",
+      "image_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1441474311834832956/0f4d6593f84ba519bd095f077527f9ec-8.gif?ex=6a1529d1&is=6a13d851&hm=fda361585a06804f9fe9da6461b362a11a6042aed90f532aac2d89dd0aece5d9",
+      "thumbnail_url": "https://cdn.discordapp.com/attachments/1435569370389807144/1441474311834832956/0f4d6593f84ba519bd095f077527f9ec-8.gif",
+      "badge": "Event",
+      "footer_text": "Bear Trap"
+    }
+  ]
+}

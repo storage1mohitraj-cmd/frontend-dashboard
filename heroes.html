@@ -3,8 +3,7 @@
 
 <head>
   <script>
-    let savedTheme = 'cyberpunk-cool';
-    localStorage.setItem('theme', 'cyberpunk-cool');
+    let savedTheme = localStorage.getItem('theme') || 'cyberpunk-cool';
     if (savedTheme === 'viper') {
       savedTheme = 'cyberpunk-cool';
       localStorage.setItem('theme', 'cyberpunk-cool');
@@ -731,8 +730,7 @@
       if (themeToggle) {
         const themes = ['cartoon', 'dark', 'light', 'high-contrast', 'hacker', 'aurora', 'cyberpunk-cool'];
         themeToggle.addEventListener('click', () => {
-          let currentTheme = 'cyberpunk-cool';
-    localStorage.setItem('theme', 'cyberpunk-cool'); if (currentTheme === 'viper') { currentTheme = 'cyberpunk-cool'; localStorage.setItem('theme', 'cyberpunk-cool'); }
+          let currentTheme = localStorage.getItem('theme') || 'cyberpunk-cool'; if (currentTheme === 'viper') { currentTheme = 'cyberpunk-cool'; localStorage.setItem('theme', 'cyberpunk-cool'); }
           const currentIndex = themes.indexOf(currentTheme);
           const nextIndex = ((currentIndex === -1 ? 0 : currentIndex) + 1) % themes.length;
           const nextTheme = themes[nextIndex];

@@ -1062,6 +1062,21 @@
   /* ── Theme Toggle ──────────────────────────────────────────────────────── */
   const themeToggle = document.getElementById("theme-toggle");
   if (themeToggle) {
+    const themeLabels = {
+      cartoon: "Cartoon Theme",
+      dark: "Dark Theme",
+      light: "Light Theme",
+      "high-contrast": "High Contrast Theme",
+      hacker: "Hacker Theme",
+      aurora: "Aurora Theme",
+      "cyberpunk-cool": "Main Theme"
+    };
+    const setThemeLabel = (theme) => {
+      const label = themeLabels[theme] || themeLabels["cyberpunk-cool"];
+      themeToggle.setAttribute("aria-label", `Current theme: ${label}. Change theme`);
+      themeToggle.title = label;
+    };
+
     // Ensure the HTML attribute matches whatever the inline script set at load
     const initTheme = localStorage.getItem("theme") || "cyberpunk-cool";
     if (initTheme !== "dark") {
@@ -1069,6 +1084,7 @@
     } else {
       document.documentElement.removeAttribute("data-theme");
     }
+    setThemeLabel(initTheme);
 
     const themes = ['cartoon', 'dark', 'light', 'high-contrast', 'hacker', 'aurora', 'cyberpunk-cool'];
 
@@ -1084,6 +1100,7 @@
       } else {
         document.documentElement.setAttribute("data-theme", nextTheme);
       }
+      setThemeLabel(nextTheme);
     });
   }
 })();

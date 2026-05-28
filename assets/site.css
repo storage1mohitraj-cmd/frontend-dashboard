@@ -51,6 +51,18 @@ html {
   scroll-behavior: smooth;
 }
 
+@keyframes softRiseIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 14px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
 @keyframes pageFadeIn {
   from {
     opacity: 0;
@@ -67,6 +79,49 @@ main {
   animation: pageFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.feature-card,
+.showcase-card,
+.stats-grid article,
+.cta-card,
+.module-card,
+.command-card,
+.chat-room-side,
+.chat-room-main,
+.chat-member-panel,
+.chat-message {
+  animation: softRiseIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition:
+    transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.32s ease,
+    background-color 0.32s ease,
+    box-shadow 0.32s ease,
+    opacity 0.32s ease;
+}
+
+.feature-card:hover,
+.showcase-card:hover,
+.stats-grid article:hover,
+.module-card:hover,
+.command-card:hover {
+  transform: translateY(-4px);
+}
+
+.button,
+.ghost-link,
+.theme-toggle,
+button,
+input,
+textarea,
+select {
+  transition:
+    transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.22s ease,
+    background-color 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.22s ease,
+    opacity 0.22s ease;
+}
+
 body {
   margin: 0;
   background:
@@ -78,6 +133,17 @@ body {
   font-family: var(--font-body);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
 
 a {
@@ -6406,4 +6472,112 @@ body,
   border-color: rgba(148, 163, 184, 0.16) !important;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.94)) !important;
   box-shadow: 0 24px 70px -52px rgba(0, 0, 0, 0.95) !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-room-brand b,
+[data-theme="cyberpunk-cool"] .chat-room-user strong,
+[data-theme="cyberpunk-cool"] .global-chat-header b,
+[data-theme="cyberpunk-cool"] .chat-author,
+[data-theme="cyberpunk-cool"] .chat-room-topbar strong {
+  color: #f8fafc !important;
+  text-shadow: none !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-room-brand h1,
+[data-theme="cyberpunk-cool"] .chat-room-brand p,
+[data-theme="cyberpunk-cool"] .chat-room-user span,
+[data-theme="cyberpunk-cool"] .chat-room-topbar span,
+[data-theme="cyberpunk-cool"] .chat-content,
+[data-theme="cyberpunk-cool"] .chat-meta,
+[data-theme="cyberpunk-cool"] .chat-member-empty {
+  text-shadow: none !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-room-topbar,
+[data-theme="cyberpunk-cool"] .room-composer,
+[data-theme="cyberpunk-cool"] .room-reply-bar,
+[data-theme="cyberpunk-cool"] .chat-room-user,
+[data-theme="cyberpunk-cool"] .chat-admin-card,
+[data-theme="cyberpunk-cool"] .chat-profile-card,
+[data-theme="cyberpunk-cool"] .chat-member-search,
+[data-theme="cyberpunk-cool"] .chat-session-item,
+[data-theme="cyberpunk-cool"] .chat-member-item {
+  border-color: rgba(148, 163, 184, 0.14) !important;
+  background: rgba(15, 23, 42, 0.58) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-bubble,
+[data-theme="cyberpunk-cool"] .chat-room-messages .chat-bubble {
+  border-color: rgba(148, 163, 184, 0.16) !important;
+  background: rgba(30, 41, 59, 0.74) !important;
+  box-shadow: 0 18px 48px -34px rgba(0, 0, 0, 0.78) !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-message.is-self .chat-bubble {
+  border-color: rgba(71, 85, 105, 0.55) !important;
+  background: rgba(51, 65, 85, 0.88) !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-avatar,
+[data-theme="cyberpunk-cool"] .chat-active-avatar,
+[data-theme="cyberpunk-cool"] .chat-member-avatar,
+[data-theme="cyberpunk-cool"] .chat-session-icon,
+[data-theme="cyberpunk-cool"] .chat-profile-avatar {
+  border-color: rgba(148, 163, 184, 0.22) !important;
+  background: linear-gradient(145deg, rgba(51, 65, 85, 0.96), rgba(15, 23, 42, 0.96)) !important;
+  color: #e5e7eb !important;
+  box-shadow: none !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-icon-button,
+[data-theme="cyberpunk-cool"] .chat-room-refresh,
+[data-theme="cyberpunk-cool"] .chat-send-button,
+[data-theme="cyberpunk-cool"] .room-login button,
+[data-theme="cyberpunk-cool"] .room-login a,
+[data-theme="cyberpunk-cool"] .chat-admin-toggle,
+[data-theme="cyberpunk-cool"] .chat-admin-danger,
+[data-theme="cyberpunk-cool"] .chat-translate-button,
+[data-theme="cyberpunk-cool"] .chat-reply-button,
+[data-theme="cyberpunk-cool"] .chat-report-button {
+  border-color: rgba(148, 163, 184, 0.2) !important;
+  background: rgba(30, 41, 59, 0.78) !important;
+  color: #f8fafc !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-icon-button:hover,
+[data-theme="cyberpunk-cool"] .chat-room-refresh:hover,
+[data-theme="cyberpunk-cool"] .chat-send-button:hover,
+[data-theme="cyberpunk-cool"] .room-login button:hover,
+[data-theme="cyberpunk-cool"] .room-login a:hover,
+[data-theme="cyberpunk-cool"] .chat-admin-toggle:hover,
+[data-theme="cyberpunk-cool"] .chat-translate-button:hover,
+[data-theme="cyberpunk-cool"] .chat-reply-button:hover,
+[data-theme="cyberpunk-cool"] .chat-report-button:hover {
+  border-color: rgba(203, 213, 225, 0.28) !important;
+  background: rgba(51, 65, 85, 0.92) !important;
+  transform: translateY(-1px);
+}
+
+[data-theme="cyberpunk-cool"] .global-chat-form textarea,
+[data-theme="cyberpunk-cool"] .room-composer textarea,
+[data-theme="cyberpunk-cool"] .room-login input,
+[data-theme="cyberpunk-cool"] .chat-member-search input,
+[data-theme="cyberpunk-cool"] .chat-search-input {
+  border-color: rgba(148, 163, 184, 0.18) !important;
+  background: rgba(2, 6, 23, 0.68) !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-room-messages,
+[data-theme="cyberpunk-cool"] .global-chat-messages {
+  scrollbar-color: rgba(148, 163, 184, 0.36) transparent !important;
+}
+
+[data-theme="cyberpunk-cool"] .chat-loading span {
+  background: rgba(203, 213, 225, 0.72) !important;
+  box-shadow: none !important;
 }
